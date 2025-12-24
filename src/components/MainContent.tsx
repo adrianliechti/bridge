@@ -89,10 +89,14 @@ export function MainContent({ resource, namespace }: MainContentProps) {
       <DetailPanel 
         isOpen={isDetailPanelOpen} 
         onClose={() => setSelectedItem(null)} 
-        item={selectedItem}
-        resourceKind={title}
-        resourceConfig={resource}
-        namespace={namespace}
+        resource={selectedItem ? {
+          name: selectedItem.object.metadata.name,
+          namespace: selectedItem.object.metadata.namespace,
+          uid: selectedItem.object.metadata.uid,
+          resourceVersion: selectedItem.object.metadata.resourceVersion,
+          kind: resource.kind,
+          apiVersion: resource.group ? `${resource.group}/${resource.version}` : resource.version,
+        } : null}
       />
     </>
   );

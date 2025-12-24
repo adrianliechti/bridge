@@ -1,20 +1,35 @@
 import { X, Copy, Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import type { TableRow } from '../types/table';
-import { getResource, getResourceEvents, type CoreV1Event, type V1APIResource } from '../api/kubernetes';
+import type { V1ObjectReference } from '@kubernetes/client-node';
+import { getResource, getResourceEvents, type CoreV1Event } from '../api/kubernetes';
+import { getResourceConfig } from '../api/kubernetesDiscovery';
 import { getVisualizer } from './details/ResourceVisualizer';
 
 // Import visualizers to register them
 import './details/PodVisualizer';
 import './details/DeploymentVisualizer';
 
+// Mapping from kind to plural resource name for API lookup
+const kindToPlural: Record<string, string> = {
+  Pod: 'pods',
+  Deployment: 'deployments',
+  ReplicaSet: 'replicasets',
+  DaemonSet: 'daemonsets',
+  StatefulSet: 'statefulsets',
+  Job: 'jobs',
+  CronJob: 'cronjobs',
+  Service: 'services',
+  Ingress: 'ingresses',
+  PersistentVolume: 'persistentvolumes',
+  PersistentVolumeClaim: 'persistentvolumeclaims',
+  ConfigMap: 'configmaps',
+  Secret: 'secrets',
+};
+
 interface DetailPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  item: TableRow | null;
-  resourceKind: string;
-  resourceConfig: V1APIResource;
-  namespace?: string;
+  resource: V1ObjectReference | null;
 }
 
 // Format a value for display with syntax coloring
@@ -222,7 +237,7 @@ function filterHiddenMetadataFields(obj: Record<string, unknown>): Record<string
   };
 }
 
-export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfig, namespace }: DetailPanelProps) {
+export function DetailPanel({ isOpen, onClose, resource: resourceId }: DetailPanelProps) {
   const [copied, setCopied] = useState(false);
   const [fullObject, setFullObject] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -230,29 +245,44 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
   const [events, setEvents] = useState<CoreV1Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
 
-  // Fetch the full resource when item changes
+  // Fetch the resource config and full resource when resourceId changes
   useEffect(() => {
-    if (!item) {
+    if (!resourceId || !resourceId.name || !resourceId.kind) {
       setFullObject(null);
       setError(null);
       setEvents([]);
       return;
     }
 
-    const fetchFullResource = async () => {
+    const name = resourceId.name;
+    const ns = resourceId.namespace;
+    const kind = resourceId.kind;
+    const plural = kindToPlural[kind];
+
+    if (!plural) {
+      setError(`Unknown resource kind: ${kind}`);
+      return;
+    }
+
+    const fetchData = async () => {
       setLoading(true);
       setError(null);
+      
       try {
-        const resource = await getResource(
-          resourceConfig,
-          item.object.metadata.name,
-          item.object.metadata.namespace ?? namespace
-        );
+        // First get the resource config
+        const config = await getResourceConfig(plural);
+        if (!config) {
+          setError(`Could not find API config for ${kind}`);
+          setLoading(false);
+          return;
+        }
+
+        // Then fetch the full resource
+        const resource = await getResource(config, name, ns);
         setFullObject(resource);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch resource');
-        // Fall back to partial object from table
-        setFullObject(item.object as Record<string, unknown>);
+        setFullObject(null);
       } finally {
         setLoading(false);
       }
@@ -261,10 +291,7 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
     const fetchEvents = async () => {
       setEventsLoading(true);
       try {
-        const resourceEvents = await getResourceEvents(
-          item.object.metadata.name,
-          item.object.metadata.namespace ?? namespace
-        );
+        const resourceEvents = await getResourceEvents(name, ns);
         setEvents(resourceEvents);
       } catch (err) {
         console.error('Failed to fetch events:', err);
@@ -274,17 +301,18 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
       }
     };
 
-    fetchFullResource();
+    fetchData();
     fetchEvents();
-  }, [item, resourceConfig, namespace]);
+  }, [resourceId]);
 
-  if (!isOpen || !item) return null;
+  if (!isOpen || !resourceId || !resourceId.name) return null;
 
-  const rawObject = fullObject ?? (item.object as Record<string, unknown>);
+  const rawObject = fullObject;
   
   // Filter out hidden metadata fields for display
-  const displayObject = filterHiddenMetadataFields(rawObject);
-  const resourceName = item.object.metadata.name;
+  const displayObject = rawObject ? filterHiddenMetadataFields(rawObject) : null;
+  const resourceName = resourceId.name;
+  const resourceKind = resourceId.kind || 'Resource';
 
   const handleCopyYAML = async () => {
     try {
@@ -337,16 +365,18 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
           </div>
         )}
         {error && (
-          <div className="text-xs text-amber-600 dark:text-amber-400 mb-4">Using partial data: {error}</div>
+          <div className="text-xs text-red-600 dark:text-red-400 mb-4">{error}</div>
         )}
 
+        {displayObject && (
+          <>
         {/* Specialized Resource Visualizer */}
         {(() => {
           const Visualizer = getVisualizer(resourceKind);
           if (Visualizer && fullObject && !loading) {
             return (
               <CollapsibleSection title="Overview" defaultOpen>
-                <Visualizer resource={fullObject} namespace={namespace} />
+                <Visualizer resource={fullObject} namespace={resourceId.namespace} />
               </CollapsibleSection>
             );
           }
@@ -369,6 +399,8 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
             <ObjectTree data={displayObject.status as Record<string, unknown>} />
           </CollapsibleSection>
         ) : null}
+          </>
+        )}
 
         {/* Events Section */}
         <EventsSection events={events} loading={eventsLoading} />

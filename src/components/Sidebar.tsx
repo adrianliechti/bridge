@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   Hexagon,
+  Network,
   type LucideIcon,
 } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
@@ -75,10 +76,11 @@ const categoryLabels: Record<string, string> = {
 };
 
 interface SidebarProps {
-  selectedResource: V1APIResource;
-  onSelectResource: (resource: V1APIResource) => void;
+  selectedResource: V1APIResource | null;
+  onSelectResource: (resource: V1APIResource | null) => void;
   selectedNamespace: string | undefined;
   onSelectNamespace: (namespace: string | undefined) => void;
+  isOverviewSelected?: boolean;
 }
 
 export function Sidebar({
@@ -86,6 +88,7 @@ export function Sidebar({
   onSelectResource,
   selectedNamespace,
   onSelectNamespace,
+  isOverviewSelected,
 }: SidebarProps) {
   const { data: namespacesData } = useKubernetesQuery(() => getNamespaces(), []);
   const [builtInConfigs, setBuiltInConfigs] = useState<Map<string, V1APIResource>>(new Map());
@@ -160,13 +163,28 @@ export function Sidebar({
             namespaces={namespaces.map((ns) => ns.metadata?.name).filter((name): name is string => !!name)}
             selectedNamespace={selectedNamespace}
             onSelectNamespace={onSelectNamespace}
-            disabled={!selectedResource.namespaced}
+            disabled={selectedResource !== null && !selectedResource.namespaced}
           />
         </div>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 py-3 overflow-y-auto min-h-0">
+        {/* Overview */}
+        <div className="mb-4">
+          <button
+            className={`flex items-center w-full px-5 py-2.5 text-sm transition-colors ${
+              isOverviewSelected
+                ? 'bg-gray-200 text-gray-900 border-r-2 border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-400'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-200'
+            }`}
+            onClick={() => onSelectResource(null)}
+          >
+            <Network size={16} className="mr-3 shrink-0" />
+            <span className="font-medium">Overview</span>
+          </button>
+        </div>
+
         {/* Built-in resources */}
         {Object.entries(groupedBuiltIn).map(([category, items]) => (
           <div key={category} className="mb-2">
@@ -184,7 +202,7 @@ export function Sidebar({
                 {items.map((item) => {
                   const config = builtInConfigs.get(item.kind);
                   if (!config) return null;
-                  const isActive = isSameResource(config, selectedResource);
+                  const isActive = selectedResource !== null && isSameResource(config, selectedResource);
                   return (
                     <li key={item.kind}>
                       <button
@@ -230,7 +248,7 @@ export function Sidebar({
                     </div>
                     <ul>
                       {configs.map((config) => {
-                        const isActive = isSameResource(config, selectedResource);
+                        const isActive = selectedResource !== null && isSameResource(config, selectedResource);
                         return (
                           <li key={`${config.group || ''}/${config.name}`}>
                             <button
