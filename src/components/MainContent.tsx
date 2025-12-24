@@ -19,17 +19,23 @@ export function MainContent({ resource, namespace }: MainContentProps) {
   }, [resource]);
 
   return (
-    <main className="main-content">
-      <header className="content-header">
-        <div className="header-left">
-          <h2>{title}</h2>
+    <main className="flex-1 ml-64 flex flex-col min-h-screen">
+      <header className="flex items-center justify-between px-6 py-5 bg-gray-900 border-b border-gray-800">
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-semibold text-gray-100">{title}</h2>
           {resource.type === 'crd' && (
-            <span className="api-group-badge">{resource.config.group}</span>
+            <span className="px-3 py-1 rounded-full text-xs bg-gray-700/50 text-gray-400">
+              {resource.config.group}
+            </span>
           )}
-          {namespace && <span className="namespace-badge">Namespace: {namespace}</span>}
+          {namespace && (
+            <span className="px-3 py-1 rounded-full text-xs bg-gray-800 text-gray-400">
+              Namespace: {namespace}
+            </span>
+          )}
         </div>
       </header>
-      <section className="content-body">
+      <section className="flex-1 p-6 overflow-x-auto">
         <DynamicResourceTable
           config={config}
           namespace={namespace}

@@ -1,6 +1,31 @@
-/* Global reset */
-html, body, #root {
-  margin: 0;
-  padding: 0;
-  height: 100%;
+@import "tailwindcss";
+
+/* Custom scrollbar for gray theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: theme(colors.gray.900);
+}
+
+::-webkit-scrollbar-thumb {
+  background: theme(colors.gray.700);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: theme(colors.gray.600);
+}
+
+/* Custom animations */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }

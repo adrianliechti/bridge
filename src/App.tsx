@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Sidebar, type ResourceSelection } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
 import { builtinResource, preloadAPIResources } from './api/kubernetesTable';
-import './App.css';
 
 function App() {
   const [selectedResource, setSelectedResource] = useState<ResourceSelection>(builtinResource('pods'));
@@ -14,7 +13,7 @@ function App() {
   }, []);
 
   return (
-    <div className="app">
+    <div className="flex min-h-screen bg-gray-950 text-gray-100">
       <Sidebar
         selectedResource={selectedResource}
         onSelectResource={setSelectedResource}

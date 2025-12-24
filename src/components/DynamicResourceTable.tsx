@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
 import { getResourceTable, type ResourceConfig } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
@@ -57,21 +58,21 @@ function formatAge(timestamp: string): string {
 }
 
 // Get status badge variant based on cell content
-function getStatusVariant(value: string): 'success' | 'warning' | 'error' | 'info' | 'default' {
+function getStatusClasses(value: string): string {
   const lower = value.toLowerCase();
   if (['running', 'active', 'ready', 'available', 'bound', 'succeeded', 'complete', 'healthy', 'true'].includes(lower)) {
-    return 'success';
+    return 'bg-emerald-500/20 text-emerald-400';
   }
   if (['pending', 'creating', 'waiting', 'progressing', 'scheduled'].includes(lower)) {
-    return 'warning';
+    return 'bg-amber-500/20 text-amber-400';
   }
   if (['failed', 'error', 'crashloopbackoff', 'terminated', 'unknown', 'lost', 'false'].includes(lower)) {
-    return 'error';
+    return 'bg-red-500/20 text-red-400';
   }
   if (['terminating', 'released'].includes(lower)) {
-    return 'info';
+    return 'bg-cyan-500/20 text-cyan-400';
   }
-  return 'default';
+  return 'bg-gray-700 text-gray-400';
 }
 
 // Check if column likely contains status information
@@ -112,8 +113,8 @@ export function DynamicResourceTable({ config, namespace }: DynamicResourceTable
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner"></div>
+      <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-4">
+        <div className="w-8 h-8 border-3 border-gray-700 border-t-gray-400 rounded-full animate-spin" />
         <span>Loading {config.plural}...</span>
       </div>
     );
@@ -121,41 +122,51 @@ export function DynamicResourceTable({ config, namespace }: DynamicResourceTable
 
   if (error) {
     return (
-      <div className="error">
-        <span className="error-icon">⚠️</span>
+      <div className="flex items-center justify-center gap-3 py-12 px-6 bg-red-500/10 rounded-lg text-red-400">
+        <AlertTriangle size={20} />
         <span>Error: {error.message}</span>
-        <button onClick={refetch} className="retry-btn">Retry</button>
+        <button 
+          onClick={refetch} 
+          className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-gray-100 text-sm hover:bg-gray-700 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
   if (!data || data.rows.length === 0) {
     return (
-      <div className="empty">
+      <div className="flex items-center justify-center py-12 text-gray-500 bg-gray-900 rounded-lg border border-dashed border-gray-700">
         <span>No {config.plural} found</span>
       </div>
     );
   }
 
   return (
-    <div className="table-wrapper">
-      <div className="table-toolbar">
-        <span className="row-count">{data.rows.length} items</span>
-        <div className="column-filter-wrapper">
+    <div className="flex flex-col gap-3">
+      {/* Toolbar */}
+      <div className="flex justify-between items-center">
+        <span className="text-sm text-gray-500">{data.rows.length} items</span>
+        <div className="relative">
           <button 
-            className="column-filter-btn"
+            className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-md text-gray-400 text-sm hover:bg-gray-700 hover:border-gray-600 transition-colors"
             onClick={() => setShowColumnFilter(!showColumnFilter)}
           >
             Columns ({visibleColumns.length}/{allColumns.length})
           </button>
           {showColumnFilter && (
-            <div className="column-filter-dropdown">
+            <div className="absolute top-full right-0 mt-1 p-2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 min-w-45 max-h-75 overflow-y-auto">
               {allColumns.map((col) => (
-                <label key={col.name} className="column-filter-item">
+                <label 
+                  key={col.name} 
+                  className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded hover:bg-gray-800 text-sm text-gray-400"
+                >
                   <input
                     type="checkbox"
                     checked={!hiddenColumns.has(col.name.toLowerCase())}
                     onChange={() => toggleColumn(col.name)}
+                    className="w-3.5 h-3.5 accent-gray-500"
                   />
                   <span>{col.name}</span>
                 </label>
@@ -164,12 +175,18 @@ export function DynamicResourceTable({ config, namespace }: DynamicResourceTable
           )}
         </div>
       </div>
-      <div className="table-container">
-        <table className="resource-table">
+
+      {/* Table */}
+      <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+        <table className="w-full text-sm">
           <thead>
             <tr>
               {visibleColumns.map((col, idx) => (
-                <th key={idx} title={col.description}>
+                <th 
+                  key={idx} 
+                  title={col.description}
+                  className="text-left px-4 py-3 bg-gray-800 text-gray-500 text-xs font-semibold uppercase tracking-wide whitespace-nowrap"
+                >
                   {col.name}
                 </th>
               ))}
@@ -177,7 +194,7 @@ export function DynamicResourceTable({ config, namespace }: DynamicResourceTable
           </thead>
           <tbody>
             {data.rows.map((row: TableRow) => (
-              <tr key={row.object.metadata.uid}>
+              <tr key={row.object.metadata.uid} className="hover:bg-gray-800/50 transition-colors">
                 {visibleColumns.map((col, idx) => {
                   const cellIndex = data.columnDefinitions.findIndex(
                     (c) => c.name === col.name
@@ -188,15 +205,19 @@ export function DynamicResourceTable({ config, namespace }: DynamicResourceTable
                   // Render status columns with badges
                   if (isStatusColumn(col)) {
                     return (
-                      <td key={idx}>
-                        <span className={`status-badge status-${getStatusVariant(formatted)}`}>
+                      <td key={idx} className="px-4 py-3 border-t border-gray-800 whitespace-nowrap">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusClasses(formatted)}`}>
                           {formatted}
                         </span>
                       </td>
                     );
                   }
 
-                  return <td key={idx}>{formatted}</td>;
+                  return (
+                    <td key={idx} className="px-4 py-3 border-t border-gray-800 text-gray-100 whitespace-nowrap">
+                      {formatted}
+                    </td>
+                  );
                 })}
               </tr>
             ))}
