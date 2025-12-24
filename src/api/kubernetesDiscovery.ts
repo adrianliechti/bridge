@@ -10,7 +10,7 @@ import type {
 } from '@kubernetes/client-node';
 import { fetchApi } from './kubernetes';
 
-// Discovery cache
+// Discovery cache - maps plural, singular, and short names to resource config
 let discoveryCache: Map<string, V1APIResource> | null = null;
 let discoveryPromise: Promise<Map<string, V1APIResource>> | null = null;
 
@@ -19,6 +19,24 @@ export function getApiBase(resource: V1APIResource): string {
   const group = resource.group || '';
   const version = resource.version || 'v1';
   return group ? `/apis/${group}/${version}` : '/api/v1';
+}
+
+// Add a resource to the map with all its name variations
+function addResourceToMap(map: Map<string, V1APIResource>, resource: V1APIResource): void {
+  // Add by plural name (primary key)
+  map.set(resource.name, resource);
+  
+  // Add by singular name if available
+  if (resource.singularName) {
+    map.set(resource.singularName, resource);
+  }
+  
+  // Add by short names if available
+  if (resource.shortNames) {
+    for (const shortName of resource.shortNames) {
+      map.set(shortName, resource);
+    }
+  }
 }
 
 // Discover all API resources from the cluster
@@ -43,11 +61,12 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
         // Skip subresources (they contain '/')
         if (resource.name.includes('/')) continue;
         
-        resourceMap.set(resource.name, {
+        const enrichedResource = {
           ...resource,
           group: '',
           version: 'v1',
-        });
+        };
+        addResourceToMap(resourceMap, enrichedResource);
       }
     } catch (e) {
       console.warn('Failed to fetch core v1 resources:', e);
@@ -71,11 +90,12 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
               // Skip subresources
               if (resource.name.includes('/')) continue;
 
-              resourceMap.set(resource.name, {
+              const enrichedResource = {
                 ...resource,
                 group: resource.group || group.name,
                 version: resource.version || preferredVersion,
-              });
+              };
+              addResourceToMap(resourceMap, enrichedResource);
             }
           } catch (e) {
             console.warn(`Failed to fetch resources for ${apiBase}:`, e);
@@ -98,6 +118,44 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
 export async function getResourceConfig(plural: string): Promise<V1APIResource | undefined> {
   const resources = await discoverResources();
   return resources.get(plural);
+}
+
+// Get resource config by kind name
+export async function getResourceConfigByKind(kind: string, apiVersion?: string): Promise<V1APIResource | undefined> {
+  const resources = await discoverResources();
+  
+  // Parse apiVersion to get group (e.g., "apps/v1" -> "apps", "v1" -> "")
+  let targetGroup = '';
+  if (apiVersion && apiVersion.includes('/')) {
+    targetGroup = apiVersion.split('/')[0];
+  }
+  
+  // Search through all resources to find matching kind
+  for (const resource of resources.values()) {
+    if (resource.kind === kind) {
+      // If apiVersion specified, match the group
+      if (apiVersion) {
+        const resourceGroup = resource.group || '';
+        if (resourceGroup === targetGroup) {
+          return resource;
+        }
+      } else {
+        // No apiVersion specified, return first match
+        return resource;
+      }
+    }
+  }
+  
+  // If no exact group match found but we have apiVersion, try without group matching
+  if (apiVersion) {
+    for (const resource of resources.values()) {
+      if (resource.kind === kind) {
+        return resource;
+      }
+    }
+  }
+  
+  return undefined;
 }
 
 // Preload discovery (call on app startup)

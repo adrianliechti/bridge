@@ -40,9 +40,12 @@ export function MainContent({ resource, namespace }: MainContentProps) {
 
   const isDetailPanelOpen = selectedItem !== null;
 
+  // Determine right margin based on which panel is open (detail panel takes precedence as it's wider)
+  const rightMarginClass = isDetailPanelOpen ? 'mr-120' : isAIPanelOpen ? 'mr-[32rem]' : '';
+
   return (
     <>
-      <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${isAIPanelOpen ? 'mr-96' : ''} ${isDetailPanelOpen ? 'mr-120' : ''}`}>
+      <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${rightMarginClass}`}>
         <header className="shrink-0 h-16 flex items-center justify-between px-5 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h2>

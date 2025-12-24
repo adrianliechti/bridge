@@ -126,7 +126,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
 
   return (
     <div
-      className={`fixed top-0 right-0 h-screen w-96 bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col transition-all duration-300 ease-in-out ${
+      className={`fixed top-0 right-0 h-screen w-lg bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col transition-all duration-300 ease-in-out ${
         isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
       }`}
     >

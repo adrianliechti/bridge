@@ -57,6 +57,12 @@ const builtInNavItems: BuiltInNavItem[] = [
   // Network
   { kind: 'services', label: 'Services', icon: Plug, category: 'network' },
   { kind: 'ingresses', label: 'Ingresses', icon: Globe, category: 'network' },
+  { kind: 'gateways', label: 'Gateways', icon: Network, category: 'network' },
+  { kind: 'httproutes', label: 'HTTPRoutes', icon: Globe, category: 'network' },
+  { kind: 'grpcroutes', label: 'GRPCRoutes', icon: Globe, category: 'network' },
+  { kind: 'tcproutes', label: 'TCPRoutes', icon: Network, category: 'network' },
+  { kind: 'udproutes', label: 'UDPRoutes', icon: Network, category: 'network' },
+  { kind: 'tlsroutes', label: 'TLSRoutes', icon: Network, category: 'network' },
   // Storage
   { kind: 'persistentvolumes', label: 'PersistentVolumes', icon: HardDrive, category: 'storage' },
   { kind: 'persistentvolumeclaims', label: 'PersistentVolumeClaims', icon: Disc, category: 'storage' },
@@ -154,6 +160,13 @@ export function Sidebar({
     return acc;
   }, {} as Record<string, V1APIResource[]>);
 
+  // Sort CRD groups by reversed domain (e.g., pkg.crossplane.io -> io.crossplane.pkg)
+  const sortedCRDGroups = Object.entries(groupedCRDs).sort(([a], [b]) => {
+    const reverseA = a.split('.').reverse().join('.');
+    const reverseB = b.split('.').reverse().join('.');
+    return reverseA.localeCompare(reverseB);
+  });
+
   return (
     <aside className="w-64 bg-white border-r border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col fixed top-0 left-0 bottom-0">
       {/* Header with Namespace Selector */}
@@ -241,7 +254,7 @@ export function Sidebar({
             </button>
             {expandedCategories['crd'] && (
               <div className="mt-1">
-                {Object.entries(groupedCRDs).map(([group, configs]) => (
+                {sortedCRDGroups.map(([group, configs]) => (
                   <div key={group} className="mb-2">
                     <div className="px-5 pl-7 py-1 text-[10px] text-gray-500 truncate lowercase dark:text-gray-600" title={group}>
                       {group}

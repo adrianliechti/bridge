@@ -2,29 +2,12 @@ import { X, Copy, Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react
 import { useState, useEffect } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, type CoreV1Event } from '../api/kubernetes';
-import { getResourceConfig } from '../api/kubernetesDiscovery';
+import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
 import { getVisualizer } from './details/ResourceVisualizer';
 
 // Import visualizers to register them
 import './details/PodVisualizer';
 import './details/DeploymentVisualizer';
-
-// Mapping from kind to plural resource name for API lookup
-const kindToPlural: Record<string, string> = {
-  Pod: 'pods',
-  Deployment: 'deployments',
-  ReplicaSet: 'replicasets',
-  DaemonSet: 'daemonsets',
-  StatefulSet: 'statefulsets',
-  Job: 'jobs',
-  CronJob: 'cronjobs',
-  Service: 'services',
-  Ingress: 'ingresses',
-  PersistentVolume: 'persistentvolumes',
-  PersistentVolumeClaim: 'persistentvolumeclaims',
-  ConfigMap: 'configmaps',
-  Secret: 'secrets',
-};
 
 interface DetailPanelProps {
   isOpen: boolean;
@@ -257,22 +240,17 @@ export function DetailPanel({ isOpen, onClose, resource: resourceId }: DetailPan
     const name = resourceId.name;
     const ns = resourceId.namespace;
     const kind = resourceId.kind;
-    const plural = kindToPlural[kind];
-
-    if (!plural) {
-      setError(`Unknown resource kind: ${kind}`);
-      return;
-    }
+    const apiVersion = resourceId.apiVersion;
 
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        // First get the resource config
-        const config = await getResourceConfig(plural);
+        // Get the resource config by kind using discovery API
+        const config = await getResourceConfigByKind(kind, apiVersion);
         if (!config) {
-          setError(`Could not find API config for ${kind}`);
+          setError(`Unknown resource kind: ${kind}`);
           setLoading(false);
           return;
         }

@@ -62,7 +62,7 @@ export const kubernetesTools: Tool[] = [
       properties: {
         resource: {
           type: 'string',
-          description: 'The type of resource to list (e.g., pods, deployments, services, configmaps, secrets, ingresses, jobs, cronjobs, daemonsets, statefulsets, replicasets, nodes, namespaces, persistentvolumes, persistentvolumeclaims, events)',
+          description: 'The type of resource to list (e.g., pods, deployments, services, configmaps, secrets, ingresses, gateways, httproutes, grpcroutes, tcproutes, udproutes, tlsroutes, jobs, cronjobs, daemonsets, statefulsets, replicasets, nodes, namespaces, persistentvolumes, persistentvolumeclaims, events)',
         },
         namespace: {
           type: 'string',
@@ -155,69 +155,17 @@ function toOpenAITools(tools: Tool[]): OpenAI.Responses.Tool[] {
   }));
 }
 
-// Kubernetes API resource paths
-const RESOURCE_PATHS: Record<string, { apiBase: string; namespaced: boolean }> = {
-  pods: { apiBase: '/api/v1', namespaced: true },
-  pod: { apiBase: '/api/v1', namespaced: true },
-  services: { apiBase: '/api/v1', namespaced: true },
-  service: { apiBase: '/api/v1', namespaced: true },
-  configmaps: { apiBase: '/api/v1', namespaced: true },
-  configmap: { apiBase: '/api/v1', namespaced: true },
-  secrets: { apiBase: '/api/v1', namespaced: true },
-  secret: { apiBase: '/api/v1', namespaced: true },
-  namespaces: { apiBase: '/api/v1', namespaced: false },
-  namespace: { apiBase: '/api/v1', namespaced: false },
-  nodes: { apiBase: '/api/v1', namespaced: false },
-  node: { apiBase: '/api/v1', namespaced: false },
-  persistentvolumes: { apiBase: '/api/v1', namespaced: false },
-  persistentvolume: { apiBase: '/api/v1', namespaced: false },
-  persistentvolumeclaims: { apiBase: '/api/v1', namespaced: true },
-  persistentvolumeclaim: { apiBase: '/api/v1', namespaced: true },
-  events: { apiBase: '/api/v1', namespaced: true },
-  event: { apiBase: '/api/v1', namespaced: true },
-  deployments: { apiBase: '/apis/apps/v1', namespaced: true },
-  deployment: { apiBase: '/apis/apps/v1', namespaced: true },
-  replicasets: { apiBase: '/apis/apps/v1', namespaced: true },
-  replicaset: { apiBase: '/apis/apps/v1', namespaced: true },
-  daemonsets: { apiBase: '/apis/apps/v1', namespaced: true },
-  daemonset: { apiBase: '/apis/apps/v1', namespaced: true },
-  statefulsets: { apiBase: '/apis/apps/v1', namespaced: true },
-  statefulset: { apiBase: '/apis/apps/v1', namespaced: true },
-  jobs: { apiBase: '/apis/batch/v1', namespaced: true },
-  job: { apiBase: '/apis/batch/v1', namespaced: true },
-  cronjobs: { apiBase: '/apis/batch/v1', namespaced: true },
-  cronjob: { apiBase: '/apis/batch/v1', namespaced: true },
-  ingresses: { apiBase: '/apis/networking.k8s.io/v1', namespaced: true },
-  ingress: { apiBase: '/apis/networking.k8s.io/v1', namespaced: true },
-};
+import { getResourceConfig, getApiBase } from './kubernetesDiscovery';
+import type { V1APIResource } from '@kubernetes/client-node';
 
-// Normalize resource name to plural form
-function normalizeResourceName(resource: string): string {
-  const singular = resource.toLowerCase();
-  // If already plural (ends with 's' and not 'ss'), return as-is
-  if (singular.endsWith('s') && !singular.endsWith('ss')) {
-    return singular;
+// Get resource config from discovery API (supports plural, singular, and short names)
+async function getResourceConfigForName(resourceName: string): Promise<{ config: V1APIResource; plural: string } | null> {
+  const name = resourceName.toLowerCase();
+  const config = await getResourceConfig(name);
+  if (config) {
+    return { config, plural: config.name };
   }
-  // Convert singular to plural
-  const pluralMap: Record<string, string> = {
-    pod: 'pods',
-    service: 'services',
-    configmap: 'configmaps',
-    secret: 'secrets',
-    namespace: 'namespaces',
-    node: 'nodes',
-    persistentvolume: 'persistentvolumes',
-    persistentvolumeclaim: 'persistentvolumeclaims',
-    event: 'events',
-    deployment: 'deployments',
-    replicaset: 'replicasets',
-    daemonset: 'daemonsets',
-    statefulset: 'statefulsets',
-    job: 'jobs',
-    cronjob: 'cronjobs',
-    ingress: 'ingresses',
-  };
-  return pluralMap[singular] || singular + 's';
+  return null;
 }
 
 // Execute Kubernetes tool calls
@@ -227,17 +175,18 @@ async function executeKubernetes(
 ): Promise<unknown> {
   switch (toolName) {
     case 'list_resources': {
-      const resourceName = normalizeResourceName(args.resource);
-      const config = RESOURCE_PATHS[resourceName];
-      if (!config) {
+      const result = await getResourceConfigForName(args.resource);
+      if (!result) {
         return { error: `Unknown resource type: ${args.resource}` };
       }
+      const { config, plural: resourceName } = result;
 
+      const apiBase = getApiBase(config);
       let url: string;
       if (config.namespaced && args.namespace && args.namespace !== 'all') {
-        url = `${config.apiBase}/namespaces/${args.namespace}/${resourceName}`;
+        url = `${apiBase}/namespaces/${args.namespace}/${resourceName}`;
       } else {
-        url = `${config.apiBase}/${resourceName}`;
+        url = `${apiBase}/${resourceName}`;
       }
 
       const response = await fetch(url);
@@ -259,17 +208,18 @@ async function executeKubernetes(
     }
 
     case 'get_resource': {
-      const resourceName = normalizeResourceName(args.resource);
-      const config = RESOURCE_PATHS[resourceName];
-      if (!config) {
+      const result = await getResourceConfigForName(args.resource);
+      if (!result) {
         return { error: `Unknown resource type: ${args.resource}` };
       }
+      const { config, plural: resourceName } = result;
 
+      const apiBase = getApiBase(config);
       let url: string;
       if (config.namespaced && args.namespace) {
-        url = `${config.apiBase}/namespaces/${args.namespace}/${resourceName}/${args.name}`;
+        url = `${apiBase}/namespaces/${args.namespace}/${resourceName}/${args.name}`;
       } else {
-        url = `${config.apiBase}/${resourceName}/${args.name}`;
+        url = `${apiBase}/${resourceName}/${args.name}`;
       }
 
       const response = await fetch(url);
@@ -295,18 +245,19 @@ async function executeKubernetes(
     }
 
     case 'describe_resource': {
-      const resourceName = normalizeResourceName(args.resource);
-      const config = RESOURCE_PATHS[resourceName];
-      if (!config) {
+      const result = await getResourceConfigForName(args.resource);
+      if (!result) {
         return { error: `Unknown resource type: ${args.resource}` };
       }
+      const { config, plural: resourceName } = result;
 
       // Get the resource details
+      const apiBase = getApiBase(config);
       let url: string;
       if (config.namespaced && args.namespace) {
-        url = `${config.apiBase}/namespaces/${args.namespace}/${resourceName}/${args.name}`;
+        url = `${apiBase}/namespaces/${args.namespace}/${resourceName}/${args.name}`;
       } else {
-        url = `${config.apiBase}/${resourceName}/${args.name}`;
+        url = `${apiBase}/${resourceName}/${args.name}`;
       }
 
       const resourceResponse = await fetch(url);
