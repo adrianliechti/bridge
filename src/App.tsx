@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { Sidebar, type ResourceType } from './components/Sidebar';
+import { useState, useEffect } from 'react';
+import { Sidebar, type ResourceSelection } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
+import { builtinResource, preloadAPIResources } from './api/kubernetesTable';
 import './App.css';
 
 function App() {
-  const [selectedResource, setSelectedResource] = useState<ResourceType>('pods');
+  const [selectedResource, setSelectedResource] = useState<ResourceSelection>(builtinResource('pods'));
   const [selectedNamespace, setSelectedNamespace] = useState<string | undefined>(undefined);
+
+  // Preload API resource discovery for proper display names
+  useEffect(() => {
+    preloadAPIResources();
+  }, []);
 
   return (
     <div className="app">
@@ -15,7 +21,7 @@ function App() {
         selectedNamespace={selectedNamespace}
         onSelectNamespace={setSelectedNamespace}
       />
-      <MainContent resourceType={selectedResource} namespace={selectedNamespace} />
+      <MainContent resource={selectedResource} namespace={selectedNamespace} />
     </div>
   );
 }
