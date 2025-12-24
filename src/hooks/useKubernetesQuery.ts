@@ -26,6 +26,7 @@ export function useKubernetesQuery<T>(
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchFn, ...deps]);
 
   useEffect(() => {

@@ -7,6 +7,11 @@ function App() {
   const [selectedResource, setSelectedResource] = useState<ResourceSelection>(builtinResource('pods'));
   const [selectedNamespace, setSelectedNamespace] = useState<string | undefined>(undefined);
 
+  // Create a key for MainContent to force remount when resource changes
+  const resourceKey = selectedResource.type === 'builtin' 
+    ? selectedResource.kind 
+    : `${selectedResource.config.group}/${selectedResource.config.plural}`;
+
   // Preload API resource discovery for proper display names
   useEffect(() => {
     preloadAPIResources();
@@ -20,7 +25,7 @@ function App() {
         selectedNamespace={selectedNamespace}
         onSelectNamespace={setSelectedNamespace}
       />
-      <MainContent resource={selectedResource} namespace={selectedNamespace} />
+      <MainContent key={resourceKey} resource={selectedResource} namespace={selectedNamespace} />
     </div>
   );
 }

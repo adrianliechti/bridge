@@ -1,22 +1,20 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 // Columns that are hidden by default
-const DEFAULT_HIDDEN_COLUMNS = new Set([
+const DEFAULT_HIDDEN_COLUMNS = [
   'selector',
   'containers',
   'images',
   'labels',
   'annotations',
-]);
+  'nominated node',
+  'readiness gates',
+];
 
 // Hook for managing column visibility
-export function useColumnVisibility(resetKey?: string) {
+// To reset state when resource changes, use key prop on the component using this hook
+export function useColumnVisibility() {
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => new Set(DEFAULT_HIDDEN_COLUMNS));
-
-  // Reset to defaults when resetKey changes
-  useEffect(() => {
-    setHiddenColumns(new Set(DEFAULT_HIDDEN_COLUMNS));
-  }, [resetKey]);
 
   const toggleColumn = useCallback((columnName: string) => {
     const key = columnName.toLowerCase();

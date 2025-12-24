@@ -16,20 +16,10 @@ export function MainContent({ resource, namespace }: MainContentProps) {
   const [title, setTitle] = useState(() => getResourceDisplayNameSync(resource));
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   
-  // Create a key to reset column visibility when resource changes
-  const resourceKey = resource.type === 'builtin' 
-    ? resource.kind 
-    : `${resource.config.group}/${resource.config.plural}`;
-  
-  const { hiddenColumns, toggleColumn } = useColumnVisibility(resourceKey);
+  const { hiddenColumns, toggleColumn } = useColumnVisibility();
 
   useEffect(() => {
     getResourceDisplayName(resource).then(setTitle);
-  }, [resource]);
-
-  // Reset columns when resource changes
-  useEffect(() => {
-    setColumns([]);
   }, [resource]);
 
   const handleColumnsLoaded = useCallback((cols: TableColumnDefinition[]) => {
