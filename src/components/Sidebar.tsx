@@ -154,22 +154,16 @@ export function Sidebar({
 
   return (
     <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col fixed top-0 left-0 bottom-0">
-      {/* Header */}
-      <div className="shrink-0 h-16 px-5 flex items-center border-b border-gray-800">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-gray-100">
-          <Hexagon size={24} className="text-gray-400" />
-          Loop Dashboard
-        </h1>
-      </div>
-
-      {/* Namespace Selector */}
-      <div className="shrink-0 px-5 py-4 border-b border-gray-800">
-        <NamespaceSelector
-          namespaces={namespaces.map((ns) => ns.metadata.name)}
-          selectedNamespace={selectedNamespace}
-          onSelectNamespace={onSelectNamespace}
-          disabled={!currentResourceConfig.namespaced}
-        />
+      {/* Header with Namespace Selector */}
+      <div className="shrink-0 h-16 px-4 flex items-center border-b border-gray-800">
+        <div className="flex-1">
+          <NamespaceSelector
+            namespaces={namespaces.map((ns) => ns.metadata.name)}
+            selectedNamespace={selectedNamespace}
+            onSelectNamespace={onSelectNamespace}
+            disabled={!currentResourceConfig.namespaced}
+          />
+        </div>
       </div>
 
       {/* Navigation */}
