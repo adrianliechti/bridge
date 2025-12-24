@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Prevent Safari overscroll bounce */
+html, body {
+  overscroll-behavior: none;
+  overflow: hidden;
+  height: 100%;
+}
+
+#root {
+  height: 100%;
+}
+
 /* Custom scrollbar for gray theme */
 ::-webkit-scrollbar {
   width: 8px;

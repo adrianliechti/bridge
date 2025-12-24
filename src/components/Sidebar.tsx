@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
 import { getNamespaces } from '../api/kubernetes';
+import { NamespaceSelector } from './NamespaceSelector';
 import {
   type BuiltInResourceKind,
   type ResourceSelection,
@@ -152,9 +153,9 @@ export function Sidebar({
   }, {} as Record<string, CRDResourceConfig[]>);
 
   return (
-    <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col fixed top-0 left-0 bottom-0 overflow-y-auto">
+    <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col fixed top-0 left-0 bottom-0">
       {/* Header */}
-      <div className="p-5 border-b border-gray-800">
+      <div className="shrink-0 h-16 px-5 flex items-center border-b border-gray-800">
         <h1 className="flex items-center gap-2 text-xl font-semibold text-gray-100">
           <Hexagon size={24} className="text-gray-400" />
           Loop Dashboard
@@ -162,28 +163,17 @@ export function Sidebar({
       </div>
 
       {/* Namespace Selector */}
-      <div className="px-5 py-4 border-b border-gray-800">
-        <label htmlFor="namespace-select" className="block text-xs uppercase text-gray-500 mb-2 tracking-wide">
-          Namespace
-        </label>
-        <select
-          id="namespace-select"
-          value={selectedNamespace || ''}
-          onChange={(e) => onSelectNamespace(e.target.value || undefined)}
+      <div className="shrink-0 px-5 py-4 border-b border-gray-800">
+        <NamespaceSelector
+          namespaces={namespaces.map((ns) => ns.metadata.name)}
+          selectedNamespace={selectedNamespace}
+          onSelectNamespace={onSelectNamespace}
           disabled={!currentResourceConfig.namespaced}
-          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-gray-100 text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-600"
-        >
-          <option value="">All Namespaces</option>
-          {namespaces.map((ns) => (
-            <option key={ns.metadata.uid} value={ns.metadata.name}>
-              {ns.metadata.name}
-            </option>
-          ))}
-        </select>
+        />
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-3">
+      <nav className="flex-1 py-3 overflow-y-auto min-h-0">
         {/* Built-in resources */}
         {Object.entries(groupedBuiltIn).map(([category, items]) => (
           <div key={category} className="mb-2">

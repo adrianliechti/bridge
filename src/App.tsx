@@ -13,7 +13,7 @@ function App() {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-950 text-gray-100">
+    <div className="flex h-screen overflow-hidden bg-gray-950 text-gray-100">
       <Sidebar
         selectedResource={selectedResource}
         onSelectResource={setSelectedResource}

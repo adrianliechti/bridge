@@ -1,22 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
 import { getResourceTable, type ResourceConfig } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
-
-interface DynamicResourceTableProps {
-  config: ResourceConfig;
-  namespace?: string;
-}
-
-// Columns that are hidden by default (can be shown via column filter)
-const DEFAULT_HIDDEN_COLUMNS = new Set([
-  'selector',
-  'containers',
-  'images',
-  'labels',
-  'annotations',
-]);
 
 // Format cell value based on column type
 function formatCell(value: unknown, column: TableColumnDefinition): string {
@@ -24,7 +10,6 @@ function formatCell(value: unknown, column: TableColumnDefinition): string {
     return '<none>';
   }
 
-  // Handle different formats
   if (column.format === 'date-time' && typeof value === 'string') {
     return formatAge(value);
   }
@@ -57,7 +42,7 @@ function formatAge(timestamp: string): string {
   return `${seconds}s`;
 }
 
-// Get status badge variant based on cell content
+// Get status badge classes based on cell content
 function getStatusClasses(value: string): string {
   const lower = value.toLowerCase();
   if (['running', 'active', 'ready', 'available', 'bound', 'succeeded', 'complete', 'healthy', 'true'].includes(lower)) {
@@ -81,35 +66,36 @@ function isStatusColumn(column: TableColumnDefinition): boolean {
   return name === 'status' || name === 'phase' || name === 'ready' || name === 'condition';
 }
 
-export function DynamicResourceTable({ config, namespace }: DynamicResourceTableProps) {
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => new Set(DEFAULT_HIDDEN_COLUMNS));
-  const [showColumnFilter, setShowColumnFilter] = useState(false);
-  
+interface DynamicResourceTableProps {
+  config: ResourceConfig;
+  namespace?: string;
+  hiddenColumns: Set<string>;
+  onColumnsLoaded?: (columns: TableColumnDefinition[]) => void;
+}
+
+export function DynamicResourceTable({ 
+  config, 
+  namespace, 
+  hiddenColumns,
+  onColumnsLoaded 
+}: DynamicResourceTableProps) {
   const { data, loading, error, refetch } = useKubernetesQuery(
     () => getResourceTable(config, namespace),
     [config, namespace]
   );
 
-  // Get all available columns and filter visible ones
-  const { allColumns, visibleColumns } = useMemo(() => {
-    if (!data) return { allColumns: [], visibleColumns: [] };
-    const all = data.columnDefinitions;
-    const visible = all.filter((col) => !hiddenColumns.has(col.name.toLowerCase()));
-    return { allColumns: all, visibleColumns: visible };
+  // Get visible columns
+  const visibleColumns = useMemo(() => {
+    if (!data) return [];
+    return data.columnDefinitions.filter((col) => !hiddenColumns.has(col.name.toLowerCase()));
   }, [data, hiddenColumns]);
 
-  const toggleColumn = (columnName: string) => {
-    const key = columnName.toLowerCase();
-    setHiddenColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  };
+  // Notify parent of columns when data loads
+  useMemo(() => {
+    if (data && onColumnsLoaded) {
+      onColumnsLoaded(data.columnDefinitions);
+    }
+  }, [data, onColumnsLoaded]);
 
   if (loading) {
     return (
@@ -144,86 +130,51 @@ export function DynamicResourceTable({ config, namespace }: DynamicResourceTable
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Toolbar */}
-      <div className="flex justify-between items-center">
-        <span className="text-sm text-gray-500">{data.rows.length} items</span>
-        <div className="relative">
-          <button 
-            className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-md text-gray-400 text-sm hover:bg-gray-700 hover:border-gray-600 transition-colors"
-            onClick={() => setShowColumnFilter(!showColumnFilter)}
-          >
-            Columns ({visibleColumns.length}/{allColumns.length})
-          </button>
-          {showColumnFilter && (
-            <div className="absolute top-full right-0 mt-1 p-2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 min-w-45 max-h-75 overflow-y-auto">
-              {allColumns.map((col) => (
-                <label 
-                  key={col.name} 
-                  className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded hover:bg-gray-800 text-sm text-gray-400"
-                >
-                  <input
-                    type="checkbox"
-                    checked={!hiddenColumns.has(col.name.toLowerCase())}
-                    onChange={() => toggleColumn(col.name)}
-                    className="w-3.5 h-3.5 accent-gray-500"
-                  />
-                  <span>{col.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="bg-gray-900 rounded-lg border border-gray-800">
+      <table className="text-sm">
+        <thead>
+          <tr>
+            {visibleColumns.map((col, idx) => (
+              <th 
+                key={idx} 
+                title={col.description}
+                className="text-left px-4 py-2 bg-gray-800 text-gray-500 text-[11px] font-medium uppercase tracking-wider whitespace-nowrap"
+              >
+                {col.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.rows.map((row: TableRow) => (
+            <tr key={row.object.metadata.uid} className="hover:bg-gray-800/50 transition-colors">
+              {visibleColumns.map((col, idx) => {
+                const cellIndex = data.columnDefinitions.findIndex(
+                  (c) => c.name === col.name
+                );
+                const cellValue = row.cells[cellIndex];
+                const formatted = formatCell(cellValue, col);
 
-      {/* Table */}
-      <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr>
-              {visibleColumns.map((col, idx) => (
-                <th 
-                  key={idx} 
-                  title={col.description}
-                  className="text-left px-4 py-3 bg-gray-800 text-gray-500 text-xs font-semibold uppercase tracking-wide whitespace-nowrap"
-                >
-                  {col.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.rows.map((row: TableRow) => (
-              <tr key={row.object.metadata.uid} className="hover:bg-gray-800/50 transition-colors">
-                {visibleColumns.map((col, idx) => {
-                  const cellIndex = data.columnDefinitions.findIndex(
-                    (c) => c.name === col.name
-                  );
-                  const cellValue = row.cells[cellIndex];
-                  const formatted = formatCell(cellValue, col);
-
-                  // Render status columns with badges
-                  if (isStatusColumn(col)) {
-                    return (
-                      <td key={idx} className="px-4 py-3 border-t border-gray-800 whitespace-nowrap">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusClasses(formatted)}`}>
-                          {formatted}
-                        </span>
-                      </td>
-                    );
-                  }
-
+                if (isStatusColumn(col)) {
                   return (
-                    <td key={idx} className="px-4 py-3 border-t border-gray-800 text-gray-100 whitespace-nowrap">
-                      {formatted}
+                    <td key={idx} className="px-4 py-3 border-t border-gray-800 whitespace-nowrap">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusClasses(formatted)}`}>
+                        {formatted}
+                      </span>
                     </td>
                   );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                }
+
+                return (
+                  <td key={idx} className="px-4 py-3 border-t border-gray-800 text-gray-100 whitespace-nowrap">
+                    {formatted}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
