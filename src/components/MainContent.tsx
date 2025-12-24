@@ -43,11 +43,11 @@ export function MainContent({ resource, namespace }: MainContentProps) {
   return (
     <>
       <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${isAIPanelOpen ? 'mr-96' : ''} ${isDetailPanelOpen ? 'mr-120' : ''}`}>
-        <header className="shrink-0 h-16 flex items-center justify-between px-5 bg-gray-900 border-b border-gray-800">
+        <header className="shrink-0 h-16 flex items-center justify-between px-5 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
             {namespace && (
-              <span className="px-3 py-1 rounded-full text-xs bg-gray-800 text-gray-400">
+              <span className="px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
                 Namespace: {namespace}
               </span>
             )}
@@ -63,8 +63,8 @@ export function MainContent({ resource, namespace }: MainContentProps) {
               onClick={() => setIsAIPanelOpen(!isAIPanelOpen)}
               className={`p-2 rounded-md transition-colors ${
                 isAIPanelOpen 
-                  ? 'text-sky-400 hover:text-sky-300 hover:bg-gray-800' 
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                  ? 'text-sky-400 hover:text-sky-300 hover:bg-gray-100 dark:hover:bg-gray-800' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800'
               }`}
               title="AI Assistant"
             >

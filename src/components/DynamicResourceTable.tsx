@@ -57,7 +57,7 @@ function getStatusClasses(value: string): string {
   if (['terminating', 'released'].includes(lower)) {
     return 'bg-cyan-500/20 text-cyan-400';
   }
-  return 'bg-gray-700 text-gray-400';
+  return 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-400';
 }
 
 // Check if column likely contains status information
@@ -103,8 +103,8 @@ export function DynamicResourceTable({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-4">
-        <div className="w-8 h-8 border-3 border-gray-700 border-t-gray-400 rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center py-12 text-gray-600 dark:text-gray-400 gap-4">
+        <div className="w-8 h-8 border-3 border-gray-300 border-t-gray-600 dark:border-gray-700 dark:border-t-gray-400 rounded-full animate-spin" />
         <span>Loading {config.name}...</span>
       </div>
     );
@@ -112,12 +112,12 @@ export function DynamicResourceTable({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center gap-3 py-12 px-6 bg-red-500/10 rounded-lg text-red-400">
+      <div className="flex items-center justify-center gap-3 py-12 px-6 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 rounded-lg">
         <AlertTriangle size={20} />
         <span>Error: {error.message}</span>
         <button 
           onClick={refetch} 
-          className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-gray-100 text-sm hover:bg-gray-700 transition-colors"
+          className="px-4 py-2 bg-white border border-gray-300 text-gray-900 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
         >
           Retry
         </button>
@@ -127,22 +127,22 @@ export function DynamicResourceTable({
 
   if (!data || data.rows.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12 text-gray-500 bg-gray-900 rounded-lg border border-dashed border-gray-700">
+      <div className="flex items-center justify-center py-12 text-gray-600 bg-gray-50 dark:text-gray-500 dark:bg-gray-900 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
         <span>No {config.name} found</span>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+    <div className="bg-white border border-gray-200 dark:bg-gray-900 dark:border-gray-800 rounded-lg overflow-hidden">
       <table className="w-full text-sm">
-        <thead className="bg-gray-800">
+        <thead className="bg-gray-100 dark:bg-gray-800">
           <tr>
             {visibleColumns.map((col, idx) => (
               <th 
                 key={idx} 
                 title={col.description}
-                className="text-left px-4 py-2 text-gray-500 text-[11px] font-medium uppercase tracking-wider whitespace-nowrap"
+                className="text-left px-4 py-2 text-gray-600 dark:text-gray-500 text-[11px] font-medium uppercase tracking-wider whitespace-nowrap"
               >
                 {col.name}
               </th>
@@ -156,8 +156,8 @@ export function DynamicResourceTable({
             <tr 
               key={row.object.metadata.uid} 
               onClick={() => onSelectItem?.(isSelected ? null : row)}
-              className={`hover:bg-gray-800/50 transition-colors cursor-pointer ${
-                isSelected ? 'bg-sky-500/10 hover:bg-sky-500/15' : ''
+              className={`hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors cursor-pointer ${
+                isSelected ? 'bg-sky-50 hover:bg-sky-100 dark:bg-sky-500/10 dark:hover:bg-sky-500/15' : ''
               }`}
             >
               {visibleColumns.map((col, idx) => {
@@ -169,7 +169,7 @@ export function DynamicResourceTable({
 
                 if (isStatusColumn(col)) {
                   return (
-                    <td key={idx} className="px-4 py-3 border-t border-gray-800 whitespace-nowrap">
+                    <td key={idx} className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 whitespace-nowrap">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusClasses(formatted)}`}>
                         {formatted}
                       </span>
@@ -178,7 +178,7 @@ export function DynamicResourceTable({
                 }
 
                 return (
-                  <td key={idx} className="px-4 py-3 border-t border-gray-800 text-gray-100 whitespace-nowrap">
+                  <td key={idx} className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 whitespace-nowrap">
                     {formatted}
                   </td>
                 );

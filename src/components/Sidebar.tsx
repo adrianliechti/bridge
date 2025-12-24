@@ -152,9 +152,9 @@ export function Sidebar({
   }, {} as Record<string, V1APIResource[]>);
 
   return (
-    <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col fixed top-0 left-0 bottom-0">
+    <aside className="w-64 bg-white border-r border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col fixed top-0 left-0 bottom-0">
       {/* Header with Namespace Selector */}
-      <div className="shrink-0 h-16 px-4 flex items-center border-b border-gray-800">
+      <div className="shrink-0 h-16 px-4 flex items-center border-b border-gray-200 dark:border-gray-800">
         <div className="flex-1">
           <NamespaceSelector
             namespaces={namespaces.map((ns) => ns.metadata?.name).filter((name): name is string => !!name)}
@@ -171,7 +171,7 @@ export function Sidebar({
         {Object.entries(groupedBuiltIn).map(([category, items]) => (
           <div key={category} className="mb-2">
             <button
-              className="flex items-center w-full px-5 py-2 text-xs uppercase tracking-wide text-gray-500 hover:text-gray-400 transition-colors"
+              className="flex items-center w-full px-5 py-2 text-xs uppercase tracking-wide text-gray-600 hover:text-gray-800 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
               onClick={() => toggleCategory(category)}
             >
               <span className="mr-2">
@@ -190,8 +190,8 @@ export function Sidebar({
                       <button
                         className={`flex items-center w-full px-5 py-2.5 pl-9 text-sm transition-colors ${
                           isActive
-                            ? 'bg-gray-800 text-gray-100 border-r-2 border-gray-400'
-                            : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
+                            ? 'bg-gray-200 text-gray-900 border-r-2 border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-400'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-200'
                         }`}
                         onClick={() => onSelectResource(config)}
                       >
@@ -210,14 +210,14 @@ export function Sidebar({
         {crdConfigs.length > 0 && (
           <div className="mb-2">
             <button
-              className="flex items-center w-full px-5 py-2 text-xs uppercase tracking-wide text-gray-500 hover:text-gray-400 transition-colors"
+              className="flex items-center w-full px-5 py-2 text-xs uppercase tracking-wide text-gray-600 hover:text-gray-800 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
               onClick={() => toggleCategory('crd')}
             >
               <span className="mr-2">
                 {expandedCategories['crd'] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </span>
               <span>{categoryLabels['crd']}</span>
-              <span className="ml-auto px-2 py-0.5 bg-gray-800 rounded-full text-[10px] text-gray-500">
+              <span className="ml-auto px-2 py-0.5 bg-gray-200 rounded-full text-[10px] text-gray-600 dark:bg-gray-800 dark:text-gray-500">
                 {crdConfigs.length}
               </span>
             </button>
@@ -225,7 +225,7 @@ export function Sidebar({
               <div className="mt-1">
                 {Object.entries(groupedCRDs).map(([group, configs]) => (
                   <div key={group} className="mb-2">
-                    <div className="px-5 pl-7 py-1 text-[10px] text-gray-600 truncate lowercase" title={group}>
+                    <div className="px-5 pl-7 py-1 text-[10px] text-gray-500 truncate lowercase dark:text-gray-600" title={group}>
                       {group}
                     </div>
                     <ul>
@@ -236,8 +236,8 @@ export function Sidebar({
                             <button
                               className={`flex items-center w-full px-5 py-2.5 pl-11 text-sm transition-colors ${
                                 isActive
-                                  ? 'bg-gray-800 text-gray-100 border-r-2 border-gray-400'
-                                  : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
+                                  ? 'bg-gray-200 text-gray-900 border-r-2 border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-400'
+                                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-200'
                               }`}
                               onClick={() => onSelectResource(config)}
                               title={`${config.kind} (${config.group})`}

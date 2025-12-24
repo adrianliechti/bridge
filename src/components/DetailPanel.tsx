@@ -299,28 +299,28 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
   };
 
   return (
-    <aside className="fixed top-0 right-0 h-screen w-120 bg-gray-900 border-l border-gray-800 flex flex-col z-20 shadow-xl">
+    <aside className="fixed top-0 right-0 h-screen w-120 bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col z-20 shadow-xl">
       {/* Header */}
-      <header className="shrink-0 h-16 flex items-center justify-between px-5 border-b border-gray-800 bg-gray-900">
+      <header className="shrink-0 h-16 flex items-center justify-between px-5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-gray-100 truncate">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
               {resourceName}
             </h3>
-            <p className="text-xs text-gray-500">{resourceKind}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">{resourceKind}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopyYAML}
-            className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-md transition-colors"
+            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-md transition-colors"
             title="Copy as JSON"
           >
             {copied ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
           </button>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-md transition-colors"
+            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-md transition-colors"
             title="Close"
           >
             <X size={18} />
@@ -331,13 +331,13 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
       {/* Content */}
       <div className="flex-1 overflow-auto p-5">
         {loading && (
-          <div className="flex items-center gap-2 text-gray-400 text-sm mb-4">
+          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm mb-4">
             <Loader2 size={14} className="animate-spin" />
             Loading full resource...
           </div>
         )}
         {error && (
-          <div className="text-xs text-amber-400 mb-4">Using partial data: {error}</div>
+          <div className="text-xs text-amber-600 dark:text-amber-400 mb-4">Using partial data: {error}</div>
         )}
 
         {/* Specialized Resource Visualizer */}
@@ -419,7 +419,7 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
     <section className="mb-4">
       <button
         onClick={() => setShowRaw(!showRaw)}
-        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-800/30 rounded transition-colors"
+        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-100 dark:hover:bg-gray-800/30 rounded transition-colors"
       >
         {showRaw ? (
           <ChevronDown size={16} className="text-gray-500" />
@@ -431,7 +431,7 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
         </h4>
       </button>
       
-      <div className="bg-gray-800/50 rounded-lg p-4 mt-2 space-y-4">
+      <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mt-2 space-y-4">
         {/* Key Fields Table */}
         <div>
           <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Info</h5>
@@ -500,7 +500,7 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
             {showRaw ? 'Hide raw data' : 'Show raw data...'}
           </button>
           {showRaw && (
-            <div className="bg-gray-900/50 rounded p-3">
+            <div className="bg-gray-50 dark:bg-gray-900/50 rounded p-3">
               <ObjectTree data={{
                 ...metadata,
                 labels: filteredLabels,
@@ -517,9 +517,9 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
 // Metadata table row
 function MetadataRow({ label, value, truncate }: { label: string; value: string; truncate?: boolean }) {
   return (
-    <tr className="border-b border-gray-700/50 last:border-0">
+    <tr className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
       <td className="py-1.5 pr-4 text-gray-500 whitespace-nowrap w-32">{label}</td>
-      <td className={`py-1.5 text-gray-100 ${truncate ? 'truncate max-w-xs' : ''}`} title={value}>
+      <td className={`py-1.5 text-gray-900 dark:text-gray-100 ${truncate ? 'truncate max-w-xs' : ''}`} title={value}>
         {value}
       </td>
     </tr>
@@ -554,7 +554,7 @@ function EventsSection({ events, loading }: { events: CoreV1Event[]; loading: bo
     <section className="mb-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-800/30 rounded transition-colors"
+        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-100 dark:hover:bg-gray-800/30 rounded transition-colors"
       >
         {isOpen ? (
           <ChevronDown size={16} className="text-gray-500" />
@@ -567,7 +567,7 @@ function EventsSection({ events, loading }: { events: CoreV1Event[]; loading: bo
         {loading && <Loader2 size={12} className="animate-spin text-gray-500" />}
       </button>
       {isOpen && (
-        <div className="bg-gray-800/50 rounded-lg p-4 mt-2 overflow-auto">
+        <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mt-2 overflow-auto">
           {loading && events.length === 0 ? (
             <div className="flex items-center gap-2 text-gray-500 text-sm">
               <Loader2 size={14} className="animate-spin" />
@@ -675,7 +675,7 @@ function CollapsibleSection({
     <section className="mb-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-800/30 rounded transition-colors"
+        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-100 dark:hover:bg-gray-800/30 rounded transition-colors"
       >
         {isOpen ? (
           <ChevronDown size={16} className="text-gray-500" />
@@ -687,7 +687,7 @@ function CollapsibleSection({
         </h4>
       </button>
       {isOpen && (
-        <div className="bg-gray-800/50 rounded-lg p-4 mt-2 overflow-auto">
+        <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mt-2 overflow-auto">
           {children}
         </div>
       )}
