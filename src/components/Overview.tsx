@@ -114,7 +114,13 @@ function getStatus(r: K8sResource): { status: string; color: string } {
     else if (phase === 'Pending') color = '#eab308';
     else if (phase === 'Failed') color = '#ef4444';
     else if (phase === 'Succeeded') color = '#22c55e';
-  } else if (['Deployment', 'StatefulSet', 'DaemonSet', 'ReplicaSet'].includes(r.kind)) {
+  } else if (r.kind === 'DaemonSet') {
+    // DaemonSets use different status fields than Deployments/StatefulSets
+    const desired = (r.status as { desiredNumberScheduled?: number })?.desiredNumberScheduled || 0;
+    const ready = (r.status as { numberReady?: number })?.numberReady || 0;
+    status = `${ready}/${desired}`;
+    color = ready === desired && desired > 0 ? '#22c55e' : '#eab308';
+  } else if (['Deployment', 'StatefulSet', 'ReplicaSet'].includes(r.kind)) {
     const replicas = (r.status as { replicas?: number })?.replicas || 0;
     const ready = (r.status as { readyReplicas?: number })?.readyReplicas || 0;
     status = `${ready}/${replicas}`;
