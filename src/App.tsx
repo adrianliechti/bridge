@@ -1,21 +1,35 @@
 import { useState, useEffect } from 'react';
-import { Sidebar, type ResourceSelection } from './components/Sidebar';
+import { Sidebar, type V1APIResource } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
-import { builtinResource, preloadAPIResources } from './api/kubernetesTable';
+import { preloadDiscovery } from './api/kubernetesDiscovery';
+import { getResourceConfig } from './api/kubernetes';
 
 function App() {
-  const [selectedResource, setSelectedResource] = useState<ResourceSelection>(builtinResource('pods'));
+  const [selectedResource, setSelectedResource] = useState<V1APIResource | null>(null);
   const [selectedNamespace, setSelectedNamespace] = useState<string | undefined>(undefined);
 
-  // Create a key for MainContent to force remount when resource changes
-  const resourceKey = selectedResource.type === 'builtin' 
-    ? selectedResource.kind 
-    : `${selectedResource.config.group}/${selectedResource.config.name}`;
-
-  // Preload API resource discovery for proper display names
+  // Load initial resource (pods) from discovery
   useEffect(() => {
-    preloadAPIResources();
+    preloadDiscovery();
+    getResourceConfig('pods').then((config) => {
+      if (config) {
+        setSelectedResource(config);
+      }
+    });
   }, []);
+
+  // Create a key for MainContent to force remount when resource changes
+  const resourceKey = selectedResource
+    ? `${selectedResource.group || ''}/${selectedResource.name}`
+    : 'loading';
+
+  if (!selectedResource) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-gray-950 text-gray-100 items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-950 text-gray-100">

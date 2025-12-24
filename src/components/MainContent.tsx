@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { ResourceSelection, ResourceConfig } from '../api/kubernetesTable';
-import { getResourceConfigFromSelection, getResourceDisplayName, getResourceDisplayNameSync } from '../api/kubernetesTable';
+import type { V1APIResource } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { DynamicResourceTable } from './DynamicResourceTable';
@@ -9,27 +8,25 @@ import { ColumnFilter } from './ColumnFilter';
 import { AIPanel } from './AIPanel';
 import { DetailPanel } from './DetailPanel';
 
+function getDisplayName(resource: V1APIResource): string {
+  return resource.name.charAt(0).toUpperCase() + resource.name.slice(1);
+}
+
 interface MainContentProps {
-  resource: ResourceSelection;
+  resource: V1APIResource;
   namespace?: string;
 }
 
 export function MainContent({ resource, namespace }: MainContentProps) {
-  const [config, setConfig] = useState<ResourceConfig | null>(null);
-  const [title, setTitle] = useState(() => getResourceDisplayNameSync(resource));
+  const [title, setTitle] = useState(() => getDisplayName(resource));
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
   
   const { hiddenColumns, toggleColumn } = useColumnVisibility();
 
-  // Load resource config
   useEffect(() => {
-    getResourceConfigFromSelection(resource).then(setConfig);
-  }, [resource]);
-
-  useEffect(() => {
-    getResourceDisplayName(resource).then(setTitle);
+    setTitle(getDisplayName(resource));
   }, [resource]);
 
   // Clear selected item when resource changes
@@ -43,26 +40,12 @@ export function MainContent({ resource, namespace }: MainContentProps) {
 
   const isDetailPanelOpen = selectedItem !== null;
 
-  // Wait for config to load
-  if (!config) {
-    return (
-      <main className="flex-1 ml-64 flex items-center justify-center h-screen">
-        <div className="text-gray-500">Loading...</div>
-      </main>
-    );
-  }
-
   return (
     <>
       <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${isAIPanelOpen ? 'mr-96' : ''} ${isDetailPanelOpen ? 'mr-120' : ''}`}>
         <header className="shrink-0 h-16 flex items-center justify-between px-5 bg-gray-900 border-b border-gray-800">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
-            {resource.type === 'crd' && (
-              <span className="px-3 py-1 rounded-full text-xs bg-gray-700/50 text-gray-400">
-                {resource.config.group}
-              </span>
-            )}
             {namespace && (
               <span className="px-3 py-1 rounded-full text-xs bg-gray-800 text-gray-400">
                 Namespace: {namespace}
@@ -92,7 +75,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
         <section className="flex-1 overflow-auto min-h-0">
           <div className="p-6 min-w-fit">
             <DynamicResourceTable
-              config={config}
+              config={resource}
               namespace={namespace}
               hiddenColumns={hiddenColumns}
               onColumnsLoaded={handleColumnsLoaded}
@@ -108,7 +91,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
         onClose={() => setSelectedItem(null)} 
         item={selectedItem}
         resourceKind={title}
-        resourceConfig={config}
+        resourceConfig={resource}
         namespace={namespace}
       />
     </>

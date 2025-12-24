@@ -6,6 +6,7 @@ import type {
   V1APIResourceList,
   V1APIGroup,
   V1APIGroupList,
+  V1CustomResourceDefinition,
 } from '@kubernetes/client-node';
 import { fetchApi } from './kubernetes';
 
@@ -105,4 +106,27 @@ export function preloadDiscovery(): void {
 }
 
 // Re-export V1APIResource for consumers
-export type { V1APIResource } from '@kubernetes/client-node';
+export type { V1APIResource, V1CustomResourceDefinition } from '@kubernetes/client-node';
+
+// Convert a CRD to a V1APIResource
+export function crdToResourceConfig(crd: V1CustomResourceDefinition): V1APIResource {
+  const spec = crd.spec;
+  if (!spec) {
+    throw new Error('CRD is missing spec');
+  }
+  // Find the served/storage version (prefer storage, then first served)
+  const storageVersion = spec.versions.find((v) => v.storage);
+  const servedVersion = spec.versions.find((v) => v.served);
+  const version = storageVersion?.name || servedVersion?.name || spec.versions[0]?.name;
+
+  return {
+    name: spec.names.plural,
+    singularName: spec.names.singular || '',
+    namespaced: spec.scope === 'Namespaced',
+    group: spec.group,
+    version,
+    kind: spec.names.kind,
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete'],
+    shortNames: spec.names.shortNames,
+  };
+}

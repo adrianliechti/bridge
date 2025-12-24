@@ -9,6 +9,7 @@ const DEFAULT_HIDDEN_COLUMNS = [
   'annotations',
   'nominated node',
   'readiness gates',
+  'node selector',
 ];
 
 // Hook for managing column visibility

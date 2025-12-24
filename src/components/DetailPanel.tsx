@@ -1,7 +1,7 @@
 import { X, Copy, Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { TableRow } from '../types/table';
-import { getResource, getResourceEvents, type ResourceConfig, type CoreV1Event } from '../api/kubernetesTable';
+import { getResource, getResourceEvents, type CoreV1Event, type V1APIResource } from '../api/kubernetes';
 import { getVisualizer } from './details/ResourceVisualizer';
 
 // Import visualizers to register them
@@ -13,7 +13,7 @@ interface DetailPanelProps {
   onClose: () => void;
   item: TableRow | null;
   resourceKind: string;
-  resourceConfig: ResourceConfig;
+  resourceConfig: V1APIResource;
   namespace?: string;
 }
 
@@ -384,6 +384,32 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
   const labels = metadata.labels as Record<string, string> | undefined;
   const annotations = metadata.annotations as Record<string, string> | undefined;
   
+  // Labels that are typically not useful for users (internal/auto-generated)
+  const hiddenLabels = new Set<string>([
+    'pod-template-hash',
+    'controller-revision-hash',
+    'pod-template-generation',
+  ]);
+  
+  // Annotations that are too verbose or internal
+  const hiddenAnnotations = new Set<string>([
+    'kubectl.kubernetes.io/last-applied-configuration',
+    'deployment.kubernetes.io/revision',
+    'control-plane.alpha.kubernetes.io/leader',
+  ]);
+  
+  const filteredLabels = labels 
+    ? Object.fromEntries(
+        Object.entries(labels).filter(([key]) => !hiddenLabels.has(key))
+      )
+    : undefined;
+  
+  const filteredAnnotations = annotations 
+    ? Object.fromEntries(
+        Object.entries(annotations).filter(([key]) => !hiddenAnnotations.has(key))
+      )
+    : undefined;
+  
   // Key metadata fields to show at top
   const name = metadata.name as string;
   const namespace = metadata.namespace as string | undefined;
@@ -419,14 +445,14 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
         </div>
 
         {/* Labels */}
-        {labels && Object.keys(labels).length > 0 && (
+        {filteredLabels && Object.keys(filteredLabels).length > 0 && (
           <div>
             <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-              Labels ({Object.keys(labels).length})
+              Labels ({Object.keys(filteredLabels).length})
             </h5>
             <table className="w-full text-sm">
               <tbody>
-                {Object.entries(labels).map(([key, value]) => (
+                {Object.entries(filteredLabels).map(([key, value]) => (
                   <tr key={key} className="border-b border-gray-700/50 last:border-0">
                     <td className="py-1.5 pr-3 text-sky-400 align-top whitespace-nowrap text-xs">
                       {key}
@@ -442,14 +468,14 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
         )}
 
         {/* Annotations */}
-        {annotations && Object.keys(annotations).length > 0 && (
+        {filteredAnnotations && Object.keys(filteredAnnotations).length > 0 && (
           <div>
             <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-              Annotations ({Object.keys(annotations).length})
+              Annotations ({Object.keys(filteredAnnotations).length})
             </h5>
             <table className="w-full text-sm">
               <tbody>
-                {Object.entries(annotations).map(([key, value]) => (
+                {Object.entries(filteredAnnotations).map(([key, value]) => (
                   <tr key={key} className="border-b border-gray-700/50 last:border-0">
                     <td className="py-1.5 pr-3 text-purple-400 align-top whitespace-nowrap text-xs">
                       {key}
@@ -475,7 +501,11 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
           </button>
           {showRaw && (
             <div className="bg-gray-900/50 rounded p-3">
-              <ObjectTree data={metadata} />
+              <ObjectTree data={{
+                ...metadata,
+                labels: filteredLabels,
+                annotations: filteredAnnotations,
+              }} />
             </div>
           )}
         </div>

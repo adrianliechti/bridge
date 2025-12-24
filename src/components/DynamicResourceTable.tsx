@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
-import { getResourceTable, type ResourceConfig } from '../api/kubernetesTable';
+import { getResourceTable, type V1APIResource } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
 
 // Format cell value based on column type
@@ -67,7 +67,7 @@ function isStatusColumn(column: TableColumnDefinition): boolean {
 }
 
 interface DynamicResourceTableProps {
-  config: ResourceConfig;
+  config: V1APIResource;
   namespace?: string;
   hiddenColumns: Set<string>;
   onColumnsLoaded?: (columns: TableColumnDefinition[]) => void;
@@ -134,15 +134,15 @@ export function DynamicResourceTable({
   }
 
   return (
-    <div className="bg-gray-900 rounded-lg border border-gray-800">
-      <table className="text-sm">
-        <thead>
+    <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-800">
           <tr>
             {visibleColumns.map((col, idx) => (
               <th 
                 key={idx} 
                 title={col.description}
-                className="text-left px-4 py-2 bg-gray-800 text-gray-500 text-[11px] font-medium uppercase tracking-wider whitespace-nowrap"
+                className="text-left px-4 py-2 text-gray-500 text-[11px] font-medium uppercase tracking-wider whitespace-nowrap"
               >
                 {col.name}
               </th>

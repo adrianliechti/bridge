@@ -22,19 +22,17 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
-import { getNamespaces, getCustomResourceDefinitions } from '../api/kubernetes';
+import { getNamespaces, getCustomResourceDefinitions, crdToResourceConfig, getResourceConfig } from '../api/kubernetes';
 import { NamespaceSelector } from './NamespaceSelector';
-import {
-  type ResourceSelection,
-  type CRDResourceConfig,
-  getResourceConfigFromSelection,
-  crdToResourceConfig,
-  builtinResource,
-  crdResource,
-} from '../api/kubernetesTable';
+import { type V1APIResource } from '../api/kubernetesTable';
 
 // Re-export for use in App
-export type { ResourceSelection };
+export type { V1APIResource };
+
+// Compare two resources for equality (by name and group)
+function isSameResource(a: V1APIResource, b: V1APIResource): boolean {
+  return a.name === b.name && (a.group || '') === (b.group || '');
+}
 
 interface BuiltInNavItem {
   kind: string;
@@ -47,9 +45,9 @@ const builtInNavItems: BuiltInNavItem[] = [
   // Workloads
   { kind: 'pods', label: 'Pods', icon: Box, category: 'workloads' },
   { kind: 'deployments', label: 'Deployments', icon: Rocket, category: 'workloads' },
-  { kind: 'replicasets', label: 'ReplicaSets', icon: Layers, category: 'workloads' },
   { kind: 'daemonsets', label: 'DaemonSets', icon: Ghost, category: 'workloads' },
   { kind: 'statefulsets', label: 'StatefulSets', icon: Database, category: 'workloads' },
+  { kind: 'replicasets', label: 'ReplicaSets', icon: Layers, category: 'workloads' },
   { kind: 'jobs', label: 'Jobs', icon: Zap, category: 'workloads' },
   { kind: 'cronjobs', label: 'CronJobs', icon: Clock, category: 'workloads' },
   // Config
@@ -77,22 +75,10 @@ const categoryLabels: Record<string, string> = {
 };
 
 interface SidebarProps {
-  selectedResource: ResourceSelection;
-  onSelectResource: (selection: ResourceSelection) => void;
+  selectedResource: V1APIResource;
+  onSelectResource: (resource: V1APIResource) => void;
   selectedNamespace: string | undefined;
   onSelectNamespace: (namespace: string | undefined) => void;
-}
-
-function isSelectedResource(selection: ResourceSelection, current: ResourceSelection): boolean {
-  if (selection.type !== current.type) return false;
-  if (selection.type === 'builtin' && current.type === 'builtin') {
-    return selection.kind === current.kind;
-  }
-  if (selection.type === 'crd' && current.type === 'crd') {
-    return selection.config.name === current.config.name &&
-           selection.config.group === current.config.group;
-  }
-  return false;
 }
 
 export function Sidebar({
@@ -102,7 +88,8 @@ export function Sidebar({
   onSelectNamespace,
 }: SidebarProps) {
   const { data: namespacesData } = useKubernetesQuery(() => getNamespaces(), []);
-  const [crdConfigs, setCrdConfigs] = useState<CRDResourceConfig[]>([]);
+  const [builtInConfigs, setBuiltInConfigs] = useState<Map<string, V1APIResource>>(new Map());
+  const [crdConfigs, setCrdConfigs] = useState<V1APIResource[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     workloads: true,
     config: true,
@@ -111,6 +98,21 @@ export function Sidebar({
     cluster: true,
     crd: true,
   });
+
+  // Load built-in resource configs from discovery
+  useEffect(() => {
+    const loadBuiltInConfigs = async () => {
+      const configs = new Map<string, V1APIResource>();
+      for (const item of builtInNavItems) {
+        const config = await getResourceConfig(item.kind);
+        if (config) {
+          configs.set(item.kind, config);
+        }
+      }
+      setBuiltInConfigs(configs);
+    };
+    loadBuiltInConfigs();
+  }, []);
 
   // Load CRDs
   useEffect(() => {
@@ -133,14 +135,6 @@ export function Sidebar({
   }, []);
 
   const namespaces = namespacesData?.items || [];
-  const [currentResourceConfig, setCurrentResourceConfig] = useState<{ namespaced: boolean }>({ namespaced: true });
-
-  // Load current resource config for namespace selector
-  useEffect(() => {
-    getResourceConfigFromSelection(selectedResource).then((config) => {
-      setCurrentResourceConfig({ namespaced: config.namespaced });
-    });
-  }, [selectedResource]);
 
   // Group built-in items by category
   const groupedBuiltIn = builtInNavItems.reduce((acc, item) => {
@@ -155,7 +149,7 @@ export function Sidebar({
     if (!acc[groupKey]) acc[groupKey] = [];
     acc[groupKey].push(config);
     return acc;
-  }, {} as Record<string, CRDResourceConfig[]>);
+  }, {} as Record<string, V1APIResource[]>);
 
   return (
     <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col fixed top-0 left-0 bottom-0">
@@ -166,7 +160,7 @@ export function Sidebar({
             namespaces={namespaces.map((ns) => ns.metadata?.name).filter((name): name is string => !!name)}
             selectedNamespace={selectedNamespace}
             onSelectNamespace={onSelectNamespace}
-            disabled={!currentResourceConfig.namespaced}
+            disabled={!selectedResource.namespaced}
           />
         </div>
       </div>
@@ -188,8 +182,9 @@ export function Sidebar({
             {expandedCategories[category] && (
               <ul className="mt-1">
                 {items.map((item) => {
-                  const selection = builtinResource(item.kind);
-                  const isActive = isSelectedResource(selection, selectedResource);
+                  const config = builtInConfigs.get(item.kind);
+                  if (!config) return null;
+                  const isActive = isSameResource(config, selectedResource);
                   return (
                     <li key={item.kind}>
                       <button
@@ -198,7 +193,7 @@ export function Sidebar({
                             ? 'bg-gray-800 text-gray-100 border-r-2 border-gray-400'
                             : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
                         }`}
-                        onClick={() => onSelectResource(selection)}
+                        onClick={() => onSelectResource(config)}
                       >
                         <item.icon size={16} className="mr-3 shrink-0" />
                         <span className="truncate">{item.label}</span>
@@ -235,8 +230,7 @@ export function Sidebar({
                     </div>
                     <ul>
                       {configs.map((config) => {
-                        const selection = crdResource(config);
-                        const isActive = isSelectedResource(selection, selectedResource);
+                        const isActive = isSameResource(config, selectedResource);
                         return (
                           <li key={`${config.group || ''}/${config.name}`}>
                             <button
@@ -245,7 +239,7 @@ export function Sidebar({
                                   ? 'bg-gray-800 text-gray-100 border-r-2 border-gray-400'
                                   : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
                               }`}
-                              onClick={() => onSelectResource(selection)}
+                              onClick={() => onSelectResource(config)}
                               title={`${config.kind} (${config.group})`}
                             >
                               <Hexagon size={16} className="mr-3 shrink-0" />
