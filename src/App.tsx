@@ -10,7 +10,7 @@ function App() {
   // Create a key for MainContent to force remount when resource changes
   const resourceKey = selectedResource.type === 'builtin' 
     ? selectedResource.kind 
-    : `${selectedResource.config.group}/${selectedResource.config.plural}`;
+    : `${selectedResource.config.group}/${selectedResource.config.name}`;
 
   // Preload API resource discovery for proper display names
   useEffect(() => {

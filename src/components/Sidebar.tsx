@@ -22,14 +22,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
-import { getNamespaces } from '../api/kubernetes';
+import { getNamespaces, getCustomResourceDefinitions } from '../api/kubernetes';
 import { NamespaceSelector } from './NamespaceSelector';
 import {
-  type BuiltInResourceKind,
   type ResourceSelection,
   type CRDResourceConfig,
   getResourceConfigFromSelection,
-  getCRDs,
   crdToResourceConfig,
   builtinResource,
   crdResource,
@@ -39,7 +37,7 @@ import {
 export type { ResourceSelection };
 
 interface BuiltInNavItem {
-  kind: BuiltInResourceKind;
+  kind: string;
   label: string;
   icon: LucideIcon;
   category: 'workloads' | 'config' | 'network' | 'storage' | 'cluster';
@@ -91,7 +89,7 @@ function isSelectedResource(selection: ResourceSelection, current: ResourceSelec
     return selection.kind === current.kind;
   }
   if (selection.type === 'crd' && current.type === 'crd') {
-    return selection.config.plural === current.config.plural &&
+    return selection.config.name === current.config.name &&
            selection.config.group === current.config.group;
   }
   return false;
@@ -116,7 +114,7 @@ export function Sidebar({
 
   // Load CRDs
   useEffect(() => {
-    getCRDs()
+    getCustomResourceDefinitions()
       .then((crds) => {
         const configs = crds.map(crdToResourceConfig);
         configs.sort((a, b) => a.kind.localeCompare(b.kind));
@@ -135,7 +133,14 @@ export function Sidebar({
   }, []);
 
   const namespaces = namespacesData?.items || [];
-  const currentResourceConfig = getResourceConfigFromSelection(selectedResource);
+  const [currentResourceConfig, setCurrentResourceConfig] = useState<{ namespaced: boolean }>({ namespaced: true });
+
+  // Load current resource config for namespace selector
+  useEffect(() => {
+    getResourceConfigFromSelection(selectedResource).then((config) => {
+      setCurrentResourceConfig({ namespaced: config.namespaced });
+    });
+  }, [selectedResource]);
 
   // Group built-in items by category
   const groupedBuiltIn = builtInNavItems.reduce((acc, item) => {
@@ -146,7 +151,7 @@ export function Sidebar({
 
   // Group CRDs by API group
   const groupedCRDs = crdConfigs.reduce((acc, config) => {
-    const groupKey = config.group;
+    const groupKey = config.group || 'core';
     if (!acc[groupKey]) acc[groupKey] = [];
     acc[groupKey].push(config);
     return acc;
@@ -158,7 +163,7 @@ export function Sidebar({
       <div className="shrink-0 h-16 px-4 flex items-center border-b border-gray-800">
         <div className="flex-1">
           <NamespaceSelector
-            namespaces={namespaces.map((ns) => ns.metadata.name)}
+            namespaces={namespaces.map((ns) => ns.metadata?.name).filter((name): name is string => !!name)}
             selectedNamespace={selectedNamespace}
             onSelectNamespace={onSelectNamespace}
             disabled={!currentResourceConfig.namespaced}
@@ -233,7 +238,7 @@ export function Sidebar({
                         const selection = crdResource(config);
                         const isActive = isSelectedResource(selection, selectedResource);
                         return (
-                          <li key={`${config.group}/${config.plural}`}>
+                          <li key={`${config.group || ''}/${config.name}`}>
                             <button
                               className={`flex items-center w-full px-5 py-2.5 pl-11 text-sm transition-colors ${
                                 isActive

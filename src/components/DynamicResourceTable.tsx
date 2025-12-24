@@ -105,7 +105,7 @@ export function DynamicResourceTable({
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-4">
         <div className="w-8 h-8 border-3 border-gray-700 border-t-gray-400 rounded-full animate-spin" />
-        <span>Loading {config.plural}...</span>
+        <span>Loading {config.name}...</span>
       </div>
     );
   }
@@ -128,7 +128,7 @@ export function DynamicResourceTable({
   if (!data || data.rows.length === 0) {
     return (
       <div className="flex items-center justify-center py-12 text-gray-500 bg-gray-900 rounded-lg border border-dashed border-gray-700">
-        <span>No {config.plural} found</span>
+        <span>No {config.name} found</span>
       </div>
     );
   }

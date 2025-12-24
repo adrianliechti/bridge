@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { ResourceSelection } from '../api/kubernetesTable';
+import type { ResourceSelection, ResourceConfig } from '../api/kubernetesTable';
 import { getResourceConfigFromSelection, getResourceDisplayName, getResourceDisplayNameSync } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
@@ -15,13 +15,18 @@ interface MainContentProps {
 }
 
 export function MainContent({ resource, namespace }: MainContentProps) {
-  const config = getResourceConfigFromSelection(resource);
+  const [config, setConfig] = useState<ResourceConfig | null>(null);
   const [title, setTitle] = useState(() => getResourceDisplayNameSync(resource));
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
   
   const { hiddenColumns, toggleColumn } = useColumnVisibility();
+
+  // Load resource config
+  useEffect(() => {
+    getResourceConfigFromSelection(resource).then(setConfig);
+  }, [resource]);
 
   useEffect(() => {
     getResourceDisplayName(resource).then(setTitle);
@@ -37,6 +42,15 @@ export function MainContent({ resource, namespace }: MainContentProps) {
   }, []);
 
   const isDetailPanelOpen = selectedItem !== null;
+
+  // Wait for config to load
+  if (!config) {
+    return (
+      <main className="flex-1 ml-64 flex items-center justify-center h-screen">
+        <div className="text-gray-500">Loading...</div>
+      </main>
+    );
+  }
 
   return (
     <>

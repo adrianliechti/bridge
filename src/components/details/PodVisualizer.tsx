@@ -1,71 +1,16 @@
 import { useState } from 'react';
 import { Box, ChevronDown, ChevronRight, Cpu, HardDrive, Activity } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './ResourceVisualizer';
-
-// Pod spec types
-interface ContainerPort {
-  containerPort: number;
-  protocol?: string;
-  name?: string;
-}
-
-interface ResourceRequirements {
-  limits?: Record<string, string>;
-  requests?: Record<string, string>;
-}
-
-interface Container {
-  name: string;
-  image: string;
-  ports?: ContainerPort[];
-  resources?: ResourceRequirements;
-  command?: string[];
-  args?: string[];
-  env?: Array<{ name: string; value?: string }>;
-  volumeMounts?: Array<{ name: string; mountPath: string }>;
-}
-
-interface ContainerStatus {
-  name: string;
-  ready: boolean;
-  restartCount: number;
-  state: {
-    running?: { startedAt: string };
-    waiting?: { reason: string; message?: string };
-    terminated?: { reason: string; exitCode: number; finishedAt?: string };
-  };
-  image: string;
-  imageID?: string;
-}
-
-interface PodSpec {
-  containers: Container[];
-  initContainers?: Container[];
-  volumes?: Array<{ name: string; [key: string]: unknown }>;
-  nodeName?: string;
-  serviceAccountName?: string;
-  restartPolicy?: string;
-}
-
-interface PodStatus {
-  phase: string;
-  conditions?: Array<{ type: string; status: string; lastTransitionTime?: string }>;
-  containerStatuses?: ContainerStatus[];
-  initContainerStatuses?: ContainerStatus[];
-  hostIP?: string;
-  podIP?: string;
-  startTime?: string;
-}
-
-interface PodResource {
-  spec: PodSpec;
-  status?: PodStatus;
-}
+import type { V1Pod, V1Container, V1ContainerStatus, V1Volume } from '@kubernetes/client-node';
 
 export function PodVisualizer({ resource }: ResourceVisualizerProps) {
-  const pod = resource as unknown as PodResource;
+  const pod = resource as unknown as V1Pod;
   const spec = pod.spec;
   const status = pod.status;
+
+  if (!spec) {
+    return <div className="text-gray-500 text-sm">No pod spec available</div>;
+  }
 
   return (
     <div className="space-y-4">
@@ -101,11 +46,13 @@ export function PodVisualizer({ resource }: ResourceVisualizerProps) {
       )}
 
       {/* Containers */}
-      <ContainerSection
-        title="Containers"
-        containers={spec.containers}
-        statuses={status?.containerStatuses}
-      />
+      {spec.containers && (
+        <ContainerSection
+          title="Containers"
+          containers={spec.containers}
+          statuses={status?.containerStatuses}
+        />
+      )}
 
       {/* Volumes */}
       {spec.volumes && spec.volumes.length > 0 && (
@@ -153,8 +100,8 @@ function ContainerSection({
   statuses 
 }: { 
   title: string; 
-  containers: Container[]; 
-  statuses?: ContainerStatus[];
+  containers: V1Container[]; 
+  statuses?: V1ContainerStatus[];
 }) {
   return (
     <div>
@@ -181,8 +128,8 @@ function ContainerCard({
   container, 
   status 
 }: { 
-  container: Container; 
-  status?: ContainerStatus;
+  container: V1Container; 
+  status?: V1ContainerStatus;
 }) {
   const [expanded, setExpanded] = useState(false);
   const state = getContainerState(status);
@@ -220,7 +167,7 @@ function ContainerCard({
         </div>
         {status && (
           <div className="text-xs text-gray-500">
-            {status.restartCount > 0 && (
+            {(status.restartCount ?? 0) > 0 && (
               <span className="text-amber-400">{status.restartCount} restarts</span>
             )}
           </div>
@@ -271,7 +218,7 @@ function ContainerCard({
                   <div className="text-xs space-y-0.5">
                     {Object.entries(container.resources.requests).map(([k, v]) => (
                       <div key={k} className="text-gray-400">
-                        <span className="text-gray-500">{k}:</span> {v}
+                        <span className="text-gray-500">{k}:</span> {String(v)}
                       </div>
                     ))}
                   </div>
@@ -285,7 +232,7 @@ function ContainerCard({
                   <div className="text-xs space-y-0.5">
                     {Object.entries(container.resources.limits).map(([k, v]) => (
                       <div key={k} className="text-gray-400">
-                        <span className="text-gray-500">{k}:</span> {v}
+                        <span className="text-gray-500">{k}:</span> {String(v)}
                       </div>
                     ))}
                   </div>
@@ -317,8 +264,22 @@ function ContainerCard({
   );
 }
 
-function VolumesSection({ volumes }: { volumes: Array<{ name: string; [key: string]: unknown }> }) {
+function VolumesSection({ volumes }: { volumes: V1Volume[] }) {
   const [expanded, setExpanded] = useState(false);
+
+  // Helper to determine volume type
+  const getVolumeType = (volume: V1Volume): string => {
+    if (volume.configMap) return 'configMap';
+    if (volume.secret) return 'secret';
+    if (volume.emptyDir) return 'emptyDir';
+    if (volume.hostPath) return 'hostPath';
+    if (volume.persistentVolumeClaim) return 'pvc';
+    if (volume.projected) return 'projected';
+    if (volume.downwardAPI) return 'downwardAPI';
+    if (volume.nfs) return 'nfs';
+    if (volume.csi) return 'csi';
+    return 'unknown';
+  };
 
   return (
     <div>
@@ -331,16 +292,13 @@ function VolumesSection({ volumes }: { volumes: Array<{ name: string; [key: stri
       </button>
       {expanded && (
         <div className="space-y-1">
-          {volumes.map((volume) => {
-            const volumeType = Object.keys(volume).find(k => k !== 'name') || 'unknown';
-            return (
-              <div key={volume.name} className="flex items-center gap-2 text-xs bg-gray-900/50 px-2 py-1.5 rounded">
-                <HardDrive size={12} className="text-gray-500" />
-                <span className="text-purple-400">{volume.name}</span>
-                <span className="text-gray-600">({volumeType})</span>
-              </div>
-            );
-          })}
+          {volumes.map((volume) => (
+            <div key={volume.name} className="flex items-center gap-2 text-xs bg-gray-900/50 px-2 py-1.5 rounded">
+              <HardDrive size={12} className="text-gray-500" />
+              <span className="text-purple-400">{volume.name}</span>
+              <span className="text-gray-600">({getVolumeType(volume)})</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -359,26 +317,26 @@ function getPhaseStatus(phase?: string): 'success' | 'warning' | 'error' | 'neut
   }
 }
 
-function getTotalRestarts(statuses?: ContainerStatus[]): number {
-  return statuses?.reduce((sum, s) => sum + s.restartCount, 0) ?? 0;
+function getTotalRestarts(statuses?: V1ContainerStatus[]): number {
+  return statuses?.reduce((sum, s) => sum + (s.restartCount ?? 0), 0) ?? 0;
 }
 
-function getContainerState(status?: ContainerStatus): { label: string; status: 'success' | 'warning' | 'error' | 'neutral'; color: string } {
+function getContainerState(status?: V1ContainerStatus): { label: string; status: 'success' | 'warning' | 'error' | 'neutral'; color: string } {
   if (!status) {
     return { label: 'Unknown', status: 'neutral', color: 'text-gray-400' };
   }
 
-  if (status.state.running) {
+  if (status.state?.running) {
     return { label: 'Running', status: 'success', color: 'text-emerald-400' };
   }
-  if (status.state.waiting) {
+  if (status.state?.waiting) {
     const reason = status.state.waiting.reason;
     if (reason === 'CrashLoopBackOff' || reason === 'Error') {
       return { label: reason, status: 'error', color: 'text-red-400' };
     }
-    return { label: reason, status: 'warning', color: 'text-amber-400' };
+    return { label: reason || 'Waiting', status: 'warning', color: 'text-amber-400' };
   }
-  if (status.state.terminated) {
+  if (status.state?.terminated) {
     const reason = status.state.terminated.reason;
     if (status.state.terminated.exitCode === 0) {
       return { label: reason || 'Completed', status: 'success', color: 'text-emerald-400' };

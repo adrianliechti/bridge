@@ -2,60 +2,10 @@ import { useState, useEffect } from 'react';
 import { Layers, RefreshCw, ChevronDown, ChevronRight, Box, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './ResourceVisualizer';
 import { getResourceTable } from '../../api/kubernetesTable';
+import { getResourceConfig } from '../../api/kubernetes';
+import type { V1Deployment, V1DeploymentCondition } from '@kubernetes/client-node';
 
-// Deployment spec types
-interface DeploymentSpec {
-  replicas?: number;
-  selector: {
-    matchLabels?: Record<string, string>;
-  };
-  strategy?: {
-    type: string;
-    rollingUpdate?: {
-      maxSurge?: string | number;
-      maxUnavailable?: string | number;
-    };
-  };
-  template: {
-    spec: {
-      containers: Array<{
-        name: string;
-        image: string;
-      }>;
-    };
-  };
-}
-
-interface DeploymentCondition {
-  type: string;
-  status: string;
-  reason?: string;
-  message?: string;
-  lastUpdateTime?: string;
-  lastTransitionTime?: string;
-}
-
-interface DeploymentStatus {
-  replicas?: number;
-  readyReplicas?: number;
-  updatedReplicas?: number;
-  availableReplicas?: number;
-  unavailableReplicas?: number;
-  conditions?: DeploymentCondition[];
-  observedGeneration?: number;
-}
-
-interface DeploymentResource {
-  metadata: {
-    name: string;
-    namespace?: string;
-    uid: string;
-  };
-  spec: DeploymentSpec;
-  status?: DeploymentStatus;
-}
-
-interface ReplicaSet {
+interface ReplicaSetDisplay {
   name: string;
   replicas: number;
   readyReplicas: number;
@@ -66,27 +16,30 @@ interface ReplicaSet {
 }
 
 export function DeploymentVisualizer({ resource, namespace }: ResourceVisualizerProps) {
-  const deployment = resource as unknown as DeploymentResource;
+  const deployment = resource as unknown as V1Deployment;
   const spec = deployment.spec;
   const status = deployment.status;
-  const [replicaSets, setReplicaSets] = useState<ReplicaSet[]>([]);
+  const metadata = deployment.metadata;
+  const [replicaSets, setReplicaSets] = useState<ReplicaSetDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch ReplicaSets owned by this deployment
   useEffect(() => {
     async function fetchReplicaSets() {
-      if (!namespace) return;
+      if (!namespace || !metadata) return;
       
       try {
-        const response = await getResourceTable({
-          apiBase: 'apis/apps/v1',
-          plural: 'replicasets',
-          namespaced: true,
-        }, namespace);
+        const rsConfig = await getResourceConfig('replicasets');
+        if (!rsConfig) {
+          console.warn('ReplicaSets resource config not found');
+          return;
+        }
+        
+        const response = await getResourceTable(rsConfig, namespace);
 
         // Filter ReplicaSets owned by this deployment
-        const deploymentName = deployment.metadata.name;
-        const deploymentUid = deployment.metadata.uid;
+        const deploymentName = metadata.name;
+        const deploymentUid = metadata.uid;
         
         const ownedRS = response.rows
           .filter(row => {
@@ -127,7 +80,11 @@ export function DeploymentVisualizer({ resource, namespace }: ResourceVisualizer
     }
 
     fetchReplicaSets();
-  }, [deployment.metadata.name, deployment.metadata.uid, namespace]);
+  }, [metadata?.name, metadata?.uid, namespace, metadata]);
+
+  if (!spec) {
+    return <div className="text-gray-500 text-sm">No deployment spec available</div>;
+  }
 
   const desiredReplicas = spec.replicas ?? 1;
   const readyReplicas = status?.readyReplicas ?? 0;
@@ -237,20 +194,22 @@ export function DeploymentVisualizer({ resource, namespace }: ResourceVisualizer
       </div>
 
       {/* Container Images */}
-      <div>
-        <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-          Container Images
-        </h5>
-        <div className="space-y-1">
-          {spec.template.spec.containers.map(container => (
-            <div key={container.name} className="text-xs bg-gray-900/50 px-2 py-1.5 rounded flex items-center gap-2">
-              <Box size={12} className="text-blue-400" />
-              <span className="text-gray-300">{container.name}:</span>
-              <span className="text-cyan-400 truncate">{container.image}</span>
-            </div>
-          ))}
+      {spec.template?.spec?.containers && (
+        <div>
+          <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+            Container Images
+          </h5>
+          <div className="space-y-1">
+            {spec.template.spec.containers.map(container => (
+              <div key={container.name} className="text-xs bg-gray-900/50 px-2 py-1.5 rounded flex items-center gap-2">
+                <Box size={12} className="text-blue-400" />
+                <span className="text-gray-300">{container.name}:</span>
+                <span className="text-cyan-400 truncate">{container.image}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -298,7 +257,7 @@ function ReplicaGauge({
   );
 }
 
-function ConditionsSection({ conditions }: { conditions: DeploymentCondition[] }) {
+function ConditionsSection({ conditions }: { conditions: V1DeploymentCondition[] }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -340,7 +299,7 @@ function ConditionsSection({ conditions }: { conditions: DeploymentCondition[] }
   );
 }
 
-function ReplicaSetCard({ replicaSet }: { replicaSet: ReplicaSet }) {
+function ReplicaSetCard({ replicaSet }: { replicaSet: ReplicaSetDisplay }) {
   return (
     <div className={`border rounded-lg p-2 ${
       replicaSet.isCurrent 

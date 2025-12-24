@@ -1,7 +1,7 @@
 import { X, Copy, Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { TableRow } from '../types/table';
-import { getResource, getResourceEvents, type ResourceConfig, type KubernetesEvent } from '../api/kubernetesTable';
+import { getResource, getResourceEvents, type ResourceConfig, type CoreV1Event } from '../api/kubernetesTable';
 import { getVisualizer } from './details/ResourceVisualizer';
 
 // Import visualizers to register them
@@ -227,7 +227,7 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
   const [fullObject, setFullObject] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<KubernetesEvent[]>([]);
+  const [events, setEvents] = useState<CoreV1Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
 
   // Fetch the full resource when item changes
@@ -517,7 +517,7 @@ function formatTimestamp(timestamp: string): string {
 }
 
 // Events section component
-function EventsSection({ events, loading }: { events: KubernetesEvent[]; loading: boolean }) {
+function EventsSection({ events, loading }: { events: CoreV1Event[]; loading: boolean }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -559,8 +559,26 @@ function EventsSection({ events, loading }: { events: KubernetesEvent[]; loading
 }
 
 // Single event item
-function EventItem({ event }: { event: KubernetesEvent }) {
-  const timestamp = event.lastTimestamp || event.eventTime || event.metadata.creationTimestamp;
+function EventItem({ event }: { event: CoreV1Event }) {
+  // CoreV1Event uses Date objects, so we need to convert appropriately
+  const getTimestamp = (): string => {
+    if (event.lastTimestamp) {
+      return event.lastTimestamp instanceof Date 
+        ? event.lastTimestamp.toISOString() 
+        : String(event.lastTimestamp);
+    }
+    if (event.eventTime) {
+      return String(event.eventTime);
+    }
+    if (event.metadata?.creationTimestamp) {
+      return event.metadata.creationTimestamp instanceof Date
+        ? event.metadata.creationTimestamp.toISOString()
+        : String(event.metadata.creationTimestamp);
+    }
+    return new Date().toISOString();
+  };
+  
+  const timestamp = getTimestamp();
   const isWarning = event.type === 'Warning';
   
   return (
