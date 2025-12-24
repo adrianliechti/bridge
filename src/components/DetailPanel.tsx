@@ -2,6 +2,11 @@ import { X, Copy, Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react
 import { useState, useEffect } from 'react';
 import type { TableRow } from '../types/table';
 import { getResource, getResourceEvents, type ResourceConfig, type KubernetesEvent } from '../api/kubernetesTable';
+import { getVisualizer } from './details/ResourceVisualizer';
+
+// Import visualizers to register them
+import './details/PodVisualizer';
+import './details/DeploymentVisualizer';
 
 interface DetailPanelProps {
   isOpen: boolean;
@@ -334,6 +339,19 @@ export function DetailPanel({ isOpen, onClose, item, resourceKind, resourceConfi
         {error && (
           <div className="text-xs text-amber-400 mb-4">Using partial data: {error}</div>
         )}
+
+        {/* Specialized Resource Visualizer */}
+        {(() => {
+          const Visualizer = getVisualizer(resourceKind);
+          if (Visualizer && fullObject && !loading) {
+            return (
+              <CollapsibleSection title="Overview" defaultOpen>
+                <Visualizer resource={fullObject} namespace={namespace} />
+              </CollapsibleSection>
+            );
+          }
+          return null;
+        })()}
 
         {/* Metadata Section */}
         <MetadataSection metadata={displayObject.metadata as Record<string, unknown>} />
