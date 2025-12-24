@@ -71,13 +71,17 @@ interface DynamicResourceTableProps {
   namespace?: string;
   hiddenColumns: Set<string>;
   onColumnsLoaded?: (columns: TableColumnDefinition[]) => void;
+  selectedItem?: TableRow | null;
+  onSelectItem?: (item: TableRow | null) => void;
 }
 
 export function DynamicResourceTable({ 
   config, 
   namespace, 
   hiddenColumns,
-  onColumnsLoaded 
+  onColumnsLoaded,
+  selectedItem,
+  onSelectItem
 }: DynamicResourceTableProps) {
   const { data, loading, error, refetch } = useKubernetesQuery(
     () => getResourceTable(config, namespace),
@@ -146,8 +150,16 @@ export function DynamicResourceTable({
           </tr>
         </thead>
         <tbody>
-          {data.rows.map((row: TableRow) => (
-            <tr key={row.object.metadata.uid} className="hover:bg-gray-800/50 transition-colors">
+          {data.rows.map((row: TableRow) => {
+            const isSelected = selectedItem?.object.metadata.uid === row.object.metadata.uid;
+            return (
+            <tr 
+              key={row.object.metadata.uid} 
+              onClick={() => onSelectItem?.(isSelected ? null : row)}
+              className={`hover:bg-gray-800/50 transition-colors cursor-pointer ${
+                isSelected ? 'bg-sky-500/10 hover:bg-sky-500/15' : ''
+              }`}
+            >
               {visibleColumns.map((col, idx) => {
                 const cellIndex = data.columnDefinitions.findIndex(
                   (c) => c.name === col.name
@@ -172,7 +184,8 @@ export function DynamicResourceTable({
                 );
               })}
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
     </div>

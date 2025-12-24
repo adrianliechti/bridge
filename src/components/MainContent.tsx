@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { ResourceSelection } from '../api/kubernetesTable';
 import { getResourceConfigFromSelection, getResourceDisplayName, getResourceDisplayNameSync } from '../api/kubernetesTable';
-import type { TableColumnDefinition } from '../types/table';
+import type { TableColumnDefinition, TableRow } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { DynamicResourceTable } from './DynamicResourceTable';
 import { ColumnFilter } from './ColumnFilter';
 import { AIPanel } from './AIPanel';
+import { DetailPanel } from './DetailPanel';
 
 interface MainContentProps {
   resource: ResourceSelection;
@@ -18,6 +19,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
   const [title, setTitle] = useState(() => getResourceDisplayNameSync(resource));
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
   
   const { hiddenColumns, toggleColumn } = useColumnVisibility();
 
@@ -25,13 +27,20 @@ export function MainContent({ resource, namespace }: MainContentProps) {
     getResourceDisplayName(resource).then(setTitle);
   }, [resource]);
 
+  // Clear selected item when resource changes
+  useEffect(() => {
+    setSelectedItem(null);
+  }, [resource, namespace]);
+
   const handleColumnsLoaded = useCallback((cols: TableColumnDefinition[]) => {
     setColumns(cols);
   }, []);
 
+  const isDetailPanelOpen = selectedItem !== null;
+
   return (
     <>
-      <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${isAIPanelOpen ? 'mr-96' : ''}`}>
+      <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${isAIPanelOpen ? 'mr-96' : ''} ${isDetailPanelOpen ? 'mr-120' : ''}`}>
         <header className="shrink-0 h-16 flex items-center justify-between px-5 bg-gray-900 border-b border-gray-800">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
@@ -73,11 +82,21 @@ export function MainContent({ resource, namespace }: MainContentProps) {
               namespace={namespace}
               hiddenColumns={hiddenColumns}
               onColumnsLoaded={handleColumnsLoaded}
+              selectedItem={selectedItem}
+              onSelectItem={setSelectedItem}
             />
           </div>
         </section>
       </main>
       <AIPanel isOpen={isAIPanelOpen} onClose={() => setIsAIPanelOpen(false)} />
+      <DetailPanel 
+        isOpen={isDetailPanelOpen} 
+        onClose={() => setSelectedItem(null)} 
+        item={selectedItem}
+        resourceKind={title}
+        resourceConfig={config}
+        namespace={namespace}
+      />
     </>
   );
 }

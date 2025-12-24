@@ -220,6 +220,74 @@ export async function getResourceTable(
   return fetchTable(url);
 }
 
+// Fetch a single resource by name
+export async function getResource(
+  config: ResourceConfig,
+  name: string,
+  namespace?: string
+): Promise<Record<string, unknown>> {
+  let url: string;
+
+  if (config.namespaced && namespace) {
+    url = `${config.apiBase}/namespaces/${namespace}/${config.plural}/${name}`;
+  } else {
+    url = `${config.apiBase}/${config.plural}/${name}`;
+  }
+
+  return fetchApi<Record<string, unknown>>(url);
+}
+
+// Event type from Kubernetes API
+export interface KubernetesEvent {
+  metadata: {
+    name: string;
+    namespace: string;
+    uid: string;
+    creationTimestamp: string;
+  };
+  involvedObject: {
+    kind: string;
+    namespace: string;
+    name: string;
+    uid: string;
+  };
+  reason: string;
+  message: string;
+  type: 'Normal' | 'Warning';
+  count?: number;
+  firstTimestamp?: string;
+  lastTimestamp?: string;
+  eventTime?: string;
+}
+
+interface EventList {
+  items: KubernetesEvent[];
+}
+
+// Fetch events for a specific resource
+export async function getResourceEvents(
+  resourceName: string,
+  namespace?: string
+): Promise<KubernetesEvent[]> {
+  // Build the field selector to filter events by involved object
+  const fieldSelector = namespace
+    ? `involvedObject.name=${resourceName},involvedObject.namespace=${namespace}`
+    : `involvedObject.name=${resourceName}`;
+  
+  const url = namespace
+    ? `/api/v1/namespaces/${namespace}/events?fieldSelector=${encodeURIComponent(fieldSelector)}`
+    : `/api/v1/events?fieldSelector=${encodeURIComponent(fieldSelector)}`;
+
+  const response = await fetchApi<EventList>(url);
+  
+  // Sort by last timestamp (most recent first)
+  return response.items.sort((a, b) => {
+    const timeA = a.lastTimestamp || a.eventTime || a.metadata.creationTimestamp;
+    const timeB = b.lastTimestamp || b.eventTime || b.metadata.creationTimestamp;
+    return new Date(timeB).getTime() - new Date(timeA).getTime();
+  });
+}
+
 // Legacy function for built-in resources by kind name
 export async function getBuiltInResourceTable(
   kind: BuiltInResourceKind,
