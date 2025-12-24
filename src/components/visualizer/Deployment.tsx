@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Layers, RefreshCw, ChevronDown, ChevronRight, Box, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { registerVisualizer, type ResourceVisualizerProps } from './ResourceVisualizer';
+import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
 import { getResourceTable } from '../../api/kubernetesTable';
 import { getResourceConfig } from '../../api/kubernetes';
 import type { V1Deployment, V1DeploymentCondition } from '@kubernetes/client-node';

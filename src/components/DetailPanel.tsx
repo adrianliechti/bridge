@@ -3,11 +3,19 @@ import { useState, useEffect } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, type CoreV1Event } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
-import { getVisualizer } from './details/ResourceVisualizer';
+import { getVisualizer } from './visualizer/Visualizer';
 
 // Import visualizers to register them
-import './details/PodVisualizer';
-import './details/DeploymentVisualizer';
+import './visualizer/Pod';
+import './visualizer/Deployment';
+import './visualizer/DaemonSet';
+import './visualizer/StatefulSet';
+import './visualizer/ReplicaSet';
+import './visualizer/PersistentVolume';
+import './visualizer/PersistentVolumeClaim';
+import './visualizer/Node';
+import './visualizer/Job';
+import './visualizer/CronJob';
 
 interface DetailPanelProps {
   isOpen: boolean;

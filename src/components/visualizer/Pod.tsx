@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, ChevronDown, ChevronRight, Cpu, HardDrive, Activity } from 'lucide-react';
-import { registerVisualizer, type ResourceVisualizerProps } from './ResourceVisualizer';
+import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
 import type { V1Pod, V1Container, V1ContainerStatus, V1Volume } from '@kubernetes/client-node';
 
 export function PodVisualizer({ resource }: ResourceVisualizerProps) {
