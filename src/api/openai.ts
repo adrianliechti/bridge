@@ -432,7 +432,7 @@ export async function chat(
     onToolCall?: (toolName: string, args: Record<string, string>) => void;
   }
 ): Promise<{ response: Message; history: Message[] }> {
-  const model = options?.model || 'gpt-5.2';
+  const model = options?.model || '';
   const instructions =
     options?.instructions ||
     `You are a helpful Kubernetes assistant. You can help users understand and manage their Kubernetes clusters.

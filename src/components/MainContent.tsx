@@ -7,6 +7,7 @@ import { DynamicResourceTable } from './DynamicResourceTable';
 import { ColumnFilter } from './ColumnFilter';
 import { AIPanel } from './AIPanel';
 import { DetailPanel } from './DetailPanel';
+import { getConfig } from '../config';
 
 function getDisplayName(resource: V1APIResource): string {
   return resource.name.charAt(0).toUpperCase() + resource.name.slice(1);
@@ -62,17 +63,19 @@ export function MainContent({ resource, namespace }: MainContentProps) {
               hiddenColumns={hiddenColumns}
               onToggleColumn={toggleColumn}
             />
-            <button
-              onClick={() => setIsAIPanelOpen(!isAIPanelOpen)}
-              className={`p-2 rounded-md transition-colors ${
-                isAIPanelOpen 
-                  ? 'text-sky-400 hover:text-sky-300 hover:bg-gray-100 dark:hover:bg-gray-800' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800'
-              }`}
-              title="AI Assistant"
-            >
-              <Sparkles size={18} />
-            </button>
+            {getConfig().ai && (
+              <button
+                onClick={() => setIsAIPanelOpen(!isAIPanelOpen)}
+                className={`p-2 rounded-md transition-colors ${
+                  isAIPanelOpen 
+                    ? 'text-sky-400 hover:text-sky-300 hover:bg-gray-100 dark:hover:bg-gray-800' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800'
+                }`}
+                title="AI Assistant"
+              >
+                <Sparkles size={18} />
+              </button>
+            )}
           </div>
         </header>
         <section className="flex-1 overflow-auto min-h-0">

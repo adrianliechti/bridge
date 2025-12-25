@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, X, Loader2 } from 'lucide-react';
 import { chat, type Message as APIMessage } from '../api/openai';
 import { Markdown } from './Markdown';
+import { getConfig } from '../config';
 
 interface Message {
   id: string;
@@ -73,6 +74,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
         userMessage.content,
         conversationHistory,
         {
+          model: getConfig().ai?.model || '',
           onStream: (_delta, snapshot) => {
             setMessages((prev) =>
               prev.map((m) =>

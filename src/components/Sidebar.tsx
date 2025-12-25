@@ -24,8 +24,9 @@ import {
 } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
 import { getNamespaces, getCustomResourceDefinitions, crdToResourceConfig, getResourceConfig } from '../api/kubernetes';
-import { NamespaceSelector } from './NamespaceSelector';
+import { NamespaceSelector, type Namespace } from './NamespaceSelector';
 import { type V1APIResource } from '../api/kubernetesTable';
+import { getConfig } from '../config';
 
 // Re-export for use in App
 export type { V1APIResource };
@@ -145,6 +146,14 @@ export function Sidebar({
 
   const namespaces = namespacesData?.items || [];
 
+  // Transform namespaces to include labels
+  const namespacesWithLabels: Namespace[] = namespaces
+    .filter((ns): ns is typeof ns & { metadata: { name: string } } => !!ns.metadata?.name)
+    .map((ns) => ({
+      name: ns.metadata.name,
+      labels: ns.metadata.labels,
+    }));
+
   // Group built-in items by category
   const groupedBuiltIn = builtInNavItems.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
@@ -173,10 +182,12 @@ export function Sidebar({
       <div className="shrink-0 h-16 px-4 flex items-center border-b border-gray-200 dark:border-gray-800">
         <div className="flex-1">
           <NamespaceSelector
-            namespaces={namespaces.map((ns) => ns.metadata?.name).filter((name): name is string => !!name)}
+            namespaces={namespacesWithLabels}
             selectedNamespace={selectedNamespace}
             onSelectNamespace={onSelectNamespace}
             disabled={selectedResource !== null && !selectedResource.namespaced}
+            spaceLabels={getConfig().platform?.spaces?.labels}
+            platformNamespaces={getConfig().platform?.namespaces}
           />
         </div>
       </div>
