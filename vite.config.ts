@@ -18,6 +18,10 @@ export default defineConfig({
         target: 'http://127.0.0.1:8001',
         changeOrigin: true,
       },
+      '/apis': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
+      },
       '/openai': {
         target: 'http://localhost:8080',
         changeOrigin: true,
