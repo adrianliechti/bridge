@@ -17,7 +17,7 @@ import './visualizer/Node';
 import './visualizer/Job';
 import './visualizer/CronJob';
 
-interface DetailPanelProps {
+interface ResourcePanelProps {
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
@@ -229,7 +229,7 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
   };
 }
 
-export function DetailPanel({ isOpen, onClose, otherPanelOpen = false, resource: resourceId }: DetailPanelProps) {
+export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resource: resourceId }: ResourcePanelProps) {
   const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

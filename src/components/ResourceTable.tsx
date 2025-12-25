@@ -66,7 +66,7 @@ function isStatusColumn(column: TableColumnDefinition): boolean {
   return name === 'status' || name === 'phase' || name === 'ready' || name === 'condition';
 }
 
-interface DynamicResourceTableProps {
+interface ResourceTableProps {
   config: V1APIResource;
   namespace?: string;
   hiddenColumns: Set<string>;
@@ -75,14 +75,14 @@ interface DynamicResourceTableProps {
   onSelectItem?: (item: TableRow | null) => void;
 }
 
-export function DynamicResourceTable({ 
+export function ResourceTable({ 
   config, 
   namespace, 
   hiddenColumns,
   onColumnsLoaded,
   selectedItem,
   onSelectItem
-}: DynamicResourceTableProps) {
+}: ResourceTableProps) {
   const { data, loading, error, refetch } = useKubernetesQuery(
     () => getResourceTable(config, namespace),
     [config, namespace]

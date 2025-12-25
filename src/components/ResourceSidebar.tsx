@@ -82,7 +82,7 @@ const categoryLabels: Record<string, string> = {
   crd: 'Custom Resources',
 };
 
-interface SidebarProps {
+interface ResourceSidebarProps {
   selectedResource: V1APIResource | null;
   onSelectResource: (resource: V1APIResource | null) => void;
   selectedNamespace: string | undefined;
@@ -90,13 +90,13 @@ interface SidebarProps {
   isOverviewSelected?: boolean;
 }
 
-export function Sidebar({
+export function ResourceSidebar({
   selectedResource,
   onSelectResource,
   selectedNamespace,
   onSelectNamespace,
   isOverviewSelected,
-}: SidebarProps) {
+}: ResourceSidebarProps) {
   const { data: namespacesData } = useKubernetesQuery(() => getNamespaces(), []);
   const [builtInConfigs, setBuiltInConfigs] = useState<Map<string, V1APIResource>>(new Map());
   const [crdConfigs, setCrdConfigs] = useState<V1APIResource[]>([]);

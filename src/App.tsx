@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Sidebar, type V1APIResource } from './components/Sidebar';
-import { MainContent } from './components/MainContent';
-import { Overview } from './components/Overview';
+import { ResourceSidebar, type V1APIResource } from './components/ResourceSidebar';
+import { ResourcePage } from './components/ResourcePage';
+import { ResourceOverview } from './components/ResourceOverview';
+import { WelcomePage } from './components/WelcomePage';
 import { preloadDiscovery } from './api/kubernetesDiscovery';
 import { PanelProvider } from './context/PanelProvider';
 
@@ -38,7 +39,7 @@ function App() {
   return (
     <PanelProvider>
       <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-        <Sidebar
+        <ResourceSidebar
           selectedResource={isOverview ? null : (selectedView as V1APIResource)}
           onSelectResource={handleSelectResource}
           selectedNamespace={selectedNamespace}
@@ -58,11 +59,15 @@ function App() {
               </div>
             </header>
             <section className="flex-1 overflow-hidden min-h-0">
-              <Overview namespace={selectedNamespace} />
+              {selectedNamespace ? (
+                <ResourceOverview namespace={selectedNamespace} />
+              ) : (
+                <WelcomePage />
+              )}
             </section>
           </main>
         ) : (
-          <MainContent key={resourceKey} resource={selectedView as V1APIResource} namespace={selectedNamespace} />
+          <ResourcePage key={resourceKey} resource={selectedView as V1APIResource} namespace={selectedNamespace} />
         )}
       </div>
     </PanelProvider>

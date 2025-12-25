@@ -4,10 +4,10 @@ import type { V1APIResource } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { usePanels } from '../hooks/usePanelState';
-import { DynamicResourceTable } from './DynamicResourceTable';
+import { ResourceTable } from './ResourceTable';
 import { ColumnFilter } from './ColumnFilter';
 import { AIPanel } from './AIPanel';
-import { DetailPanel } from './DetailPanel';
+import { ResourcePanel } from './ResourcePanel';
 import { getConfig } from '../config';
 
 // Panel IDs
@@ -18,12 +18,12 @@ function getDisplayName(resource: V1APIResource): string {
   return resource.name.charAt(0).toUpperCase() + resource.name.slice(1);
 }
 
-interface MainContentProps {
+interface ResourcePageProps {
   resource: V1APIResource;
   namespace?: string;
 }
 
-export function MainContent({ resource, namespace }: MainContentProps) {
+export function ResourcePage({ resource, namespace }: ResourcePageProps) {
   const [title, setTitle] = useState(() => getDisplayName(resource));
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
@@ -101,7 +101,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
         </header>
         <section className="flex-1 overflow-auto min-h-0">
           <div className="p-6 min-w-fit">
-            <DynamicResourceTable
+            <ResourceTable
               config={resource}
               namespace={namespace}
               hiddenColumns={hiddenColumns}
@@ -122,7 +122,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
           selectedResourceName: selectedItem?.object.metadata.name,
         }}
       />
-      <DetailPanel
+      <ResourcePanel
         isOpen={isDetailPanelOpen}
         onClose={() => {
           setSelectedItem(null);
