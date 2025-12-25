@@ -10,6 +10,7 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
   adapt(resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
+    const metadata = resource.metadata;
 
     if (!spec) {
       return { sections: [] };
@@ -21,6 +22,25 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
     const numberAvailable = status?.numberAvailable ?? 0;
     const numberMisscheduled = status?.numberMisscheduled ?? 0;
     const updatedNumberScheduled = status?.updatedNumberScheduled ?? 0;
+    
+    // Filter labels (remove internal ones)
+    const labels = metadata?.labels ?? {};
+    const filteredLabels = Object.fromEntries(
+      Object.entries(labels).filter(([key]) => 
+        !key.includes('controller-revision-hash')
+      )
+    );
+    
+    // Filter annotations (remove internal ones)
+    const annotations = metadata?.annotations ?? {};
+    const filteredAnnotations = Object.fromEntries(
+      Object.entries(annotations).filter(([key]) => 
+        !key.includes('kubectl.kubernetes.io/last-applied-configuration')
+      )
+    );
+    
+    // Filter conditions to only show problematic ones
+    const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
     return {
       sections: [
@@ -59,6 +79,26 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
             columns: 2 as const,
           },
         },
+        
+        // Labels
+        ...(Object.keys(filteredLabels).length > 0 ? [{
+          id: 'labels',
+          data: {
+            type: 'labels' as const,
+            labels: filteredLabels,
+            title: 'Labels',
+          },
+        }] : []),
+        
+        // Annotations
+        ...(Object.keys(filteredAnnotations).length > 0 ? [{
+          id: 'annotations',
+          data: {
+            type: 'labels' as const,
+            labels: filteredAnnotations,
+            title: 'Annotations',
+          },
+        }] : []),
 
         // Rolling update config
         ...(spec.updateStrategy?.rollingUpdate ? [{
@@ -76,18 +116,18 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
           },
         }] : []),
 
-        // Conditions
-        ...(status?.conditions?.length ? [{
+        // Conditions (only problematic ones)
+        ...(problematicConditions.length > 0 ? [{
           id: 'conditions',
           title: 'Conditions',
           data: {
             type: 'conditions' as const,
-            items: status.conditions.map(c => ({
+            items: problematicConditions.map(c => ({
               type: c.type || '',
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: c.status === 'True',
+              isPositive: false,
             })),
           },
         }] : []),

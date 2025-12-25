@@ -1,14 +1,12 @@
-import { X, ChevronDown, ChevronRight, Loader2, Copy, Check } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { X, ChevronDown, ChevronRight, Loader2, Copy, Check, ChevronsDownUp } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter } from './resources';
 import { LogViewer } from './LogViewer';
-
-// NOTE: Old visualizer imports removed - we now use the adapter pattern
-// which automatically registers adapters via the adapters/index.ts registry
+import type { LogEntry } from '../api/kubernetesLogs';
 
 interface ResourcePanelProps {
   isOpen: boolean;
@@ -229,6 +227,26 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [events, setEvents] = useState<CoreV1Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'manifest' | 'events' | 'logs'>('overview');
+  const [copied, setCopied] = useState(false);
+  const [manifestExpandAll, setManifestExpandAll] = useState<boolean | null>(null);
+  const getLogsRef = useRef<(() => LogEntry[]) | null>(null);
+
+  const handleCopyManifest = async () => {
+    if (!fullObject) return;
+    const yaml = toYaml(fullObject);
+    await navigator.clipboard.writeText(yaml);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyLogs = async () => {
+    if (!getLogsRef.current) return;
+    const logs = getLogsRef.current();
+    const text = logs.map(log => `${log.timestamp} [${log.podName}] ${log.message}`).join('\n');
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Fetch the resource config and full resource when resourceId changes
   useEffect(() => {
@@ -309,7 +327,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         width: otherPanelOpen ? '28rem' : '40rem',
       }}
     >      {/* Header */}
-      <header className="shrink-0 h-16 flex items-center justify-between px-5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <header className="shrink-0 h-16 flex items-center justify-between pl-5 pr-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
@@ -328,19 +346,20 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       </header>
 
       {/* Tab Bar */}
-      <div className="shrink-0 flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === 'overview'
-              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-          }`}
-        >
-          Overview
-        </button>
-        <button
-          onClick={() => setActiveTab('manifest')}
+      <div className="shrink-0 flex items-center border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+        <div className="flex">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'overview'
+                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('manifest')}
           className={`px-4 py-2.5 text-sm font-medium transition-colors ${
             activeTab === 'manifest'
               ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
@@ -371,11 +390,50 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             Logs
           </button>
         )}
+        </div>
+        {/* Tab-specific action buttons */}
+        <div className="ml-auto pr-4 flex items-center gap-1">
+          {activeTab === 'manifest' && (
+            <>
+              <button
+                onClick={() => setManifestExpandAll(prev => prev === false ? true : false)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors"
+                title={manifestExpandAll === false ? "Expand all" : "Collapse all"}
+              >
+                <ChevronsDownUp size={12} />
+              </button>
+              <button
+                onClick={handleCopyManifest}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors"
+                title="Copy as YAML"
+              >
+                {copied ? (
+                  <Check size={12} className="text-emerald-500" />
+                ) : (
+                  <Copy size={12} />
+                )}
+              </button>
+            </>
+          )}
+          {activeTab === 'logs' && (
+            <button
+              onClick={handleCopyLogs}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors"
+              title="Copy logs"
+            >
+              {copied ? (
+                <Check size={12} className="text-emerald-500" />
+              ) : (
+                <Copy size={12} />
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
       {activeTab === 'overview' && (
-        <div className="flex-1 overflow-auto p-5">
+        <div className="flex-1 overflow-auto p-4">
           {loading && (
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm mb-4">
               <Loader2 size={14} className="animate-spin" />
@@ -391,17 +449,11 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           {/* Specialized Resource Visualizer */}
           {(() => {
             if (hasAdapter(resourceKind) && fullObject && !loading) {
-              return (
-                <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mb-4">
-                  <ResourceVisualizer resource={fullObject} namespace={resourceId.namespace} />
-                </div>
-              );
+              return <ResourceVisualizer resource={fullObject} namespace={resourceId.namespace} />;
             }
-            return null;
+            // Fallback metadata section for resources without adapters
+            return <MetadataSection metadata={displayObject.metadata as Record<string, unknown>} />;
           })()}
-
-          {/* Metadata Section */}
-          <MetadataSection metadata={displayObject.metadata as Record<string, unknown>} />
             </>
           )}
         </div>
@@ -409,7 +461,13 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
 
       {activeTab === 'manifest' && (
         <div className="flex-1 overflow-hidden flex flex-col">
-          <ManifestView resource={fullObject} loading={loading} error={error} />
+          <ManifestView 
+            key={`manifest-${manifestExpandAll}`}
+            resource={fullObject} 
+            loading={loading} 
+            error={error}
+            expandAll={manifestExpandAll}
+          />
         </div>
       )}
 
@@ -425,6 +483,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             namespace={resourceId.namespace!}
             workloadKind={resourceKind}
             workloadName={resourceName}
+            onLogsRef={(getLogs) => { getLogsRef.current = getLogs; }}
           />
         </div>
       )}
@@ -436,22 +495,14 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
 function ManifestView({ 
   resource, 
   loading, 
-  error 
+  error,
+  expandAll,
 }: { 
   resource: KubernetesResource | null; 
   loading: boolean; 
   error: string | null;
+  expandAll?: boolean | null;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    if (!resource) return;
-    const yaml = toYaml(resource);
-    await navigator.clipboard.writeText(yaml);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -489,36 +540,21 @@ function ManifestView({
 
   return (
     <>
-      {/* Toolbar */}
-      <div className="shrink-0 flex items-center justify-end px-4 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors"
-        >
-          {copied ? (
-            <>
-              <Check size={12} className="text-emerald-500" />
-              Copied as YAML
-            </>
-          ) : (
-            <>
-              <Copy size={12} />
-              Copy as YAML
-            </>
-          )}
-        </button>
-      </div>
       {/* Content */}
       <div className="flex-1 overflow-auto p-4">
         <div className="space-y-1">
           {orderedKeys.map(key => {
             const value = (resource as Record<string, unknown>)[key];
+            const defaultOpenKeys = ['metadata', 'spec', 'status'];
+            const shouldBeOpen = expandAll !== null && expandAll !== undefined 
+              ? expandAll 
+              : defaultOpenKeys.includes(key);
             return (
               <ManifestSection 
                 key={key} 
                 label={key} 
                 value={value}
-                defaultOpen={key === 'metadata' || key === 'spec' || key === 'status'}
+                defaultOpen={shouldBeOpen}
               />
             );
           })}

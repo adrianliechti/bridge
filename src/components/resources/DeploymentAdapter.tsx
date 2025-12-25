@@ -21,6 +21,26 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
     const ready = status?.readyReplicas ?? 0;
     const updated = status?.updatedReplicas ?? 0;
     const available = status?.availableReplicas ?? 0;
+    
+    // Filter labels (remove internal ones)
+    const labels = metadata?.labels ?? {};
+    const filteredLabels = Object.fromEntries(
+      Object.entries(labels).filter(([key]) => 
+        !key.includes('pod-template-hash')
+      )
+    );
+    
+    // Filter annotations (remove internal ones)
+    const annotations = metadata?.annotations ?? {};
+    const filteredAnnotations = Object.fromEntries(
+      Object.entries(annotations).filter(([key]) => 
+        !key.includes('kubectl.kubernetes.io/last-applied-configuration') &&
+        !key.includes('deployment.kubernetes.io/revision')
+      )
+    );
+    
+    // Filter conditions to only show problematic ones
+    const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
     return {
       sections: [
@@ -59,19 +79,39 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
             columns: 2,
           },
         },
+        
+        // Labels
+        ...(Object.keys(filteredLabels).length > 0 ? [{
+          id: 'labels',
+          data: {
+            type: 'labels' as const,
+            labels: filteredLabels,
+            title: 'Labels',
+          },
+        }] : []),
+        
+        // Annotations
+        ...(Object.keys(filteredAnnotations).length > 0 ? [{
+          id: 'annotations',
+          data: {
+            type: 'labels' as const,
+            labels: filteredAnnotations,
+            title: 'Annotations',
+          },
+        }] : []),
 
-        // Conditions
-        ...(status?.conditions?.length ? [{
+        // Conditions (only problematic ones)
+        ...(problematicConditions.length > 0 ? [{
           id: 'conditions',
           title: 'Conditions',
           data: {
             type: 'conditions' as const,
-            items: status.conditions.map(c => ({
+            items: problematicConditions.map(c => ({
               type: c.type || '',
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: c.status === 'True',
+              isPositive: false,
             })),
           },
         }] : []),

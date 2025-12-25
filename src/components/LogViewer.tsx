@@ -8,6 +8,8 @@ export interface LogViewerProps {
   podNames?: string[];
   workloadKind?: string;
   workloadName?: string;
+  // Callback to expose logs for external use (e.g., copy)
+  onLogsRef?: (getLogs: () => LogEntry[]) => void;
 }
 
 // Color palette for different pods
@@ -280,6 +282,7 @@ export function LogViewer({
   podNames: initialPodNames,
   workloadKind,
   workloadName,
+  onLogsRef,
 }: LogViewerProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [streamError, setStreamError] = useState<string | null>(null);
@@ -288,6 +291,19 @@ export function LogViewer({
   
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
+  const logsRef = useRef<LogEntry[]>([]);
+  
+  // Keep logsRef in sync with logs state
+  useEffect(() => {
+    logsRef.current = logs;
+  }, [logs]);
+
+  // Expose logs getter to parent
+  useEffect(() => {
+    if (onLogsRef) {
+      onLogsRef(() => logsRef.current);
+    }
+  }, [onLogsRef]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // For Pods, use the workloadName directly as the pod name
@@ -449,7 +465,7 @@ export function LogViewer({
                 </div>
                 {/* Log message */}
                 {isStructured ? (
-                  <pre className={`${textColor} whitespace-pre overflow-x-auto leading-snug text-[11px]`}>
+                  <pre className={`${textColor} whitespace-pre overflow-x-auto scrollbar-hide leading-snug text-[11px]`}>
                     {parsed.formatted}
                   </pre>
                 ) : (

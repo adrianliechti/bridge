@@ -25,6 +25,25 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
 
     // Generate pod titles for ordinal display
     const podTitles = Array.from({ length: desired }, (_, i) => `${metadata?.name}-${i}`);
+    
+    // Filter labels (remove internal ones)
+    const labels = metadata?.labels ?? {};
+    const filteredLabels = Object.fromEntries(
+      Object.entries(labels).filter(([key]) => 
+        !key.includes('controller-revision-hash')
+      )
+    );
+    
+    // Filter annotations (remove internal ones)
+    const annotations = metadata?.annotations ?? {};
+    const filteredAnnotations = Object.fromEntries(
+      Object.entries(annotations).filter(([key]) => 
+        !key.includes('kubectl.kubernetes.io/last-applied-configuration')
+      )
+    );
+    
+    // Filter conditions to only show problematic ones
+    const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
     return {
       sections: [
@@ -66,6 +85,26 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
             columns: 2,
           },
         },
+        
+        // Labels
+        ...(Object.keys(filteredLabels).length > 0 ? [{
+          id: 'labels',
+          data: {
+            type: 'labels' as const,
+            labels: filteredLabels,
+            title: 'Labels',
+          },
+        }] : []),
+        
+        // Annotations
+        ...(Object.keys(filteredAnnotations).length > 0 ? [{
+          id: 'annotations',
+          data: {
+            type: 'labels' as const,
+            labels: filteredAnnotations,
+            title: 'Annotations',
+          },
+        }] : []),
 
         // Revision info
         ...(status?.currentRevision ? [{
@@ -83,18 +122,18 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
           },
         }] : []),
 
-        // Conditions
-        ...(status?.conditions?.length ? [{
+        // Conditions (only problematic ones)
+        ...(problematicConditions.length > 0 ? [{
           id: 'conditions',
           title: 'Conditions',
           data: {
             type: 'conditions' as const,
-            items: status.conditions.map(c => ({
+            items: problematicConditions.map(c => ({
               type: c.type || '',
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: c.status === 'True',
+              isPositive: false,
             })),
           },
         }] : []),

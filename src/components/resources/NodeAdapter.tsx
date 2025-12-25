@@ -122,26 +122,29 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
           },
         }] : []),
 
-        // Conditions (sorted)
-        ...(conditions.length > 0 ? [{
-          id: 'conditions',
-          title: `Conditions (${conditions.length})`,
-          data: {
-            type: 'conditions' as const,
-            items: sortNodeConditions(conditions).map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-              isPositive: isNodeConditionPositive(c),
-            })),
-          },
-        }] : []),
+        // Conditions (only problematic ones)
+        ...(() => {
+          const problematicConditions = conditions.filter(c => !isNodeConditionPositive(c));
+          return problematicConditions.length > 0 ? [{
+            id: 'conditions',
+            title: 'Conditions',
+            data: {
+              type: 'conditions' as const,
+              items: problematicConditions.map(c => ({
+                type: c.type || '',
+                status: c.status || '',
+                reason: c.reason,
+                message: c.message,
+                isPositive: false,
+              })),
+            },
+          }] : [];
+        })(),
 
         // Taints
         ...(taints.length > 0 ? [{
           id: 'taints',
-          title: `Taints (${taints.length})`,
+          title: 'Taints',
           data: {
             type: 'taints' as const,
             items: taints.map(t => ({
@@ -173,12 +176,4 @@ function isNodeConditionPositive(condition: V1NodeCondition): boolean {
   return condition.type === 'Ready' 
     ? condition.status === 'True'
     : condition.status === 'False';
-}
-
-// Helper function to sort node conditions
-function sortNodeConditions(conditions: V1NodeCondition[]): V1NodeCondition[] {
-  const order = ['Ready', 'MemoryPressure', 'DiskPressure', 'PIDPressure', 'NetworkUnavailable'];
-  return [...conditions].sort((a, b) => 
-    order.indexOf(a.type ?? '') - order.indexOf(b.type ?? '')
-  );
 }

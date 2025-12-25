@@ -20,6 +20,13 @@ import {
   Tag,
   Cpu,
   Activity,
+  KeyRound,
+  Settings,
+  FolderOpen,
+  FolderSymlink,
+  Network,
+  Puzzle,
+  FileDown,
 } from 'lucide-react';
 import type { 
   Section, 
@@ -78,6 +85,9 @@ export function ResourceVisualizer({ resource, namespace }: ResourceVisualizerPr
 function SectionRenderer({ section }: { section: Section }) {
   const { title, data } = section;
   const content = renderSectionData(data);
+
+  // Don't render empty sections
+  if (content === null) return null;
 
   if (!title) return <>{content}</>;
 
@@ -176,7 +186,7 @@ function StatusCardsSection({ items }: { items: StatusCardData[] }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       {items.map((item, i) => (
-        <div key={i} className="bg-gray-900/50 rounded-lg p-3">
+        <div key={i} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
           <div className="text-xs text-gray-500 mb-1">{item.label}</div>
           <div className={`text-sm font-medium flex items-center gap-2 ${statusColors[item.status || 'neutral']}`}>
             {item.icon}
@@ -205,7 +215,7 @@ function GaugesSection({ items, podGrid }: { items: GaugeData[]; podGrid?: PodGr
   };
 
   return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
+    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
       <div className="flex items-center gap-4 mb-3">
         {items.map((item, i) => {
           const percentage = item.total > 0 ? Math.min((item.current / item.total) * 100, 100) : 0;
@@ -271,29 +281,28 @@ function PodGridSection({ data }: { data: PodGridData }) {
 }
 
 function ConditionsSection({ items }: { items: ConditionData[] }) {
+  // Only show problematic conditions (not positive)
+  const problematicConditions = items.filter(c => !c.isPositive);
+  
+  if (problematicConditions.length === 0) {
+    return null;
+  }
+  
   return (
     <div className="space-y-1">
-      {items.map((condition, i) => (
+      {problematicConditions.map((condition, i) => (
         <div 
           key={i} 
-          className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
-            condition.isPositive
-              ? 'bg-emerald-500/10 border border-emerald-500/20' 
-              : 'bg-gray-900/50 border border-gray-700'
-          }`}
+          className="flex items-start gap-2 text-xs px-2 py-1.5 rounded bg-amber-500/10 border border-amber-500/20"
         >
-          {condition.isPositive ? (
-            <CheckCircle2 size={12} className="text-emerald-400 mt-0.5 shrink-0" />
-          ) : (
-            <AlertTriangle size={12} className="text-amber-400 mt-0.5 shrink-0" />
-          )}
+          <AlertTriangle size={12} className="text-amber-400 mt-0.5 shrink-0" />
           <div className="min-w-0">
-            <div className="text-gray-300">{condition.type}</div>
+            <div className="text-amber-300 font-medium">{condition.type}</div>
             {condition.reason && (
-              <div className="text-gray-500">{condition.reason}</div>
+              <div className="text-amber-400/70">{condition.reason}</div>
             )}
             {condition.message && (
-              <div className="text-gray-500 text-[10px] mt-0.5 wrap-break-word">{condition.message}</div>
+              <div className="text-gray-400 text-[10px] mt-0.5 wrap-break-word">{condition.message}</div>
             )}
           </div>
         </div>
@@ -320,6 +329,8 @@ function InfoGridSection({ items, columns = 2 }: { items: InfoRowData[]; columns
 }
 
 function ContainersSection({ items }: { items: ContainerData[] }) {
+  if (items.length === 0) return null;
+  
   return (
     <div className="space-y-2">
       {items.map((container) => (
@@ -432,16 +443,16 @@ function ContainerCard({ container }: { container: ContainerData }) {
           {/* Volume Mounts */}
           {container.mounts && container.mounts.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+              <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
                 <HardDrive size={10} /> Volume Mounts
               </div>
-              <div className="text-xs space-y-0.5">
+              <div className="text-xs space-y-1.5 ml-1">
                 {container.mounts.map((mount, i) => (
-                  <div key={i} className="text-gray-400">
-                    <span className="text-purple-400">{mount.name}</span>
-                    <span className="text-gray-600 mx-1">→</span>
-                    <span className="text-cyan-400">{mount.mountPath}</span>
-                    {mount.readOnly && <span className="text-amber-400 ml-1">(ro)</span>}
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-purple-400 truncate max-w-[140px]" title={mount.name}>{mount.name}</span>
+                    <span className="text-gray-600">→</span>
+                    <span className="text-cyan-400 font-mono truncate flex-1" title={mount.mountPath}>{mount.mountPath}</span>
+                    {mount.readOnly && <span className="text-amber-400 text-[10px] px-1 py-0.5 bg-amber-500/10 rounded">(ro)</span>}
                   </div>
                 ))}
               </div>
@@ -488,6 +499,8 @@ function getContainerStateInfo(state?: string, reason?: string) {
 }
 
 function VolumesSection({ items }: { items: VolumeData[] }) {
+  if (items.length === 0) return null;
+  
   return (
     <div className="space-y-2">
       {items.map((volume) => (
@@ -510,6 +523,18 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
     'DownwardAPI': 'border-cyan-500/30 bg-cyan-500/5',
     'NFS': 'border-orange-500/30 bg-orange-500/5',
     'CSI': 'border-indigo-500/30 bg-indigo-500/5',
+  };
+
+  const typeIcons: Record<string, React.ReactNode> = {
+    'ConfigMap': <Settings size={14} className="text-blue-400" />,
+    'Secret': <KeyRound size={14} className="text-amber-400" />,
+    'PVC': <Database size={14} className="text-emerald-400" />,
+    'EmptyDir': <FolderOpen size={14} className="text-gray-400" />,
+    'HostPath': <FolderSymlink size={14} className="text-red-400" />,
+    'Projected': <Layers size={14} className="text-purple-400" />,
+    'DownwardAPI': <FileDown size={14} className="text-cyan-400" />,
+    'NFS': <Network size={14} className="text-orange-400" />,
+    'CSI': <Puzzle size={14} className="text-indigo-400" />,
   };
 
   const typeBadgeStyles: Record<string, string> = {
@@ -535,13 +560,10 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
         ) : (
           <ChevronRight size={14} className="text-gray-500" />
         )}
-        <HardDrive size={14} className="text-purple-400" />
+        {typeIcons[volume.type] || <HardDrive size={14} className="text-gray-400" />}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-100">{volume.name}</span>
-            <span className={`px-1.5 py-0.5 rounded text-xs ${typeBadgeStyles[volume.type] || 'bg-gray-700 text-gray-400'}`}>
-              {volume.type}
-            </span>
           </div>
           <div className="text-xs text-gray-500 truncate">
             {volume.source && <span className="text-cyan-400/70">{volume.source}</span>}
@@ -550,9 +572,6 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
             )}
           </div>
         </div>
-        {volume.mounts.length > 0 && (
-          <span className="text-xs text-gray-500">{volume.mounts.length} mount{volume.mounts.length > 1 ? 's' : ''}</span>
-        )}
       </button>
 
       {expanded && (
@@ -583,11 +602,11 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
           {/* Mount Points */}
           {volume.mounts.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Mount Points ({volume.mounts.length})</div>
+              <div className="text-xs text-gray-500 mb-1">Mount Points</div>
               <div className="space-y-2">
                 {volume.mounts.map((mount, i) => (
                   <div key={i} className="text-xs bg-gray-900/50 rounded p-2">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2">
                       <Box size={10} className="text-blue-400" />
                       <span className="text-gray-300">{mount.container}</span>
                       <span className="text-gray-600">→</span>
@@ -639,16 +658,20 @@ function LabelsSection({ labels, title = 'Labels' }: { labels: Record<string, st
         <Tag size={12} />
         {title}
       </h5>
-      <table className="w-full text-xs">
+      <table className="w-full text-xs table-fixed">
+        <colgroup>
+          <col className="w-[40%]" />
+          <col className="w-[60%]" />
+        </colgroup>
         <tbody>
-          {sortedEntries.map(([key, value]) => {
+          {sortedEntries.map(([key, value], index) => {
             const isImportant = importantPrefixes.some(p => key.startsWith(p));
             return (
-              <tr key={key} className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
-                <td className={`py-1.5 pr-3 align-top whitespace-nowrap ${isImportant ? 'text-blue-600 dark:text-blue-400' : 'text-sky-600 dark:text-sky-400'}`}>
+              <tr key={key} className={index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-800/30' : ''}>
+                <td className={`py-1.5 px-2 truncate ${isImportant ? 'text-blue-600 dark:text-blue-400' : 'text-sky-600 dark:text-sky-400'}`} title={key}>
                   {key}
                 </td>
-                <td className="py-1.5 text-emerald-600 dark:text-emerald-400 break-all">
+                <td className="py-1.5 px-2 text-emerald-600 dark:text-emerald-400 truncate" title={value}>
                   {value}
                 </td>
               </tr>
@@ -661,6 +684,8 @@ function LabelsSection({ labels, title = 'Labels' }: { labels: Record<string, st
 }
 
 function CapacityBarsSection({ items }: { items: CapacityBarData[] }) {
+  if (items.length === 0) return null;
+  
   return (
     <div className="space-y-3">
       {items.map((item, i) => (
@@ -687,6 +712,8 @@ function CapacityBarsSection({ items }: { items: CapacityBarData[] }) {
 }
 
 function TaintsSection({ items }: { items: TaintData[] }) {
+  if (items.length === 0) return null;
+  
   const effectColors: Record<string, string> = {
     'NoSchedule': 'bg-red-500/20 text-red-400 border-red-500/30',
     'PreferNoSchedule': 'bg-amber-500/20 text-amber-400 border-amber-500/30',

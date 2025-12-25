@@ -147,7 +147,7 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
         </div>
         <button
           onClick={onClose}
-          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 rounded-md transition-colors"
+          className="-mr-2 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 rounded-md transition-colors"
         >
           <X size={18} />
         </button>

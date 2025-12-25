@@ -10,6 +10,7 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
   adapt(resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
+    const metadata = resource.metadata;
 
     if (!spec) {
       return { sections: [] };
@@ -21,6 +22,26 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
     const initContainerStatuses = status?.initContainerStatuses ?? [];
 
     const totalRestarts = containerStatuses.reduce((sum, c) => sum + (c.restartCount ?? 0), 0);
+    
+    // Filter labels (remove internal ones)
+    const labels = metadata?.labels ?? {};
+    const filteredLabels = Object.fromEntries(
+      Object.entries(labels).filter(([key]) => 
+        !key.includes('pod-template-hash') && 
+        !key.includes('controller-revision-hash')
+      )
+    );
+    
+    // Filter annotations (remove internal ones)
+    const annotations = metadata?.annotations ?? {};
+    const filteredAnnotations = Object.fromEntries(
+      Object.entries(annotations).filter(([key]) => 
+        !key.includes('kubectl.kubernetes.io/last-applied-configuration')
+      )
+    );
+    
+    // Filter conditions to only show problematic ones
+    const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
     return {
       sections: [
@@ -37,11 +58,31 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
             ],
           },
         },
+        
+        // Labels
+        ...(Object.keys(filteredLabels).length > 0 ? [{
+          id: 'labels',
+          data: {
+            type: 'labels' as const,
+            labels: filteredLabels,
+            title: 'Labels',
+          },
+        }] : []),
+        
+        // Annotations
+        ...(Object.keys(filteredAnnotations).length > 0 ? [{
+          id: 'annotations',
+          data: {
+            type: 'labels' as const,
+            labels: filteredAnnotations,
+            title: 'Annotations',
+          },
+        }] : []),
 
         // Init containers
         ...(initContainers.length > 0 ? [{
           id: 'init-containers',
-          title: `Init Containers (${initContainers.length})`,
+          title: 'Init Containers',
           data: {
             type: 'containers' as const,
             items: initContainers.map(c => mapContainer(c, initContainerStatuses)),
@@ -51,7 +92,7 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
         // Containers
         {
           id: 'containers',
-          title: `Containers (${containers.length})`,
+          title: 'Containers',
           data: {
             type: 'containers',
             items: containers.map(c => mapContainer(c, containerStatuses)),
@@ -61,25 +102,25 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
         // Volumes
         ...(spec.volumes?.length ? [{
           id: 'volumes',
-          title: `Volumes (${spec.volumes.length})`,
+          title: 'Volumes',
           data: {
             type: 'volumes' as const,
             items: spec.volumes.map(v => mapVolume(v, [...containers, ...initContainers])),
           },
         }] : []),
 
-        // Conditions
-        ...(status?.conditions?.length ? [{
+        // Conditions (only problematic ones)
+        ...(problematicConditions.length > 0 ? [{
           id: 'conditions',
           title: 'Conditions',
           data: {
             type: 'conditions' as const,
-            items: status.conditions.map(c => ({
+            items: problematicConditions.map(c => ({
               type: c.type || '',
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: c.status === 'True',
+              isPositive: false,
             })),
           },
         }] : []),

@@ -58,18 +58,18 @@ export function ResourcePage({ resource, namespace }: ResourcePageProps) {
     setColumns(cols);
   }, []);
 
-  // Calculate right margin based on which panels are open
-  const getRightMargin = () => {
+  // Calculate right padding for header actions based on which panels are open
+  const getHeaderActionsPadding = () => {
     const openPanelCount = [isDetailPanelOpen, isAIPanelOpen].filter(Boolean).length;
-    if (openPanelCount >= 2) return 'mr-[56rem]'; // 28rem + 28rem
-    if (openPanelCount === 1) return 'mr-[40rem]';
+    if (openPanelCount >= 2) return 'pr-[56rem]'; // 28rem + 28rem
+    if (openPanelCount === 1) return 'pr-[40rem]';
     return '';
   };
 
   return (
     <>
-      <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${getRightMargin()}`}>
-        <header className="shrink-0 h-16 flex items-center justify-between px-5 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
+      <main className="flex-1 ml-64 flex flex-col h-screen min-w-0">
+        <header className={`shrink-0 h-16 flex items-center justify-between px-5 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800 transition-all duration-300 ${getHeaderActionsPadding()}`}>
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
             {namespace && (
@@ -100,17 +100,15 @@ export function ResourcePage({ resource, namespace }: ResourcePageProps) {
             )}
           </div>
         </header>
-        <section className="flex-1 overflow-auto min-h-0">
-          <div className="p-6 min-w-fit">
-            <ResourceTable
-              config={resource}
-              namespace={namespace}
-              hiddenColumns={hiddenColumns}
-              onColumnsLoaded={handleColumnsLoaded}
-              selectedItem={selectedItem}
-              onSelectItem={handleSelectItem}
-            />
-          </div>
+        <section className="flex-1 min-h-0 overflow-hidden">
+          <ResourceTable
+            config={resource}
+            namespace={namespace}
+            hiddenColumns={hiddenColumns}
+            onColumnsLoaded={handleColumnsLoaded}
+            selectedItem={selectedItem}
+            onSelectItem={handleSelectItem}
+          />
         </section>
       </main>
       <AIPanel 
