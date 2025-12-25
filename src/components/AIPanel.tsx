@@ -132,7 +132,7 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
 
   return (
     <div
-      className={`fixed top-0 right-0 h-screen bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col transition-all duration-300 ease-in-out z-30 ${
+      className={`fixed top-0 right-0 h-screen bg-white border-l border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 flex flex-col transition-all duration-300 ease-in-out z-30 ${
         isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
       }`}
       style={{
@@ -140,14 +140,14 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
       }}
     >
       {/* Header */}
-      <div className="shrink-0 h-16 px-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
+      <div className="shrink-0 h-16 px-4 flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
         <div className="flex items-center gap-2">
           <Sparkles size={20} className="text-sky-400" />
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">AI Assistant</h3>
+          <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">AI Assistant</h3>
         </div>
         <button
           onClick={onClose}
-          className="-mr-2 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 rounded-md transition-colors"
+          className="-mr-2 p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 rounded-md transition-colors"
         >
           <X size={18} />
         </button>
@@ -160,11 +160,11 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
             key={message.id}
             className={`text-sm ${
               message.role === 'user'
-                ? 'bg-gray-100 dark:bg-gray-800/50 -mx-4 px-4 py-3 border-l-2 border-sky-500'
+                ? 'bg-neutral-100 dark:bg-neutral-800/50 -mx-4 px-4 py-3 border-l-2 border-sky-500'
                 : ''
             }`}
           >
-            <div className={message.role === 'user' ? 'text-gray-900 dark:text-gray-100' : 'text-gray-800 dark:text-gray-200'}>
+            <div className={message.role === 'user' ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-800 dark:text-neutral-200'}>
               {message.content ? (
                 message.role === 'assistant' ? (
                   <Markdown>{message.content}</Markdown>
@@ -173,7 +173,7 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
                 )
               ) : (
                 message.isStreaming && (
-                  <span className="flex items-center gap-2 text-gray-400">
+                  <span className="flex items-center gap-2 text-neutral-400">
                     <Loader2 size={14} className="animate-spin" />
                     Thinking...
                   </span>
@@ -186,7 +186,7 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="shrink-0 p-4 border-t border-gray-200 dark:border-gray-800">
+      <form onSubmit={handleSubmit} className="shrink-0 p-4 border-t border-neutral-200 dark:border-neutral-800">
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
@@ -196,13 +196,13 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
             placeholder="Ask about your resources..."
             rows={1}
             disabled={isLoading}
-            className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 text-sm placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-sky-600 focus:border-transparent disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 bg-neutral-50 border border-neutral-300 dark:bg-neutral-800 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 text-sm placeholder-neutral-500 resize-none focus:outline-none focus:ring-2 focus:ring-sky-600 focus:border-transparent disabled:opacity-50"
             style={{ maxHeight: '120px' }}
           />
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="p-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-xl transition-colors"
+            className="p-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 disabled:text-neutral-500 text-white rounded-xl transition-colors"
           >
             {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
           </button>

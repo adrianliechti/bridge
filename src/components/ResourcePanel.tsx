@@ -18,10 +18,10 @@ interface ResourcePanelProps {
 // Format a value for display with syntax coloring
 function ValueDisplay({ value }: { value: unknown }) {
   if (value === null) {
-    return <span className="text-gray-500 italic">null</span>;
+    return <span className="text-neutral-500 italic">null</span>;
   }
   if (value === undefined) {
-    return <span className="text-gray-500 italic">undefined</span>;
+    return <span className="text-neutral-500 italic">undefined</span>;
   }
   if (typeof value === 'boolean') {
     return <span className={value ? 'text-emerald-400' : 'text-red-400'}>{String(value)}</span>;
@@ -42,16 +42,16 @@ function ValueDisplay({ value }: { value: unknown }) {
   }
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return <span className="text-gray-500">[]</span>;
+      return <span className="text-neutral-500">[]</span>;
     }
     // For simple arrays of primitives, show inline
     if (value.every(v => typeof v !== 'object' || v === null)) {
       return (
-        <span className="text-gray-300">
+        <span className="text-neutral-300">
           [
           {value.map((v, i) => (
             <span key={i}>
-              {i > 0 && <span className="text-gray-500">, </span>}
+              {i > 0 && <span className="text-neutral-500">, </span>}
               <ValueDisplay value={v} />
             </span>
           ))}
@@ -63,7 +63,7 @@ function ValueDisplay({ value }: { value: unknown }) {
     return null;
   }
   // Fallback for other types
-  return <span className="text-gray-300">{JSON.stringify(value)}</span>;
+  return <span className="text-neutral-300">{JSON.stringify(value)}</span>;
 }
 
 // Check if value is an object that can be expanded
@@ -96,7 +96,7 @@ function ArrayTree({ data, depth = 0 }: { data: unknown[]; depth?: number }) {
   };
 
   return (
-    <div className={depth > 0 ? 'ml-2 border-l border-gray-800 pl-2' : ''}>
+    <div className={depth > 0 ? 'ml-2 border-l border-neutral-800 pl-2' : ''}>
       {data.map((value, index) => {
         const isObj = isExpandable(value);
         const isArr = isExpandableArray(value);
@@ -108,16 +108,16 @@ function ArrayTree({ data, depth = 0 }: { data: unknown[]; depth?: number }) {
               {(isObj || isArr) ? (
                 <button
                   onClick={() => toggle(index)}
-                  className="mt-0.5 text-gray-500 hover:text-gray-300 transition-colors"
+                  className="mt-0.5 text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
                   {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
               ) : (
                 <span className="w-3.5" />
               )}
-              <span className="text-gray-500 text-sm">[{index}]</span>
+              <span className="text-neutral-500 text-sm">[{index}]</span>
               {!isObj && !isArr && (
-                <span className="text-gray-300 text-sm ml-1 break-all">
+                <span className="text-neutral-300 text-sm ml-1 break-all">
                   <ValueDisplay value={value} />
                 </span>
               )}
@@ -161,7 +161,7 @@ function ObjectTree({ data, depth = 0 }: { data: Record<string, unknown>; depth?
   const sortedEntries = Object.entries(data).sort(([a], [b]) => a.localeCompare(b));
 
   return (
-    <div className={depth > 0 ? 'ml-2 border-l border-gray-800 pl-2' : ''}>
+    <div className={depth > 0 ? 'ml-2 border-l border-neutral-800 pl-2' : ''}>
       {sortedEntries.map(([key, value]) => {
         const isObj = isExpandable(value);
         const isArr = isExpandableArray(value);
@@ -173,7 +173,7 @@ function ObjectTree({ data, depth = 0 }: { data: Record<string, unknown>; depth?
               {(isObj || isArr) ? (
                 <button
                   onClick={() => toggle(key)}
-                  className="mt-0.5 text-gray-500 hover:text-gray-300 transition-colors"
+                  className="mt-0.5 text-neutral-500 hover:text-neutral-300 transition-colors"
                 >
                   {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
@@ -321,24 +321,24 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
 
   return (
     <aside 
-      className="fixed top-0 h-screen bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col z-20 shadow-xl transition-all duration-300"
+      className="fixed top-0 h-screen bg-white border-l border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 flex flex-col z-20 shadow-xl transition-all duration-300"
       style={{
         right: otherPanelOpen ? '28rem' : '0',
         width: otherPanelOpen ? '28rem' : '40rem',
       }}
     >      {/* Header */}
-      <header className="shrink-0 h-16 flex items-center justify-between pl-5 pr-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <header className="shrink-0 h-16 flex items-center justify-between pl-5 pr-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 truncate">
               {resourceName}
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-500">{resourceId.namespace || 'cluster-scoped'}</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-500">{resourceId.namespace || 'cluster-scoped'}</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-md transition-colors"
+          className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
           title="Close"
         >
           <X size={18} />
@@ -346,14 +346,14 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       </header>
 
       {/* Tab Bar */}
-      <div className="shrink-0 flex items-center border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+      <div className="shrink-0 flex items-center border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50">
         <div className="flex">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === 'overview'
                 ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
             }`}
           >
             Overview
@@ -363,7 +363,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           className={`px-4 py-2.5 text-sm font-medium transition-colors ${
             activeTab === 'manifest'
               ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
           }`}
         >
           Manifest
@@ -373,7 +373,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           className={`px-4 py-2.5 text-sm font-medium transition-colors ${
             activeTab === 'events'
               ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
           }`}
         >
           Events{events.length > 0 ? ` (${events.length})` : ''}
@@ -384,7 +384,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             className={`px-4 py-2.5 text-sm font-medium transition-colors ${
               activeTab === 'logs'
                 ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
             }`}
           >
             Logs
@@ -397,14 +397,14 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             <>
               <button
                 onClick={() => setManifestExpandAll(prev => prev === false ? true : false)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
                 title={manifestExpandAll === false ? "Expand all" : "Collapse all"}
               >
                 <ChevronsDownUp size={12} />
               </button>
               <button
                 onClick={handleCopyManifest}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
                 title="Copy as YAML"
               >
                 {copied ? (
@@ -418,7 +418,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           {activeTab === 'logs' && (
             <button
               onClick={handleCopyLogs}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
               title="Copy logs"
             >
               {copied ? (
@@ -435,7 +435,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       {activeTab === 'overview' && (
         <div className="flex-1 overflow-auto p-4">
           {loading && (
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm mb-4">
+            <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-400 text-sm mb-4">
               <Loader2 size={14} className="animate-spin" />
               Loading full resource...
             </div>
@@ -506,7 +506,7 @@ function ManifestView({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
+        <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-400 text-sm">
           <Loader2 size={14} className="animate-spin" />
           Loading manifest...
         </div>
@@ -525,7 +525,7 @@ function ManifestView({
   if (!resource) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-sm text-gray-500 dark:text-gray-400">No resource loaded</div>
+        <div className="text-sm text-neutral-500 dark:text-neutral-400">No resource loaded</div>
       </div>
     );
   }
@@ -591,28 +591,28 @@ function ManifestSection({
   const isEmpty = Array.isArray(value) ? value.length === 0 : Object.keys(value as object).length === 0;
 
   return (
-    <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+    <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-left"
+        className="w-full flex items-center gap-2 px-3 py-2 bg-neutral-100 dark:bg-neutral-800/50 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors text-left"
       >
         {isOpen ? (
-          <ChevronDown size={14} className="text-gray-500 shrink-0" />
+          <ChevronDown size={14} className="text-neutral-500 shrink-0" />
         ) : (
-          <ChevronRight size={14} className="text-gray-500 shrink-0" />
+          <ChevronRight size={14} className="text-neutral-500 shrink-0" />
         )}
         <span className="text-purple-400 font-medium text-sm">{label}</span>
         {isEmpty && (
-          <span className="text-gray-500 text-xs">(empty)</span>
+          <span className="text-neutral-500 text-xs">(empty)</span>
         )}
         {!isEmpty && !isOpen && (
-          <span className="text-gray-500 text-xs">
+          <span className="text-neutral-500 text-xs">
             {Array.isArray(value) ? `[${value.length} items]` : `{${Object.keys(value as object).length} fields}`}
           </span>
         )}
       </button>
       {isOpen && !isEmpty && (
-        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/30">
+        <div className="px-3 py-2 bg-neutral-50 dark:bg-neutral-900/30">
           {Array.isArray(value) ? (
             <ArrayTree data={value} depth={0} />
           ) : (
@@ -703,19 +703,19 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
 
   return (
     <section className="mb-4">
-      <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 mb-2">
+      <h4 className="text-xs font-medium uppercase tracking-wider text-neutral-400 mb-2">
         Metadata
       </h4>
       
-      <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 space-y-4">
+      <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4 space-y-4">
         {/* Labels */}
         {filteredLabels && Object.keys(filteredLabels).length > 0 && (
           <div>
-            <div className="text-xs text-gray-500 mb-2">Labels</div>
+            <div className="text-xs text-neutral-500 mb-2">Labels</div>
             <table className="w-full text-xs">
               <tbody>
                 {Object.entries(filteredLabels).map(([key, value]) => (
-                  <tr key={key} className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
+                  <tr key={key} className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
                     <td className="py-1.5 pr-3 text-sky-600 dark:text-sky-400 align-top whitespace-nowrap">
                       {key}
                     </td>
@@ -732,15 +732,15 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
         {/* Annotations */}
         {filteredAnnotations && Object.keys(filteredAnnotations).length > 0 && (
           <div>
-            <div className="text-xs text-gray-500 mb-2">Annotations</div>
+            <div className="text-xs text-neutral-500 mb-2">Annotations</div>
             <table className="w-full text-xs">
               <tbody>
                 {Object.entries(filteredAnnotations).map(([key, value]) => (
-                  <tr key={key} className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
+                  <tr key={key} className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
                     <td className="py-1.5 pr-3 text-purple-600 dark:text-purple-400 align-top whitespace-nowrap">
                       {key}
                     </td>
-                    <td className="py-1.5 text-gray-600 dark:text-gray-300 break-all">
+                    <td className="py-1.5 text-neutral-600 dark:text-neutral-300 break-all">
                       {value}
                     </td>
                   </tr>
@@ -758,7 +758,7 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
 function EventsTab({ events, loading }: { events: CoreV1Event[]; loading: boolean }) {
   if (loading && events.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-gray-500 text-sm">
+      <div className="flex items-center gap-2 text-neutral-500 text-sm">
         <Loader2 size={14} className="animate-spin" />
         Loading events...
       </div>
@@ -767,7 +767,7 @@ function EventsTab({ events, loading }: { events: CoreV1Event[]; loading: boolea
   
   if (events.length === 0) {
     return (
-      <div className="text-gray-500 text-sm italic">No events found for this resource</div>
+      <div className="text-neutral-500 text-sm italic">No events found for this resource</div>
     );
   }
 
@@ -792,7 +792,7 @@ function EventsTab({ events, loading }: { events: CoreV1Event[]; loading: boolea
       
       {normal.length > 0 && (
         <div>
-          <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+          <h5 className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
             Normal Events ({normal.length})
           </h5>
           <div className="space-y-2">
@@ -833,7 +833,7 @@ function EventItem({ event }: { event: CoreV1Event }) {
     <div className={`p-3 rounded-lg border ${
       isWarning 
         ? 'bg-amber-500/5 border-amber-500/20' 
-        : 'bg-gray-900/50 border-gray-700/50'
+        : 'bg-neutral-900/50 border-neutral-700/50'
     }`}>
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="flex items-center gap-2">
@@ -844,15 +844,15 @@ function EventItem({ event }: { event: CoreV1Event }) {
           }`}>
             {event.type}
           </span>
-          <span className="text-sm font-medium text-gray-200">{event.reason}</span>
+          <span className="text-sm font-medium text-neutral-200">{event.reason}</span>
         </div>
-        <span className="text-xs text-gray-500 whitespace-nowrap">
+        <span className="text-xs text-neutral-500 whitespace-nowrap">
           {formatEventTime(timestamp)}
         </span>
       </div>
-      <p className="text-sm text-gray-400">{event.message}</p>
+      <p className="text-sm text-neutral-400">{event.message}</p>
       {event.count && event.count > 1 && (
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-neutral-500 mt-1">
           Occurred {event.count} times
         </p>
       )}

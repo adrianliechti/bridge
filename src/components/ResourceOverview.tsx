@@ -359,8 +359,8 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full bg-white dark:bg-gray-950">
-        <div className="flex items-center gap-2 text-gray-500">
+      <div className="flex items-center justify-center h-full bg-white dark:bg-neutral-950">
+        <div className="flex items-center gap-2 text-neutral-500">
           <RefreshCw className="animate-spin" size={20} />
           <span>Loading resources...</span>
         </div>
@@ -370,11 +370,11 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 bg-white dark:bg-gray-950">
+      <div className="flex flex-col items-center justify-center h-full gap-4 bg-white dark:bg-neutral-950">
         <div className="text-red-500">{error}</div>
         <button
           onClick={loadResources}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded-md transition-colors"
         >
           <RefreshCw size={16} />
           Retry
@@ -385,54 +385,54 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
 
   return (
     <>
-    <div className={`h-full w-full relative bg-gray-100 dark:bg-gray-900 overflow-hidden transition-all duration-300 ${isDetailPanelOpen ? 'mr-120' : ''}`}>
+    <div className={`h-full w-full relative bg-neutral-100 dark:bg-neutral-900 overflow-hidden transition-all duration-300 ${isDetailPanelOpen ? 'mr-120' : ''}`}>
       {/* Zoom controls */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <button onClick={loadResources} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-l-lg" title="Refresh">
-          <RefreshCw size={16} className="text-gray-600 dark:text-gray-400" />
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
+        <button onClick={loadResources} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-l-lg" title="Refresh">
+          <RefreshCw size={16} className="text-neutral-600 dark:text-neutral-400" />
         </button>
-        <div className="w-px h-5 bg-gray-200 dark:bg-gray-700" />
-        <button onClick={zoomIn} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700" title="Zoom In">
-          <ZoomIn size={16} className="text-gray-600 dark:text-gray-400" />
+        <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700" />
+        <button onClick={zoomIn} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" title="Zoom In">
+          <ZoomIn size={16} className="text-neutral-600 dark:text-neutral-400" />
         </button>
-        <button onClick={zoomOut} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700" title="Zoom Out">
-          <ZoomOut size={16} className="text-gray-600 dark:text-gray-400" />
+        <button onClick={zoomOut} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" title="Zoom Out">
+          <ZoomOut size={16} className="text-neutral-600 dark:text-neutral-400" />
         </button>
-        <button onClick={fitView} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700" title="Fit View">
-          <Maximize2 size={16} className="text-gray-600 dark:text-gray-400" />
+        <button onClick={fitView} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" title="Fit View">
+          <Maximize2 size={16} className="text-neutral-600 dark:text-neutral-400" />
         </button>
-        <div className="px-2 text-xs text-gray-500 border-l border-gray-200 dark:border-gray-700 rounded-r-lg">
+        <div className="px-2 text-xs text-neutral-500 border-l border-neutral-200 dark:border-neutral-700 rounded-r-lg">
           {Math.round(transform.scale * 100)}%
         </div>
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 z-10 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Connections</div>
+      <div className="absolute bottom-4 right-4 z-10 px-3 py-2 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
+        <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">Connections</div>
         <div className="flex flex-col gap-1 text-xs">
           <div className="flex items-center gap-2">
             <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#64748b" strokeWidth="2" /></svg>
-            <span className="text-gray-500 dark:text-gray-400">Owner</span>
+            <span className="text-neutral-500 dark:text-neutral-400">Owner</span>
           </div>
           <div className="flex items-center gap-2">
             <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4,2" /></svg>
-            <span className="text-gray-500 dark:text-gray-400">Selector</span>
+            <span className="text-neutral-500 dark:text-neutral-400">Selector</span>
           </div>
           <div className="flex items-center gap-2">
             <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#06b6d4" strokeWidth="2" strokeDasharray="4,2" /></svg>
-            <span className="text-gray-500 dark:text-gray-400">Service</span>
+            <span className="text-neutral-500 dark:text-neutral-400">Service</span>
           </div>
           <div className="flex items-center gap-2">
             <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#14b8a6" strokeWidth="2" strokeDasharray="4,2" /></svg>
-            <span className="text-gray-500 dark:text-gray-400">Ingress</span>
+            <span className="text-neutral-500 dark:text-neutral-400">Ingress</span>
           </div>
           <div className="flex items-center gap-2">
             <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#10b981" strokeWidth="2" strokeDasharray="4,2" /></svg>
-            <span className="text-gray-500 dark:text-gray-400">Gateway</span>
+            <span className="text-neutral-500 dark:text-neutral-400">Gateway</span>
           </div>
           <div className="flex items-center gap-2">
             <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2,2" /></svg>
-            <span className="text-gray-500 dark:text-gray-400">NetworkPolicy</span>
+            <span className="text-neutral-500 dark:text-neutral-400">NetworkPolicy</span>
           </div>
         </div>
       </div>
@@ -538,7 +538,7 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick }: {
         fill="white"
         stroke="#e5e7eb"
         strokeWidth={1}
-        className="dark:fill-gray-800 dark:stroke-gray-700"
+        className="dark:fill-neutral-800 dark:stroke-neutral-700"
       />
       
       {/* Application title */}
@@ -552,7 +552,7 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick }: {
             fontWeight={600}
             fill="#374151"
             dominantBaseline="hanging"
-            className="dark:fill-gray-200"
+            className="dark:fill-neutral-200"
           >
             {application.name.length > Math.floor((application.width - 20) / 7) 
               ? application.name.slice(0, Math.floor((application.width - 20) / 7) - 1) + '…' 
@@ -566,7 +566,7 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick }: {
               fontSize={10}
               fill="#6b7280"
               dominantBaseline="hanging"
-              className="dark:fill-gray-400"
+              className="dark:fill-neutral-400"
             >
               {application.namespace.length > Math.floor((application.width - 20) / 6) 
                 ? application.namespace.slice(0, Math.floor((application.width - 20) / 6) - 1) + '…' 

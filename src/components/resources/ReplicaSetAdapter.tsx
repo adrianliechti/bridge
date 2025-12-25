@@ -55,14 +55,14 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
             type: 'custom' as const,
             render: () => (
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
                   <Link size={10} /> Owned By
                 </div>
                 <div className="text-sm flex items-center gap-2">
-                  <span className="text-gray-500">{ownerRef.kind}:</span>
+                  <span className="text-neutral-500">{ownerRef.kind}:</span>
                   <span className="text-cyan-400">{ownerRef.name}</span>
                   {revision && (
-                    <span className="text-xs bg-gray-700 px-1.5 py-0.5 rounded text-gray-400">
+                    <span className="text-xs bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-400">
                       rev {revision}
                     </span>
                   )}

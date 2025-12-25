@@ -108,7 +108,7 @@ const components: Partial<Components> = {
     return (
       <div className="overflow-x-auto my-3">
         <table
-          className="w-full border-collapse border border-gray-600 text-xs"
+          className="w-full border-collapse border border-neutral-600 text-xs"
           {...props}
         >
           {children}
@@ -118,7 +118,7 @@ const components: Partial<Components> = {
   },
   thead: ({ children, ...props }) => {
     return (
-      <thead className="bg-gray-700" {...props}>
+      <thead className="bg-neutral-700" {...props}>
         {children}
       </thead>
     );
@@ -128,7 +128,7 @@ const components: Partial<Components> = {
   },
   tr: ({ children, ...props }) => {
     return (
-      <tr className="border-b border-gray-600" {...props}>
+      <tr className="border-b border-neutral-600" {...props}>
         {children}
       </tr>
     );
@@ -136,7 +136,7 @@ const components: Partial<Components> = {
   th: ({ children, ...props }) => {
     return (
       <th
-        className="p-2 text-left font-semibold border-r last:border-r-0 border-gray-600"
+        className="p-2 text-left font-semibold border-r last:border-r-0 border-neutral-600"
         {...props}
       >
         {children}
@@ -146,7 +146,7 @@ const components: Partial<Components> = {
   td: ({ children, ...props }) => {
     return (
       <td
-        className="p-2 border-r last:border-r-0 border-gray-600"
+        className="p-2 border-r last:border-r-0 border-neutral-600"
         {...props}
       >
         {children}
@@ -156,7 +156,7 @@ const components: Partial<Components> = {
   blockquote: ({ children, ...props }) => {
     return (
       <blockquote
-        className="border-l-4 border-gray-500 pl-3 py-1 my-2 italic text-gray-300"
+        className="border-l-4 border-neutral-500 pl-3 py-1 my-2 italic text-neutral-300"
         {...props}
       >
         {children}
@@ -164,7 +164,7 @@ const components: Partial<Components> = {
     );
   },
   hr: ({ ...props }) => {
-    return <hr className="my-4 border-gray-600" {...props} />;
+    return <hr className="my-4 border-neutral-600" {...props} />;
   },
   code({ children, className, ...rest }) {
     const match = /language-(\w+)/.exec(className || '');
@@ -176,7 +176,7 @@ const components: Partial<Components> = {
       return (
         <code
           {...rest}
-          className={`${className || ''} bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono text-sky-300`}
+          className={`${className || ''} bg-neutral-700 px-1.5 py-0.5 rounded text-xs font-mono text-sky-300`}
         >
           {children}
         </code>
@@ -188,11 +188,11 @@ const components: Partial<Components> = {
     // Code block
     return (
       <div className="my-3">
-        <div className="flex items-center justify-between bg-gray-700 px-3 py-1 rounded-t text-xs text-gray-400">
+        <div className="flex items-center justify-between bg-neutral-700 px-3 py-1 rounded-t text-xs text-neutral-400">
           <span>{language}</span>
         </div>
-        <pre className="bg-gray-800 p-3 rounded-b overflow-x-auto">
-          <code className="text-xs font-mono text-gray-200">{text}</code>
+        <pre className="bg-neutral-800 p-3 rounded-b overflow-x-auto">
+          <code className="text-xs font-mono text-neutral-200">{text}</code>
         </pre>
       </div>
     );

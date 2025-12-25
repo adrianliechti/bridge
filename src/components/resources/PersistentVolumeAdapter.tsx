@@ -63,8 +63,8 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
           data: {
             type: 'custom' as const,
             render: () => (
-              <div className="bg-gray-900/50 rounded-lg p-3">
-                <div className="text-xs text-gray-500 mb-1">Storage Class</div>
+              <div className="bg-neutral-900/50 rounded-lg p-3">
+                <div className="text-xs text-neutral-500 mb-1">Storage Class</div>
                 <div className="text-sm text-purple-400 flex items-center gap-2">
                   <Database size={14} />
                   {spec.storageClassName}
@@ -81,11 +81,11 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             type: 'custom' as const,
             render: () => (
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
                   <Link size={10} /> Bound To
                 </div>
                 <div className="text-sm">
-                  <span className="text-gray-500">{spec.claimRef!.namespace}/</span>
+                  <span className="text-neutral-500">{spec.claimRef!.namespace}/</span>
                   <span className="text-cyan-400">{spec.claimRef!.name}</span>
                 </div>
               </div>
@@ -113,11 +113,11 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             render: () => (
               <div className="space-y-2">
                 {spec.nodeAffinity!.required!.nodeSelectorTerms.map((term, i) => (
-                  <div key={i} className="bg-gray-900/50 rounded-lg p-2">
+                  <div key={i} className="bg-neutral-900/50 rounded-lg p-2">
                     {term.matchExpressions?.map((expr, j) => (
                       <div key={j} className="text-xs">
                         <span className="text-purple-400">{expr.key}</span>
-                        <span className="text-gray-500 mx-1">{expr.operator}</span>
+                        <span className="text-neutral-500 mx-1">{expr.operator}</span>
                         {expr.values && (
                           <span className="text-cyan-400">{expr.values.join(', ')}</span>
                         )}
@@ -139,7 +139,7 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             render: () => (
               <div className="flex flex-wrap gap-1">
                 {spec.mountOptions!.map((opt, i) => (
-                  <span key={i} className="text-xs bg-gray-800 px-2 py-1 rounded text-gray-300">
+                  <span key={i} className="text-xs bg-neutral-800 px-2 py-1 rounded text-neutral-300">
                     {opt}
                   </span>
                 ))}

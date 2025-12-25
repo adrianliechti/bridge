@@ -180,17 +180,17 @@ function parseLogMessage(message: string): ParsedLog {
 type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'unknown';
 
 const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
-  error: 'text-red-400',
-  warn: 'text-yellow-400',
-  info: 'text-blue-400',
-  debug: 'text-gray-400',
-  trace: 'text-gray-500',
-  unknown: 'text-gray-300',
+  error: 'text-red-600 dark:text-red-400',
+  warn: 'text-yellow-600 dark:text-yellow-400',
+  info: 'text-blue-600 dark:text-blue-400',
+  debug: 'text-neutral-600 dark:text-neutral-400',
+  trace: 'text-neutral-500 dark:text-neutral-500',
+  unknown: 'text-neutral-700 dark:text-neutral-300',
 };
 
 const LOG_LEVEL_BG: Record<LogLevel, string> = {
-  error: 'bg-red-500/10 border-l-2 border-red-500/50',
-  warn: 'bg-yellow-500/10 border-l-2 border-yellow-500/50',
+  error: 'bg-red-50 dark:bg-red-500/10 border-l-2 border-red-400 dark:border-red-500/50',
+  warn: 'bg-yellow-50 dark:bg-yellow-500/10 border-l-2 border-yellow-400 dark:border-yellow-500/50',
   info: '',
   debug: '',
   trace: '',
@@ -388,10 +388,10 @@ export function LogViewer({
   const error = fetchError || streamError;
 
   return (
-    <div className="flex flex-col h-full bg-gray-950">
+    <div className="flex flex-col h-full bg-neutral-50 dark:bg-neutral-950">
       {/* Pod legend */}
       {podNames.length > 1 && (
-        <div className="shrink-0 px-4 py-2 border-b border-gray-800 bg-gray-900/30">
+        <div className="shrink-0 px-4 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900/30">
           <div className="flex flex-wrap gap-2">
             {podNames.map((name: string) => (
               <span
@@ -414,21 +414,21 @@ export function LogViewer({
         className="flex-1 overflow-auto font-mono text-xs"
       >
         {isLoading && (
-          <div className="p-4 text-gray-500">Loading pods...</div>
+          <div className="p-4 text-neutral-500 dark:text-neutral-500">Loading pods...</div>
         )}
         
         {error && (
-          <div className="p-4 text-red-400 bg-red-500/10 border-b border-red-500/30">
+          <div className="p-4 text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/10 border-b border-red-300 dark:border-red-500/30">
             {error}
           </div>
         )}
 
         {!isLoading && podNames.length === 0 && (
-          <div className="p-4 text-gray-500">No pods found</div>
+          <div className="p-4 text-neutral-500 dark:text-neutral-500">No pods found</div>
         )}
 
         {logs.length === 0 && !isLoading && podNames.length > 0 && !error && (
-          <div className="p-4 text-gray-500">Waiting for logs...</div>
+          <div className="p-4 text-neutral-500 dark:text-neutral-500">Waiting for logs...</div>
         )}
 
         <div className="p-2 space-y-1">
@@ -440,10 +440,10 @@ export function LogViewer({
             const isStructured = parsed.format !== 'plain';
             
             return (
-              <div key={index} className={`hover:bg-gray-900/50 rounded px-2 py-1 group ${bgStyle}`}>
+              <div key={index} className={`hover:bg-neutral-100 dark:hover:bg-neutral-900/50 rounded px-2 py-1 group ${bgStyle}`}>
                 {/* Metadata line */}
                 <div className="flex items-center gap-2 text-[10px] leading-tight mb-0.5">
-                  <span className="text-gray-600">
+                  <span className="text-neutral-500 dark:text-neutral-600">
                     {formatTimestamp(log.timestamp)}
                   </span>
                   <span 
@@ -453,12 +453,12 @@ export function LogViewer({
                     {shortenPodName(log.podName)}
                   </span>
                   {log.container && log.container !== log.podName && (
-                    <span className="text-gray-500">
+                    <span className="text-neutral-500 dark:text-neutral-500">
                       {log.container}
                     </span>
                   )}
                   {isStructured && (
-                    <span className="text-gray-600 uppercase">
+                    <span className="text-neutral-500 dark:text-neutral-600 uppercase">
                       {parsed.format}
                     </span>
                   )}
@@ -482,10 +482,10 @@ export function LogViewer({
 
       {/* Scroll to bottom button (only shown when not at bottom) */}
       {!autoScroll && (
-        <div className="shrink-0 px-4 py-2 border-t border-gray-800 bg-gray-900/50">
+        <div className="shrink-0 px-4 py-2 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900/50">
           <button
             onClick={scrollToBottom}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300"
+            className="flex items-center gap-1 text-xs text-neutral-600 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-300"
           >
             <ChevronDown size={12} />
             Scroll to bottom

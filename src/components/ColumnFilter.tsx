@@ -46,34 +46,34 @@ export function ColumnFilter({ columns, hiddenColumns, onToggleColumn }: ColumnF
     <div className="relative" ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 rounded-md transition-colors focus:outline-none"
+        className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 rounded-md transition-colors focus:outline-none"
         title="Toggle columns"
       >
         <Columns3 size={18} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-1 p-2 bg-white border border-gray-300 dark:bg-gray-900 dark:border-gray-700 rounded-lg shadow-xl min-w-45 max-h-75 overflow-y-auto">
+        <div className="absolute right-0 z-50 mt-1 p-2 bg-white border border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700 rounded-lg shadow-xl min-w-45 max-h-75 overflow-y-auto">
           {columns.map((col) => {
             const isVisible = !hiddenColumns.has(col.name.toLowerCase());
             return (
               <label
                 key={col.name}
-                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
                 <span
                   onClick={() => onToggleColumn(col.name)}
                   className={`size-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${
                     isVisible
-                      ? 'bg-gray-500 border-gray-500 dark:bg-gray-600 dark:border-gray-500'
-                      : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800'
+                      ? 'bg-neutral-500 border-neutral-500 dark:bg-neutral-600 dark:border-neutral-500'
+                      : 'border-neutral-300 bg-white dark:border-neutral-600 dark:bg-neutral-800'
                   }`}
                 >
-                  {isVisible && <Check size={12} className="text-white dark:text-gray-300" />}
+                  {isVisible && <Check size={12} className="text-white dark:text-neutral-300" />}
                 </span>
                 <span 
                   onClick={() => onToggleColumn(col.name)}
-                  className="text-sm text-gray-700 dark:text-gray-400 cursor-pointer"
+                  className="text-sm text-neutral-700 dark:text-neutral-400 cursor-pointer"
                 >
                   {col.name}
                 </span>

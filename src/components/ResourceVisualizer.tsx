@@ -63,7 +63,7 @@ export function ResourceVisualizer({ resource, namespace }: ResourceVisualizerPr
 
   if (!sections || sections.sections.length === 0) {
     return (
-      <div className="text-gray-500 text-sm">
+      <div className="text-neutral-500 text-sm">
         No visualization available for {resource.kind}
       </div>
     );
@@ -93,7 +93,7 @@ function SectionRenderer({ section }: { section: Section }) {
 
   return (
     <div>
-      <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+      <h5 className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
         {title}
       </h5>
       {content}
@@ -180,14 +180,14 @@ function StatusCardsSection({ items }: { items: StatusCardData[] }) {
     success: 'text-emerald-400',
     warning: 'text-amber-400',
     error: 'text-red-400',
-    neutral: 'text-gray-100',
+    neutral: 'text-neutral-900 dark:text-neutral-100',
   };
 
   return (
     <div className="grid grid-cols-2 gap-3">
       {items.map((item, i) => (
-        <div key={i} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-          <div className="text-xs text-gray-500 mb-1">{item.label}</div>
+        <div key={i} className="bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
+          <div className="text-xs text-neutral-500 mb-1">{item.label}</div>
           <div className={`text-sm font-medium flex items-center gap-2 ${statusColors[item.status || 'neutral']}`}>
             {item.icon}
             {item.value}
@@ -215,17 +215,17 @@ function GaugesSection({ items, podGrid }: { items: GaugeData[]; podGrid?: PodGr
   };
 
   return (
-    <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+    <div className="bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
       <div className="flex items-center gap-4 mb-3">
         {items.map((item, i) => {
           const percentage = item.total > 0 ? Math.min((item.current / item.total) * 100, 100) : 0;
           return (
             <div key={i} className="flex-1">
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-500">{item.label}</span>
+                <span className="text-neutral-500">{item.label}</span>
                 <span className={colorClasses[item.color]}>{item.current}/{item.total}</span>
               </div>
-              <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-1 bg-neutral-700 rounded-full overflow-hidden">
                 <div className={`h-full ${bgClasses[item.color]}`} style={{ width: `${percentage}%` }} />
               </div>
             </div>
@@ -255,7 +255,7 @@ function PodGridSection({ data }: { data: PodGridData }) {
               isReady ? 'bg-emerald-500/20 border border-emerald-500/50' :
               isAvailable ? 'bg-cyan-500/20 border border-cyan-500/50' :
               isCurrent ? 'bg-amber-500/20 border border-amber-500/50' :
-              'bg-gray-700/50 border border-gray-600'
+              'bg-neutral-700/50 border border-neutral-600'
             }`}
             title={`${title}: ${isReady ? 'Ready' : isAvailable ? 'Available' : isCurrent ? 'Current' : 'Pending'}`}
           >
@@ -263,14 +263,14 @@ function PodGridSection({ data }: { data: PodGridData }) {
               isReady ? 'text-emerald-400' :
               isAvailable ? 'text-cyan-400' :
               isCurrent ? 'text-amber-400' :
-              'text-gray-500'
+              'text-neutral-500'
             } />
             {data.showOrdinal && (
               <span className={`text-[9px] ${
                 isReady ? 'text-emerald-400' :
                 isAvailable ? 'text-cyan-400' :
                 isCurrent ? 'text-amber-400' :
-                'text-gray-500'
+                'text-neutral-500'
               }`}>{i}</span>
             )}
           </div>
@@ -302,7 +302,7 @@ function ConditionsSection({ items }: { items: ConditionData[] }) {
               <div className="text-amber-400/70">{condition.reason}</div>
             )}
             {condition.message && (
-              <div className="text-gray-400 text-[10px] mt-0.5 wrap-break-word">{condition.message}</div>
+              <div className="text-neutral-400 text-[10px] mt-0.5 wrap-break-word">{condition.message}</div>
             )}
           </div>
         </div>
@@ -315,13 +315,13 @@ function InfoGridSection({ items, columns = 2 }: { items: InfoRowData[]; columns
   const filteredItems = items.filter(item => item.value !== undefined && item.value !== null);
   
   return (
-    <div className={`bg-gray-900/50 rounded-lg p-3 grid gap-2 text-xs ${
+    <div className={`bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3 grid gap-2 text-xs ${
       columns === 2 ? 'grid-cols-2' : 'grid-cols-1'
     }`}>
       {filteredItems.map((item, i) => (
         <div key={i} className="overflow-hidden">
-          <span className="text-gray-500">{item.label}:</span>{' '}
-          <span className={item.color || 'text-gray-300'}>{item.value}</span>
+          <span className="text-neutral-500 dark:text-neutral-500">{item.label}:</span>{' '}
+          <span className={item.color || 'text-neutral-900 dark:text-neutral-300'}>{item.value}</span>
         </div>
       ))}
     </div>
@@ -349,22 +349,22 @@ function ContainerCard({ container }: { container: ContainerData }) {
     <div className={`border rounded-lg overflow-hidden ${stateInfo.borderClass}`}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
       >
         {expanded ? (
-          <ChevronDown size={14} className="text-gray-500" />
+          <ChevronDown size={14} className="text-neutral-500" />
         ) : (
-          <ChevronRight size={14} className="text-gray-500" />
+          <ChevronRight size={14} className="text-neutral-500" />
         )}
         <Box size={16} className={stateInfo.iconClass} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-100">{container.name}</span>
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{container.name}</span>
             <span className={`px-1.5 py-0.5 rounded text-xs ${stateInfo.badgeClass}`}>
               {stateInfo.label}
             </span>
           </div>
-          <div className="text-xs text-gray-500 truncate">{container.image}</div>
+          <div className="text-xs text-neutral-500 truncate">{container.image}</div>
         </div>
         {(container.restartCount ?? 0) > 0 && (
           <div className="text-xs text-amber-400">
@@ -374,18 +374,18 @@ function ContainerCard({ container }: { container: ContainerData }) {
       </button>
 
       {expanded && (
-        <div className="border-t border-gray-800 p-3 space-y-3">
+        <div className="border-t border-neutral-800 p-3 space-y-3">
           {/* Image */}
           <div>
-            <div className="text-xs text-gray-500 mb-1">Image</div>
+            <div className="text-xs text-neutral-500 mb-1">Image</div>
             <div className="text-xs text-cyan-400 break-all">{container.image}</div>
           </div>
 
           {/* Command & Args */}
           {(container.command || container.args) && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Command</div>
-              <code className="text-xs text-gray-300 bg-gray-800 px-2 py-1 rounded block">
+              <div className="text-xs text-neutral-500 mb-1">Command</div>
+              <code className="text-xs text-neutral-900 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded block">
                 {[...(container.command || []), ...(container.args || [])].join(' ')}
               </code>
             </div>
@@ -394,12 +394,12 @@ function ContainerCard({ container }: { container: ContainerData }) {
           {/* Ports */}
           {container.ports && container.ports.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Ports</div>
+              <div className="text-xs text-neutral-500 mb-1">Ports</div>
               <div className="flex flex-wrap gap-1">
                 {container.ports.map((port, i) => (
-                  <span key={i} className="text-xs bg-gray-800 px-2 py-1 rounded">
+                  <span key={i} className="text-xs text-neutral-900 dark:text-neutral-100 bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded">
                     {port.containerPort}/{port.protocol || 'TCP'}
-                    {port.name && <span className="text-gray-500 ml-1">({port.name})</span>}
+                    {port.name && <span className="text-neutral-500 ml-1">({port.name})</span>}
                   </span>
                 ))}
               </div>
@@ -411,13 +411,13 @@ function ContainerCard({ container }: { container: ContainerData }) {
             <div className="grid grid-cols-2 gap-2">
               {container.resources.requests && (
                 <div>
-                  <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                  <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
                     <Cpu size={10} /> Requests
                   </div>
                   <div className="text-xs space-y-0.5">
                     {Object.entries(container.resources.requests).map(([k, v]) => (
-                      <div key={k} className="text-gray-400">
-                        <span className="text-gray-500">{k}:</span> {v}
+                      <div key={k} className="text-neutral-400">
+                        <span className="text-neutral-500">{k}:</span> {v}
                       </div>
                     ))}
                   </div>
@@ -425,13 +425,13 @@ function ContainerCard({ container }: { container: ContainerData }) {
               )}
               {container.resources.limits && (
                 <div>
-                  <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                  <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
                     <Activity size={10} /> Limits
                   </div>
                   <div className="text-xs space-y-0.5">
                     {Object.entries(container.resources.limits).map(([k, v]) => (
-                      <div key={k} className="text-gray-400">
-                        <span className="text-gray-500">{k}:</span> {v}
+                      <div key={k} className="text-neutral-400">
+                        <span className="text-neutral-500">{k}:</span> {v}
                       </div>
                     ))}
                   </div>
@@ -443,14 +443,14 @@ function ContainerCard({ container }: { container: ContainerData }) {
           {/* Volume Mounts */}
           {container.mounts && container.mounts.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+              <div className="text-xs text-neutral-500 mb-2 flex items-center gap-1">
                 <HardDrive size={10} /> Volume Mounts
               </div>
-              <div className="text-xs space-y-1.5 ml-1">
+              <div className="text-xs space-y-1.5">
                 {container.mounts.map((mount, i) => (
-                  <div key={i} className="flex items-center gap-2">
+                  <div key={i} className="bg-neutral-100 dark:bg-neutral-900/50 rounded p-2 flex items-center gap-2">
                     <span className="text-purple-400 truncate max-w-[140px]" title={mount.name}>{mount.name}</span>
-                    <span className="text-gray-600">→</span>
+                    <span className="text-neutral-600">→</span>
                     <span className="text-cyan-400 font-mono truncate flex-1" title={mount.mountPath}>{mount.mountPath}</span>
                     {mount.readOnly && <span className="text-amber-400 text-[10px] px-1 py-0.5 bg-amber-500/10 rounded">(ro)</span>}
                   </div>
@@ -485,16 +485,16 @@ function getContainerStateInfo(state?: string, reason?: string) {
   if (state === 'terminated') {
     return {
       label: reason || 'Terminated',
-      borderClass: 'border-gray-700 bg-gray-900/50',
-      badgeClass: 'bg-gray-700 text-gray-400',
-      iconClass: 'text-gray-400',
+      borderClass: 'border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/50',
+      badgeClass: 'bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400',
+      iconClass: 'text-neutral-500 dark:text-neutral-400',
     };
   }
   return {
     label: 'Unknown',
-    borderClass: 'border-gray-700 bg-gray-900/50',
-    badgeClass: 'bg-gray-700 text-gray-400',
-    iconClass: 'text-gray-400',
+    borderClass: 'border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/50',
+    badgeClass: 'bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400',
+    iconClass: 'text-neutral-500 dark:text-neutral-400',
   };
 }
 
@@ -517,7 +517,7 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
     'ConfigMap': 'border-blue-500/30 bg-blue-500/5',
     'Secret': 'border-amber-500/30 bg-amber-500/5',
     'PVC': 'border-emerald-500/30 bg-emerald-500/5',
-    'EmptyDir': 'border-gray-500/30 bg-gray-500/5',
+    'EmptyDir': 'border-neutral-500/30 bg-neutral-500/5',
     'HostPath': 'border-red-500/30 bg-red-500/5',
     'Projected': 'border-purple-500/30 bg-purple-500/5',
     'DownwardAPI': 'border-cyan-500/30 bg-cyan-500/5',
@@ -529,7 +529,7 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
     'ConfigMap': <Settings size={14} className="text-blue-400" />,
     'Secret': <KeyRound size={14} className="text-amber-400" />,
     'PVC': <Database size={14} className="text-emerald-400" />,
-    'EmptyDir': <FolderOpen size={14} className="text-gray-400" />,
+    'EmptyDir': <FolderOpen size={14} className="text-neutral-400" />,
     'HostPath': <FolderSymlink size={14} className="text-red-400" />,
     'Projected': <Layers size={14} className="text-purple-400" />,
     'DownwardAPI': <FileDown size={14} className="text-cyan-400" />,
@@ -541,7 +541,7 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
     'ConfigMap': 'bg-blue-500/20 text-blue-400',
     'Secret': 'bg-amber-500/20 text-amber-400',
     'PVC': 'bg-emerald-500/20 text-emerald-400',
-    'EmptyDir': 'bg-gray-500/20 text-gray-400',
+    'EmptyDir': 'bg-neutral-500/20 text-neutral-400',
     'HostPath': 'bg-red-500/20 text-red-400',
     'Projected': 'bg-purple-500/20 text-purple-400',
     'DownwardAPI': 'bg-cyan-500/20 text-cyan-400',
@@ -550,22 +550,22 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
   };
 
   return (
-    <div className={`border rounded-lg overflow-hidden ${typeStyles[volume.type] || 'border-gray-700 bg-gray-900/50'}`}>
+    <div className={`border rounded-lg overflow-hidden ${typeStyles[volume.type] || 'border-neutral-700 bg-neutral-900/50'}`}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
       >
         {expanded ? (
-          <ChevronDown size={14} className="text-gray-500" />
+          <ChevronDown size={14} className="text-neutral-500" />
         ) : (
-          <ChevronRight size={14} className="text-gray-500" />
+          <ChevronRight size={14} className="text-neutral-500" />
         )}
-        {typeIcons[volume.type] || <HardDrive size={14} className="text-gray-400" />}
+        {typeIcons[volume.type] || <HardDrive size={14} className="text-neutral-400" />}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-100">{volume.name}</span>
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{volume.name}</span>
           </div>
-          <div className="text-xs text-gray-500 truncate">
+          <div className="text-xs text-neutral-500 truncate">
             {volume.source && <span className="text-cyan-400/70">{volume.source}</span>}
             {volume.mounts.length > 0 && (
               <span className="ml-2">→ {volume.mounts.map(m => m.mountPath).join(', ')}</span>
@@ -575,12 +575,12 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
       </button>
 
       {expanded && (
-        <div className="border-t border-gray-800 p-3 space-y-3">
+        <div className="border-t border-neutral-800 p-3 space-y-3">
           {/* Source Info */}
           <div>
-            <div className="text-xs text-gray-500 mb-1">Source</div>
+            <div className="text-xs text-neutral-500 mb-1">Source</div>
             <div className="text-xs">
-              <span className={`px-1.5 py-0.5 rounded ${typeBadgeStyles[volume.type] || 'bg-gray-700 text-gray-400'}`}>
+              <span className={`px-1.5 py-0.5 rounded ${typeBadgeStyles[volume.type] || 'bg-neutral-700 text-neutral-400'}`}>
                 {volume.type}
               </span>
               {volume.source && (
@@ -591,8 +591,8 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
             {volume.extra && Object.keys(volume.extra).length > 0 && (
               <div className="mt-2 text-xs space-y-1">
                 {Object.entries(volume.extra).map(([key, value]) => (
-                  <div key={key} className="text-gray-400">
-                    <span className="text-gray-500">{key}:</span> <span className="text-gray-300">{value}</span>
+                  <div key={key} className="text-neutral-600 dark:text-neutral-400">
+                    <span className="text-neutral-500">{key}:</span> <span className="text-neutral-900 dark:text-neutral-300">{value}</span>
                   </div>
                 ))}
               </div>
@@ -602,22 +602,22 @@ function VolumeCard({ volume }: { volume: VolumeData }) {
           {/* Mount Points */}
           {volume.mounts.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Mount Points</div>
+              <div className="text-xs text-neutral-500 mb-1">Mount Points</div>
               <div className="space-y-2">
                 {volume.mounts.map((mount, i) => (
-                  <div key={i} className="text-xs bg-gray-900/50 rounded p-2">
+                  <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
                     <div className="flex items-center gap-2">
                       <Box size={10} className="text-blue-400" />
-                      <span className="text-gray-300">{mount.container}</span>
-                      <span className="text-gray-600">→</span>
+                      <span className="text-neutral-900 dark:text-neutral-300">{mount.container}</span>
+                      <span className="text-neutral-600">→</span>
                       <span className="text-cyan-400 font-mono">{mount.mountPath}</span>
                       {mount.readOnly && (
                         <span className="px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px]">read-only</span>
                       )}
                     </div>
                     {mount.subPath && (
-                      <div className="ml-4 mt-1 text-gray-500">
-                        <span className="text-gray-600">subPath:</span> <span className="text-purple-400">{mount.subPath}</span>
+                      <div className="ml-4 mt-1 text-neutral-500">
+                        <span className="text-neutral-600">subPath:</span> <span className="text-purple-400">{mount.subPath}</span>
                       </div>
                     )}
                   </div>
@@ -654,7 +654,7 @@ function LabelsSection({ labels, title = 'Labels' }: { labels: Record<string, st
 
   return (
     <div>
-      <h5 className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+      <h5 className="flex items-center gap-2 text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
         <Tag size={12} />
         {title}
       </h5>
@@ -667,7 +667,7 @@ function LabelsSection({ labels, title = 'Labels' }: { labels: Record<string, st
           {sortedEntries.map(([key, value], index) => {
             const isImportant = importantPrefixes.some(p => key.startsWith(p));
             return (
-              <tr key={key} className={index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-800/30' : ''}>
+              <tr key={key} className={index % 2 === 0 ? 'bg-neutral-50 dark:bg-neutral-800/30' : ''}>
                 <td className={`py-1.5 px-2 truncate ${isImportant ? 'text-blue-600 dark:text-blue-400' : 'text-sky-600 dark:text-sky-400'}`} title={key}>
                   {key}
                 </td>
@@ -689,19 +689,19 @@ function CapacityBarsSection({ items }: { items: CapacityBarData[] }) {
   return (
     <div className="space-y-3">
       {items.map((item, i) => (
-        <div key={i} className="bg-gray-900/50 rounded-lg p-3">
+        <div key={i} className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-sm text-gray-300">
+            <div className="flex items-center gap-2 text-sm text-neutral-900 dark:text-neutral-300">
               {item.icon}
               {item.label}
             </div>
             <div className="text-xs">
               <span className="text-cyan-400">{item.allocatable}</span>
-              <span className="text-gray-500"> / </span>
-              <span className="text-gray-400">{item.capacity}</span>
+              <span className="text-neutral-500"> / </span>
+              <span className="text-neutral-400">{item.capacity}</span>
             </div>
           </div>
-          <div className="text-[10px] text-gray-500 flex justify-between">
+          <div className="text-[10px] text-neutral-500 flex justify-between">
             <span>Allocatable</span>
             <span>Capacity</span>
           </div>
@@ -725,17 +725,17 @@ function TaintsSection({ items }: { items: TaintData[] }) {
       {items.map((taint, i) => (
         <span 
           key={i} 
-          className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded flex items-center gap-1"
+          className="text-xs bg-neutral-200 dark:bg-neutral-700 px-2 py-0.5 rounded flex items-center gap-1"
           title={`${taint.key}=${taint.value || ''}:${taint.effect}`}
         >
           <span className="text-purple-600 dark:text-purple-400">{taint.key}</span>
           {taint.value && (
             <>
-              <span className="text-gray-400">=</span>
+              <span className="text-neutral-400">=</span>
               <span className="text-cyan-600 dark:text-cyan-400">{taint.value}</span>
             </>
           )}
-          <span className={`ml-1 px-1 py-0.5 rounded text-[10px] border ${effectColors[taint.effect] ?? 'bg-gray-700 text-gray-300'}`}>
+          <span className={`ml-1 px-1 py-0.5 rounded text-[10px] border ${effectColors[taint.effect] ?? 'bg-neutral-700 text-neutral-300'}`}>
             {taint.effect}
           </span>
         </span>
@@ -748,9 +748,9 @@ function ContainerImagesSection({ containers }: { containers: Array<{ name: stri
   return (
     <div className="space-y-1">
       {containers.map(container => (
-        <div key={container.name} className="text-xs bg-gray-900/50 px-2 py-1.5 rounded flex items-center gap-2">
+        <div key={container.name} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 px-2 py-1.5 rounded flex items-center gap-2">
           <Box size={12} className="text-blue-400" />
-          <span className="text-gray-300">{container.name}:</span>
+          <span className="text-neutral-900 dark:text-neutral-300">{container.name}:</span>
           <span className="text-cyan-400 truncate">{container.image}</span>
         </div>
       ))}
@@ -762,9 +762,9 @@ function NodeSelectorSection({ selector }: { selector: Record<string, string> })
   return (
     <div className="space-y-1">
       {Object.entries(selector).map(([key, value]) => (
-        <div key={key} className="text-xs bg-gray-900/50 px-2 py-1.5 rounded">
+        <div key={key} className="text-xs bg-neutral-900/50 px-2 py-1.5 rounded">
           <span className="text-purple-400">{key}</span>
-          <span className="text-gray-600 mx-1">=</span>
+          <span className="text-neutral-600 mx-1">=</span>
           <span className="text-cyan-400">{value}</span>
         </div>
       ))}
@@ -783,11 +783,11 @@ function RelatedReplicaSetsSection({ loader }: { loader: () => Promise<ReplicaSe
   }, [loader]);
 
   if (loading) {
-    return <div className="text-xs text-gray-500">Loading ReplicaSets...</div>;
+    return <div className="text-xs text-neutral-500">Loading ReplicaSets...</div>;
   }
 
   if (items.length === 0) {
-    return <div className="text-xs text-gray-500">No ReplicaSets found</div>;
+    return <div className="text-xs text-neutral-500">No ReplicaSets found</div>;
   }
 
   return (
@@ -796,16 +796,16 @@ function RelatedReplicaSetsSection({ loader }: { loader: () => Promise<ReplicaSe
         <div key={rs.name} className={`border rounded-lg p-2 ${
           rs.isCurrent 
             ? 'border-blue-500/30 bg-blue-500/5' 
-            : 'border-gray-700 bg-gray-900/50 opacity-60'
+            : 'border-neutral-700 bg-neutral-900/50 opacity-60'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Layers size={14} className={rs.isCurrent ? 'text-blue-400' : 'text-gray-500'} />
-              <span className="text-sm text-gray-100 truncate max-w-50" title={rs.name}>
+              <Layers size={14} className={rs.isCurrent ? 'text-blue-400' : 'text-neutral-500'} />
+              <span className="text-sm text-neutral-100 truncate max-w-50" title={rs.name}>
                 {rs.name}
               </span>
               {rs.revision && (
-                <span className="text-xs bg-gray-700 px-1.5 py-0.5 rounded text-gray-400">
+                <span className="text-xs bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-400">
                   rev {rs.revision}
                 </span>
               )}
@@ -814,7 +814,7 @@ function RelatedReplicaSetsSection({ loader }: { loader: () => Promise<ReplicaSe
               <span className={rs.readyReplicas === rs.replicas ? 'text-emerald-400' : 'text-amber-400'}>
                 {rs.readyReplicas}/{rs.replicas}
               </span>
-              <span className="text-gray-500 ml-1">ready</span>
+              <span className="text-neutral-500 ml-1">ready</span>
             </div>
           </div>
           {rs.images.length > 0 && (
@@ -837,11 +837,11 @@ function RelatedPVCsSection({ loader }: { loader: () => Promise<PVCData[]> }) {
   }, [loader]);
 
   if (loading) {
-    return <div className="text-xs text-gray-500">Loading PVCs...</div>;
+    return <div className="text-xs text-neutral-500">Loading PVCs...</div>;
   }
 
   if (items.length === 0) {
-    return <div className="text-xs text-gray-500">No PVCs found</div>;
+    return <div className="text-xs text-neutral-500">No PVCs found</div>;
   }
 
   return (
@@ -850,11 +850,11 @@ function RelatedPVCsSection({ loader }: { loader: () => Promise<PVCData[]> }) {
         <div key={pvc.name} className={`flex items-center justify-between text-xs px-2 py-1.5 rounded ${
           pvc.status === 'Bound' 
             ? 'bg-emerald-500/10 border border-emerald-500/20'
-            : 'bg-gray-900/50 border border-gray-700'
+            : 'bg-neutral-900/50 border border-neutral-700'
         }`}>
           <div className="flex items-center gap-2">
-            <HardDrive size={12} className={pvc.status === 'Bound' ? 'text-emerald-400' : 'text-gray-500'} />
-            <span className="text-gray-300">{pvc.name}</span>
+            <HardDrive size={12} className={pvc.status === 'Bound' ? 'text-emerald-400' : 'text-neutral-500'} />
+            <span className="text-neutral-300">{pvc.name}</span>
           </div>
           <div className="flex items-center gap-3">
             {pvc.capacity && (
@@ -880,11 +880,11 @@ function RelatedJobsSection({ loader }: { loader: () => Promise<JobData[]> }) {
   }, [loader]);
 
   if (loading) {
-    return <div className="text-xs text-gray-500">Loading jobs...</div>;
+    return <div className="text-xs text-neutral-500">Loading jobs...</div>;
   }
 
   if (items.length === 0) {
-    return <div className="text-xs text-gray-500">No jobs found</div>;
+    return <div className="text-xs text-neutral-500">No jobs found</div>;
   }
 
   const displayJobs = expanded ? items : items.slice(0, 3);
@@ -910,11 +910,11 @@ function RelatedJobsSection({ loader }: { loader: () => Promise<JobData[]> }) {
             ) : (
               <Clock size={12} className="text-amber-400" />
             )}
-            <span className="text-gray-300 truncate max-w-45" title={job.name}>{job.name}</span>
+            <span className="text-neutral-300 truncate max-w-45" title={job.name}>{job.name}</span>
           </div>
           <div className="flex items-center gap-2">
             {job.startTime && (
-              <span className="text-gray-500">{formatTimeAgo(new Date(job.startTime))}</span>
+              <span className="text-neutral-500">{formatTimeAgo(new Date(job.startTime))}</span>
             )}
             <span className={
               job.status === 'Complete' ? 'text-emerald-400' :
@@ -928,7 +928,7 @@ function RelatedJobsSection({ loader }: { loader: () => Promise<JobData[]> }) {
       {items.length > 3 && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors mt-2"
+          className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-300 transition-colors mt-2"
         >
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           {expanded ? 'Show less' : `Show ${items.length - 3} more`}
@@ -942,28 +942,28 @@ function VolumeClaimTemplatesSection({ items }: { items: VolumeClaimTemplateData
   return (
     <div className="space-y-2">
       {items.map((template, i) => (
-        <div key={i} className="bg-gray-900/50 rounded-lg p-3">
+        <div key={i} className="bg-neutral-900/50 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-2">
             <HardDrive size={14} className="text-purple-400" />
-            <span className="text-sm text-gray-100">{template.name}</span>
+            <span className="text-sm text-neutral-100">{template.name}</span>
           </div>
           <div className="grid grid-cols-2 gap-2 text-xs">
             {template.size && (
               <div>
-                <span className="text-gray-500">Size:</span>{' '}
+                <span className="text-neutral-500">Size:</span>{' '}
                 <span className="text-cyan-400">{template.size}</span>
               </div>
             )}
             {template.storageClass && (
               <div>
-                <span className="text-gray-500">Class:</span>{' '}
+                <span className="text-neutral-500">Class:</span>{' '}
                 <span className="text-purple-400">{template.storageClass}</span>
               </div>
             )}
             {template.accessModes && (
               <div className="col-span-2">
-                <span className="text-gray-500">Access:</span>{' '}
-                <span className="text-gray-300">{template.accessModes.join(', ')}</span>
+                <span className="text-neutral-500">Access:</span>{' '}
+                <span className="text-neutral-300">{template.accessModes.join(', ')}</span>
               </div>
             )}
           </div>
@@ -975,28 +975,28 @@ function VolumeClaimTemplatesSection({ items }: { items: VolumeClaimTemplateData
 
 function ScheduleSection({ schedule, description }: { schedule: string; description: string }) {
   return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
+    <div className="bg-neutral-900/50 rounded-lg p-3">
       <div className="flex items-center gap-2 mb-2">
         <Calendar size={16} className="text-purple-400" />
-        <span className="text-sm text-gray-100">Schedule</span>
+        <span className="text-sm text-neutral-100">Schedule</span>
       </div>
       <div className="font-mono text-cyan-400 text-lg mb-1">{schedule}</div>
-      <div className="text-xs text-gray-500">{description}</div>
+      <div className="text-xs text-neutral-500">{description}</div>
     </div>
   );
 }
 
 function JobProgressSection({ completions, succeeded, failed, active }: { completions: number; succeeded: number; failed: number; active: number }) {
   return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
+    <div className="bg-neutral-900/50 rounded-lg p-3">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-gray-300">Completions</span>
+        <span className="text-sm text-neutral-300">Completions</span>
         <span className="text-sm">
           <span className={succeeded >= completions ? 'text-emerald-400' : 'text-cyan-400'}>{succeeded}</span>
-          <span className="text-gray-500"> / {completions}</span>
+          <span className="text-neutral-500"> / {completions}</span>
         </span>
       </div>
-      <div className="h-2 bg-gray-700 rounded-full overflow-hidden flex">
+      <div className="h-2 bg-neutral-700 rounded-full overflow-hidden flex">
         {succeeded > 0 && (
           <div 
             className="h-full bg-emerald-500"
@@ -1015,15 +1015,15 @@ function JobProgressSection({ completions, succeeded, failed, active }: { comple
       <div className="flex items-center gap-4 mt-3 text-xs">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="text-gray-400">Succeeded: {succeeded}</span>
+          <span className="text-neutral-400">Succeeded: {succeeded}</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-amber-500" />
-          <span className="text-gray-400">Active: {active}</span>
+          <span className="text-neutral-400">Active: {active}</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-red-500" />
-          <span className="text-gray-400">Failed: {failed}</span>
+          <span className="text-neutral-400">Failed: {failed}</span>
         </div>
       </div>
     </div>
@@ -1032,16 +1032,16 @@ function JobProgressSection({ completions, succeeded, failed, active }: { comple
 
 function TimelineSection({ startTime, completionTime }: { startTime?: Date; completionTime?: Date }) {
   return (
-    <div className="bg-gray-900/50 rounded-lg p-3 space-y-2 text-xs">
+    <div className="bg-neutral-900/50 rounded-lg p-3 space-y-2 text-xs">
       {startTime && (
         <div>
-          <span className="text-gray-500">Started:</span>{' '}
+          <span className="text-neutral-500">Started:</span>{' '}
           <span className="text-purple-400">{startTime.toLocaleString()}</span>
         </div>
       )}
       {completionTime && (
         <div>
-          <span className="text-gray-500">Completed:</span>{' '}
+          <span className="text-neutral-500">Completed:</span>{' '}
           <span className="text-emerald-400">{completionTime.toLocaleString()}</span>
         </div>
       )}
@@ -1053,8 +1053,8 @@ function AddressesSection({ addresses }: { addresses: Array<{ type: string; addr
   return (
     <div className="grid grid-cols-2 gap-2">
       {addresses.map((addr, i) => (
-        <div key={i} className="bg-gray-900/50 rounded-lg p-2">
-          <div className="text-xs text-gray-500">{addr.type}</div>
+        <div key={i} className="bg-neutral-900/50 rounded-lg p-2">
+          <div className="text-xs text-neutral-500">{addr.type}</div>
           <div className="text-sm text-cyan-400 font-mono">{addr.address}</div>
         </div>
       ))}

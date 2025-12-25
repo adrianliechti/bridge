@@ -177,7 +177,7 @@ export function ResourceSidebar({
   });
 
   return (
-    <aside className="w-56 shrink-0 bg-gray-200/80 dark:bg-gray-800/80 backdrop-blur-xl flex flex-col rounded-xl">
+    <aside className="w-56 h-full shrink-0 bg-white dark:bg-black/40 backdrop-blur-xl flex flex-col rounded-xl border border-neutral-300/50 dark:border-neutral-700/50">
       {/* Header with Namespace Selector */}
       <div className="shrink-0 h-14 px-3 flex items-center">
         <div className="flex-1">
@@ -193,18 +193,18 @@ export function ResourceSidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-1 overflow-y-auto min-h-0 scrollbar-hide">
+      <nav className="flex-1 py-1 overflow-y-auto overflow-x-hidden min-h-0">
         {/* Overview */}
         <div className="mb-2 px-2">
           <button
-            className={`flex items-center w-full px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+            className={`flex items-center w-full px-3 py-2 text-sm rounded-lg transition-colors ${
               isOverviewSelected
-                ? 'bg-white/90 text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
-                : 'text-gray-600 hover:bg-white/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200'
+                ? 'bg-white/90 text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-neutral-100'
+                : 'text-neutral-600 hover:bg-white/50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/50 dark:hover:text-neutral-200'
             }`}
             onClick={() => onSelectResource(null)}
           >
-            <Network size={15} className="mr-2.5 shrink-0 opacity-70" />
+            <Network size={16} className="mr-2.5 shrink-0 opacity-70" />
             <span className="font-medium">Overview</span>
           </button>
         </div>
@@ -213,7 +213,7 @@ export function ResourceSidebar({
         {Object.entries(groupedBuiltIn).map(([category, items]) => (
           <div key={category} className="mb-1">
             <button
-              className="flex items-center w-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
+              className="flex items-center w-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
               onClick={() => toggleCategory(category)}
             >
               <span className="mr-1.5 opacity-60">
@@ -230,14 +230,14 @@ export function ResourceSidebar({
                   return (
                     <li key={item.kind}>
                       <button
-                        className={`flex items-center w-full px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+                        className={`flex items-center w-full px-3 py-2 text-sm rounded-lg transition-colors ${
                           isActive
-                            ? 'bg-white/90 text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
-                            : 'text-gray-600 hover:bg-white/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200'
+                            ? 'bg-white/90 text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-neutral-100'
+                            : 'text-neutral-600 hover:bg-white/50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/50 dark:hover:text-neutral-200'
                         }`}
                         onClick={() => onSelectResource(config)}
                       >
-                        <item.icon size={15} className="mr-2.5 shrink-0 opacity-70" />
+                        <item.icon size={16} className="mr-2.5 shrink-0 opacity-70" />
                         <span className="truncate">{item.label}</span>
                       </button>
                     </li>
@@ -252,14 +252,14 @@ export function ResourceSidebar({
         {crdConfigs.length > 0 && (
           <div className="mb-1">
             <button
-              className="flex items-center w-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
+              className="flex items-center w-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
               onClick={() => toggleCategory('crd')}
             >
               <span className="mr-1.5 opacity-60">
                 {expandedCategories['crd'] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               </span>
               <span>{categoryLabels['crd']}</span>
-              <span className="ml-auto px-1.5 py-0.5 bg-gray-300/60 rounded text-[10px] text-gray-500 dark:bg-gray-700 dark:text-gray-500">
+              <span className="ml-auto px-1.5 py-0.5 bg-neutral-300/60 rounded text-[10px] text-neutral-500 dark:bg-neutral-700 dark:text-neutral-500">
                 {crdConfigs.length}
               </span>
             </button>
@@ -267,7 +267,7 @@ export function ResourceSidebar({
               <div className="px-2">
                 {sortedCRDGroups.map(([group, configs]) => (
                   <div key={group} className="mb-1">
-                    <div className="px-3 py-1 text-[10px] text-gray-400 truncate lowercase dark:text-gray-600" title={group}>
+                    <div className="px-3 py-1 text-[10px] text-neutral-400 truncate lowercase dark:text-neutral-600" title={group}>
                       {group}
                     </div>
                     <ul>
@@ -276,15 +276,15 @@ export function ResourceSidebar({
                         return (
                           <li key={`${config.group || ''}/${config.name}`}>
                             <button
-                              className={`flex items-center w-full px-3 py-1.5 text-[13px] rounded-lg transition-colors ${
+                              className={`flex items-center w-full px-3 py-2 text-sm rounded-lg transition-colors ${
                                 isActive
-                                  ? 'bg-white/90 text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100'
-                                  : 'text-gray-600 hover:bg-white/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200'
+                                  ? 'bg-white/90 text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-neutral-100'
+                                  : 'text-neutral-600 hover:bg-white/50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/50 dark:hover:text-neutral-200'
                               }`}
                               onClick={() => onSelectResource(config)}
                               title={`${config.kind} (${config.group})`}
                             >
-                              <Hexagon size={15} className="mr-2.5 shrink-0 opacity-70" />
+                              <Hexagon size={16} className="mr-2.5 shrink-0 opacity-70" />
                               <span className="truncate">{config.kind}</span>
                             </button>
                           </li>

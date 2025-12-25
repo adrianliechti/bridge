@@ -68,12 +68,12 @@ export function ResourcePage({ resource, namespace }: ResourcePageProps) {
 
   return (
     <>
-      <main className="flex-1 flex flex-col h-full min-w-0 bg-white dark:bg-gray-950 rounded-xl overflow-hidden">
-        <header className={`shrink-0 h-14 flex items-center justify-between px-5 transition-all duration-300 ${getHeaderActionsPadding()}`}>
+      <main className="flex-1 flex flex-col h-full min-w-0">
+        <header className={`shrink-0 h-14 flex items-center justify-between px-5 mt-2 transition-all duration-300 ${getHeaderActionsPadding()}`}>
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">{title}</h2>
+            <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-100">{title}</h2>
             {namespace && (
-              <span className="px-2.5 py-0.5 rounded-md text-xs bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              <span className="px-2.5 py-0.5 rounded-md text-xs bg-neutral-200/80 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
                 {namespace}
               </span>
             )}
@@ -90,8 +90,8 @@ export function ResourcePage({ resource, namespace }: ResourcePageProps) {
                 onClick={() => toggle(PANEL_AI)}
                 className={`p-2 rounded-md transition-colors ${
                   isAIPanelOpen 
-                    ? 'text-sky-400 hover:text-sky-300 hover:bg-gray-100 dark:hover:bg-gray-800' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800'
+                    ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800' 
+                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
                 }`}
                 title="AI Assistant"
               >

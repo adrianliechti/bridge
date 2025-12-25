@@ -153,8 +153,8 @@ export function ResourceTable({
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-gray-400 dark:text-gray-500">
-          <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-400 dark:border-gray-700 dark:border-t-gray-500 rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-3 text-neutral-400 dark:text-neutral-500">
+          <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-400 dark:border-neutral-700 dark:border-t-neutral-500 rounded-full animate-spin" />
           <span className="text-sm">Loading {config.name}...</span>
         </div>
       </div>
@@ -181,7 +181,7 @@ export function ResourceTable({
   if (!data || !data.columnDefinitions || data.rows.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="flex flex-col items-center text-gray-400 dark:text-gray-500">
+        <div className="flex flex-col items-center text-neutral-400 dark:text-neutral-500">
           <svg className="w-8 h-8 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
@@ -192,11 +192,11 @@ export function ResourceTable({
   }
 
   return (
-    <div className="px-4 py-3 h-full">
+    <div className="pl-2 h-full">
       <div className="overflow-auto h-full">
         <table className="w-full text-[13px]">
-          <thead className="sticky top-0 z-10">
-            <tr className="border-b border-gray-200 dark:border-gray-800">
+          <thead className="sticky top-0 z-10 bg-neutral-100 dark:bg-neutral-950">
+            <tr>
               {visibleColumns.map((col, idx) => {
                 const isSorted = sortState.column === col.name;
                 return (
@@ -204,10 +204,10 @@ export function ResourceTable({
                     key={idx} 
                     title={col.description}
                     onClick={() => handleSort(col.name)}
-                    className={`text-left px-4 py-2 text-[11px] font-medium whitespace-nowrap cursor-pointer transition-colors select-none group bg-white dark:bg-gray-950 ${
+                    className={`text-left px-4 py-2 text-[11px] font-medium whitespace-nowrap cursor-pointer transition-colors select-none group bg-neutral-100 dark:bg-neutral-950 ${
                       isSorted 
-                        ? 'text-gray-900 dark:text-gray-200' 
-                        : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-400'
+                        ? 'text-neutral-900 dark:text-neutral-200' 
+                        : 'text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-400'
                     }`}
                   >
                     <div className="flex items-center gap-1">
@@ -228,16 +228,19 @@ export function ResourceTable({
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((row: TableRow) => {
+            {sortedRows.map((row: TableRow, rowIndex: number) => {
               const isSelected = selectedItem?.object.metadata.uid === row.object.metadata.uid;
+              const isOdd = rowIndex % 2 === 1;
               return (
               <tr 
                 key={row.object.metadata.uid} 
                 onClick={() => onSelectItem?.(isSelected ? null : row)}
-                className={`transition-colors cursor-pointer border-b border-gray-100 dark:border-gray-800/50 ${
+                className={`transition-colors cursor-pointer ${
                   isSelected 
-                    ? 'bg-blue-50 dark:bg-blue-500/10' 
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                    ? 'bg-blue-500/20 dark:bg-blue-500/20' 
+                    : isOdd 
+                      ? 'bg-neutral-200/40 dark:bg-neutral-800/30 hover:bg-neutral-200/70 dark:hover:bg-neutral-800/50'
+                      : 'hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30'
                 }`}
               >
                 {visibleColumns.map((col, idx) => {
@@ -250,18 +253,18 @@ export function ResourceTable({
 
                   if (isStatusColumn(col)) {
                     return (
-                      <td key={idx} className="px-4 py-2.5 whitespace-nowrap">
+                      <td key={idx} className={`px-4 py-2 whitespace-nowrap ${idx === 0 ? 'rounded-l-lg' : ''} ${idx === visibleColumns.length - 1 ? 'rounded-r-lg' : ''}`}>
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium capitalize ${
                           formatted.toLowerCase().match(/running|active|ready|available|bound|succeeded|complete|healthy|true/) ? 'text-emerald-600 dark:text-emerald-400' :
                           formatted.toLowerCase().match(/pending|creating|waiting|progressing|scheduled/) ? 'text-amber-600 dark:text-amber-400' :
                           formatted.toLowerCase().match(/failed|error|crashloopbackoff|terminated|unknown|lost|false/) ? 'text-red-600 dark:text-red-400' :
-                          'text-gray-500 dark:text-gray-400'
+                          'text-neutral-500 dark:text-neutral-400'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${
                             formatted.toLowerCase().match(/running|active|ready|available|bound|succeeded|complete|healthy|true/) ? 'bg-emerald-500' :
                             formatted.toLowerCase().match(/pending|creating|waiting|progressing|scheduled/) ? 'bg-amber-500' :
                             formatted.toLowerCase().match(/failed|error|crashloopbackoff|terminated|unknown|lost|false/) ? 'bg-red-500' :
-                            'bg-gray-400'
+                            'bg-neutral-400'
                           }`} />
                           {formatted}
                         </span>
@@ -270,10 +273,10 @@ export function ResourceTable({
                   }
 
                   return (
-                    <td key={idx} className={`px-4 py-2.5 whitespace-nowrap ${
+                    <td key={idx} className={`px-4 py-2 whitespace-nowrap ${idx === 0 ? 'rounded-l-lg' : ''} ${idx === visibleColumns.length - 1 ? 'rounded-r-lg' : ''} ${
                       isNameColumn 
-                        ? 'text-gray-900 dark:text-gray-100' 
-                        : 'text-gray-500 dark:text-gray-500'
+                        ? 'text-neutral-900 dark:text-neutral-300' 
+                        : 'text-neutral-500 dark:text-neutral-500'
                     }`}>
                       {formatted}
                     </td>
