@@ -60,8 +60,9 @@ export function ResourcePage({ resource, namespace }: ResourcePageProps) {
 
   // Calculate right margin based on which panels are open
   const getRightMargin = () => {
-    if (isDetailPanelOpen && isAIPanelOpen) return 'mr-[56rem]'; // 28rem + 28rem
-    if (isDetailPanelOpen || isAIPanelOpen) return 'mr-[40rem]';
+    const openPanelCount = [isDetailPanelOpen, isAIPanelOpen].filter(Boolean).length;
+    if (openPanelCount >= 2) return 'mr-[56rem]'; // 28rem + 28rem
+    if (openPanelCount === 1) return 'mr-[40rem]';
     return '';
   };
 

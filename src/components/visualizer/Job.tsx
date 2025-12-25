@@ -164,7 +164,6 @@ export function JobVisualizer({ resource }: ResourceVisualizerProps) {
       {status?.conditions && status.conditions.length > 0 && (
         <ConditionsSection 
           conditions={status.conditions}
-          defaultOpen={true}
           isPositive={isJobConditionPositive}
         />
       )}

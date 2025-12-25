@@ -1,6 +1,6 @@
 // Shared components for visualizers
-import { useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, Box } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { CheckCircle2, AlertTriangle, Box } from 'lucide-react';
 
 // Types
 export type StatusType = 'success' | 'warning' | 'error' | 'neutral';
@@ -85,116 +85,99 @@ export function SectionHeader({ children }: { children: ReactNode }) {
   );
 }
 
-// Collapsible Section Component
-export function CollapsibleSection({ 
+// Section Component (simplified, always visible)
+export function Section({ 
   title, 
   count, 
-  defaultOpen = false,
   icon,
   children 
 }: { 
   title: string; 
   count?: number;
-  defaultOpen?: boolean;
   icon?: ReactNode;
   children: ReactNode;
 }) {
-  const [expanded, setExpanded] = useState(defaultOpen);
-
   return (
     <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+      <h5 className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
         {icon}
         {title} {count !== undefined && `(${count})`}
-      </button>
-      {expanded && children}
+      </h5>
+      {children}
     </div>
   );
 }
 
-// Generic Conditions Section
+// Generic Conditions Section (simplified, always visible)
 export function ConditionsSection<T extends { type?: string; status?: string; reason?: string; message?: string }>({ 
   conditions,
-  defaultOpen = false,
   // For most resources, status === 'True' is good. For Node conditions like MemoryPressure, it's the opposite.
   isPositive = (condition: T) => condition.status === 'True'
 }: { 
   conditions: T[];
-  defaultOpen?: boolean;
   isPositive?: (condition: T) => boolean;
 }) {
-  const [expanded, setExpanded] = useState(defaultOpen);
-
   return (
     <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+      <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
         Conditions ({conditions.length})
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {conditions.map((condition, i) => {
-            const isGood = isPositive(condition);
-            return (
-              <div 
-                key={i} 
-                className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
-                  isGood
-                    ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                    : 'bg-gray-900/50 border border-gray-700'
-                }`}
-              >
-                {isGood ? (
-                  <CheckCircle2 size={12} className="text-emerald-400 mt-0.5 shrink-0" />
-                ) : (
-                  <AlertTriangle size={12} className="text-amber-400 mt-0.5 shrink-0" />
+      </h5>
+      <div className="space-y-1">
+        {conditions.map((condition, i) => {
+          const isGood = isPositive(condition);
+          return (
+            <div 
+              key={i} 
+              className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
+                isGood
+                  ? 'bg-emerald-500/10 border border-emerald-500/20' 
+                  : 'bg-gray-900/50 border border-gray-700'
+              }`}
+            >
+              {isGood ? (
+                <CheckCircle2 size={12} className="text-emerald-400 mt-0.5 shrink-0" />
+              ) : (
+                <AlertTriangle size={12} className="text-amber-400 mt-0.5 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <div className="text-gray-300">{condition.type}</div>
+                {condition.reason && (
+                  <div className="text-gray-500">{condition.reason}</div>
                 )}
-                <div className="min-w-0">
-                  <div className="text-gray-300">{condition.type}</div>
-                  {condition.reason && (
-                    <div className="text-gray-500">{condition.reason}</div>
-                  )}
-                  {condition.message && (
-                    <div className="text-gray-500 text-[10px] mt-0.5 wrap-break-word">{condition.message}</div>
-                  )}
-                </div>
+                {condition.message && (
+                  <div className="text-gray-500 text-[10px] mt-0.5 wrap-break-word">{condition.message}</div>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// Labels/Selector Display
+// Labels/Selector Display (inline badges)
 export function LabelList({ labels, title = 'Labels' }: { labels: Record<string, string>; title?: string }) {
   const entries = Object.entries(labels);
   if (entries.length === 0) return null;
 
   return (
     <div>
-      <SectionHeader>{title}</SectionHeader>
-      <div className="space-y-1">
-        {entries.map(([key, value]) => (
-          <div key={key} className="text-xs bg-gray-900/50 px-2 py-1.5 rounded">
-            <span className="text-purple-400">{key}</span>
-            {value && (
-              <>
-                <span className="text-gray-600 mx-1">=</span>
-                <span className="text-cyan-400">{value}</span>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
+      <div className="text-xs text-gray-500 mb-2">{title}</div>
+      <table className="w-full text-xs">
+        <tbody>
+          {entries.map(([key, value]) => (
+            <tr key={key} className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
+              <td className="py-1.5 pr-3 text-sky-600 dark:text-sky-400 align-top whitespace-nowrap">
+                {key}
+              </td>
+              <td className="py-1.5 text-emerald-600 dark:text-emerald-400 break-all">
+                {value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -1,9 +1,10 @@
-import { X, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Loader2, Copy, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
 import { getVisualizer } from './visualizer/Visualizer';
+import { LogViewer } from './LogViewer';
 
 // Import visualizers to register them
 import './visualizer/Pod';
@@ -235,9 +236,13 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<CoreV1Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'manifest' | 'events' | 'logs'>('overview');
 
   // Fetch the resource config and full resource when resourceId changes
   useEffect(() => {
+    // Reset to overview tab when resource changes
+    setActiveTab('overview');
+    
     if (!resourceId || !resourceId.name || !resourceId.kind) {
       setFullObject(null);
       setError(null);
@@ -300,6 +305,10 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const resourceName = resourceId.name;
   const resourceKind = resourceId.kind || 'Resource';
 
+  // Resource kinds that support logs (have pods)
+  const LOGGABLE_KINDS = ['Pod', 'Deployment', 'DaemonSet', 'ReplicaSet', 'StatefulSet', 'Job', 'CronJob'];
+  const supportsLogs = LOGGABLE_KINDS.includes(resourceKind) && !!resourceId.namespace;
+
   return (
     <aside 
       className="fixed top-0 h-screen bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col z-20 shadow-xl transition-all duration-300"
@@ -314,7 +323,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
               {resourceName}
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-500">{resourceKind}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">{resourceId.namespace || 'cluster-scoped'}</p>
           </div>
         </div>
         <button
@@ -326,63 +335,316 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         </button>
       </header>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-5">
-        {loading && (
-          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm mb-4">
-            <Loader2 size={14} className="animate-spin" />
-            Loading full resource...
-          </div>
+      {/* Tab Bar */}
+      <div className="shrink-0 flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === 'overview'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('manifest')}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === 'manifest'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          }`}
+        >
+          Manifest
+        </button>
+        <button
+          onClick={() => setActiveTab('events')}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === 'events'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          }`}
+        >
+          Events{events.length > 0 ? ` (${events.length})` : ''}
+        </button>
+        {supportsLogs && (
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'logs'
+                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            Logs
+          </button>
         )}
-        {error && (
-          <div className="text-xs text-red-600 dark:text-red-400 mb-4">{error}</div>
-        )}
-
-        {displayObject && (
-          <>
-        {/* Specialized Resource Visualizer */}
-        {(() => {
-          const Visualizer = getVisualizer(resourceKind);
-          if (Visualizer && fullObject && !loading) {
-            return (
-              <CollapsibleSection title="Overview" defaultOpen>
-                <Visualizer resource={fullObject} namespace={resourceId.namespace} />
-              </CollapsibleSection>
-            );
-          }
-          return null;
-        })()}
-
-        {/* Metadata Section */}
-        <MetadataSection metadata={displayObject.metadata as Record<string, unknown>} />
-
-        {/* Spec Section */}
-        {typeof displayObject.spec === 'object' && displayObject.spec !== null ? (
-          <CollapsibleSection title="Spec" defaultOpen>
-            <ObjectTree data={displayObject.spec as Record<string, unknown>} />
-          </CollapsibleSection>
-        ) : null}
-
-        {/* Status Section */}
-        {typeof displayObject.status === 'object' && displayObject.status !== null ? (
-          <CollapsibleSection title="Status" defaultOpen>
-            <ObjectTree data={displayObject.status as Record<string, unknown>} />
-          </CollapsibleSection>
-        ) : null}
-          </>
-        )}
-
-        {/* Events Section */}
-        <EventsSection events={events} loading={eventsLoading} />
       </div>
+
+      {/* Content */}
+      {activeTab === 'overview' && (
+        <div className="flex-1 overflow-auto p-5">
+          {loading && (
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm mb-4">
+              <Loader2 size={14} className="animate-spin" />
+              Loading full resource...
+            </div>
+          )}
+          {error && (
+            <div className="text-xs text-red-600 dark:text-red-400 mb-4">{error}</div>
+          )}
+
+          {displayObject && (
+            <>
+          {/* Specialized Resource Visualizer */}
+          {(() => {
+            const Visualizer = getVisualizer(resourceKind);
+            if (Visualizer && fullObject && !loading) {
+              return (
+                <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mb-4">
+                  <Visualizer resource={fullObject} namespace={resourceId.namespace} />
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          {/* Metadata Section */}
+          <MetadataSection metadata={displayObject.metadata as Record<string, unknown>} />
+            </>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'manifest' && (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <ManifestView resource={fullObject} loading={loading} error={error} />
+        </div>
+      )}
+
+      {activeTab === 'events' && (
+        <div className="flex-1 overflow-auto p-5">
+          <EventsTab events={events} loading={eventsLoading} />
+        </div>
+      )}
+
+      {activeTab === 'logs' && supportsLogs && (
+        <div className="flex-1 overflow-hidden">
+          <LogViewer
+            namespace={resourceId.namespace!}
+            workloadKind={resourceKind}
+            workloadName={resourceName}
+          />
+        </div>
+      )}
     </aside>
   );
 }
 
+// Manifest view component with interactive collapsible tree
+function ManifestView({ 
+  resource, 
+  loading, 
+  error 
+}: { 
+  resource: KubernetesResource | null; 
+  loading: boolean; 
+  error: string | null;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!resource) return;
+    const yaml = toYaml(resource);
+    await navigator.clipboard.writeText(yaml);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
+          <Loader2 size={14} className="animate-spin" />
+          Loading manifest...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+      </div>
+    );
+  }
+
+  if (!resource) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-sm text-gray-500 dark:text-gray-400">No resource loaded</div>
+      </div>
+    );
+  }
+
+  // Define the order of top-level keys
+  const keyOrder = ['apiVersion', 'kind', 'metadata', 'spec', 'status', 'data', 'stringData', 'type'];
+  const resourceKeys = Object.keys(resource);
+  const orderedKeys = [
+    ...keyOrder.filter(k => resourceKeys.includes(k)),
+    ...resourceKeys.filter(k => !keyOrder.includes(k))
+  ];
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="shrink-0 flex items-center justify-end px-4 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors"
+        >
+          {copied ? (
+            <>
+              <Check size={12} className="text-emerald-500" />
+              Copied as YAML
+            </>
+          ) : (
+            <>
+              <Copy size={12} />
+              Copy as YAML
+            </>
+          )}
+        </button>
+      </div>
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-4">
+        <div className="space-y-1">
+          {orderedKeys.map(key => {
+            const value = (resource as Record<string, unknown>)[key];
+            return (
+              <ManifestSection 
+                key={key} 
+                label={key} 
+                value={value}
+                defaultOpen={key === 'metadata' || key === 'spec' || key === 'status'}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// Collapsible section for manifest top-level keys
+function ManifestSection({ 
+  label, 
+  value, 
+  defaultOpen = false 
+}: { 
+  label: string; 
+  value: unknown; 
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const isExpandable = value !== null && typeof value === 'object';
+
+  if (!isExpandable) {
+    // Simple key-value display for primitives
+    return (
+      <div className="flex items-center gap-2 py-1 px-3">
+        <span className="w-4" />
+        <span className="text-purple-400 font-medium text-sm">{label}:</span>
+        <span className="text-sm"><ValueDisplay value={value} /></span>
+      </div>
+    );
+  }
+
+  const isEmpty = Array.isArray(value) ? value.length === 0 : Object.keys(value as object).length === 0;
+
+  return (
+    <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-left"
+      >
+        {isOpen ? (
+          <ChevronDown size={14} className="text-gray-500 shrink-0" />
+        ) : (
+          <ChevronRight size={14} className="text-gray-500 shrink-0" />
+        )}
+        <span className="text-purple-400 font-medium text-sm">{label}</span>
+        {isEmpty && (
+          <span className="text-gray-500 text-xs">(empty)</span>
+        )}
+        {!isEmpty && !isOpen && (
+          <span className="text-gray-500 text-xs">
+            {Array.isArray(value) ? `[${value.length} items]` : `{${Object.keys(value as object).length} fields}`}
+          </span>
+        )}
+      </button>
+      {isOpen && !isEmpty && (
+        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/30">
+          {Array.isArray(value) ? (
+            <ArrayTree data={value} depth={0} />
+          ) : (
+            <ObjectTree data={value as Record<string, unknown>} depth={0} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Simple YAML serializer for copy functionality
+function toYaml(obj: unknown, indent = 0): string {
+  const spaces = '  '.repeat(indent);
+  
+  if (obj === null) return 'null';
+  if (obj === undefined) return '';
+  if (typeof obj === 'boolean') return obj ? 'true' : 'false';
+  if (typeof obj === 'number') return String(obj);
+  if (typeof obj === 'string') {
+    if (obj.includes('\n')) {
+      const lines = obj.split('\n');
+      return '|-\n' + lines.map(line => spaces + '  ' + line).join('\n');
+    }
+    if (obj === '' || obj.includes(':') || obj.includes('#') || obj.includes("'") || obj.includes('"') || /^\s|\s$/.test(obj)) {
+      return JSON.stringify(obj);
+    }
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '[]';
+    return obj.map(item => {
+      const value = toYaml(item, indent + 1);
+      if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+        const lines = value.split('\n');
+        return spaces + '- ' + lines[0] + (lines.length > 1 ? '\n' + lines.slice(1).join('\n') : '');
+      }
+      return spaces + '- ' + value;
+    }).join('\n');
+  }
+  
+  if (typeof obj === 'object') {
+    const entries = Object.entries(obj as Record<string, unknown>);
+    if (entries.length === 0) return '{}';
+    return entries.map(([key, value]) => {
+      const yamlValue = toYaml(value, indent + 1);
+      if (typeof value === 'object' && value !== null && (Array.isArray(value) ? value.length > 0 : Object.keys(value).length > 0)) {
+        return spaces + key + ':\n' + yamlValue;
+      }
+      return spaces + key + ': ' + yamlValue;
+    }).join('\n');
+  }
+  
+  return String(obj);
+}
+
 // Metadata section with nice visualization of labels/annotations
 function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
-  const [showRaw, setShowRaw] = useState(false);
-  
   const labels = metadata.labels as Record<string, string> | undefined;
   const annotations = metadata.annotations as Record<string, string> | undefined;
   
@@ -411,55 +673,26 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
         Object.entries(annotations).filter(([key]) => !hiddenAnnotations.has(key))
       )
     : undefined;
-  
-  // Key metadata fields to show at top
-  const name = metadata.name as string;
-  const namespace = metadata.namespace as string | undefined;
-  const creationTimestamp = metadata.creationTimestamp as string;
 
   return (
     <section className="mb-4">
-      <button
-        onClick={() => setShowRaw(!showRaw)}
-        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-100 dark:hover:bg-gray-800/30 rounded transition-colors"
-      >
-        {showRaw ? (
-          <ChevronDown size={16} className="text-gray-500" />
-        ) : (
-          <ChevronRight size={16} className="text-gray-500" />
-        )}
-        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400">
-          Metadata
-        </h4>
-      </button>
+      <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400 mb-2">
+        Metadata
+      </h4>
       
-      <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mt-2 space-y-4">
-        {/* Key Fields Table */}
-        <div>
-          <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Info</h5>
-          <table className="w-full text-sm">
-            <tbody>
-              <MetadataRow label="Name" value={name} />
-              {namespace && <MetadataRow label="Namespace" value={namespace} />}
-              <MetadataRow label="Created" value={formatTimestamp(creationTimestamp)} />
-            </tbody>
-          </table>
-        </div>
-
+      <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 space-y-4">
         {/* Labels */}
         {filteredLabels && Object.keys(filteredLabels).length > 0 && (
           <div>
-            <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-              Labels ({Object.keys(filteredLabels).length})
-            </h5>
-            <table className="w-full text-sm">
+            <div className="text-xs text-gray-500 mb-2">Labels</div>
+            <table className="w-full text-xs">
               <tbody>
                 {Object.entries(filteredLabels).map(([key, value]) => (
-                  <tr key={key} className="border-b border-gray-700/50 last:border-0">
-                    <td className="py-1.5 pr-3 text-sky-400 align-top whitespace-nowrap text-xs">
+                  <tr key={key} className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
+                    <td className="py-1.5 pr-3 text-sky-600 dark:text-sky-400 align-top whitespace-nowrap">
                       {key}
                     </td>
-                    <td className="py-1.5 text-emerald-300 break-all text-xs">
+                    <td className="py-1.5 text-emerald-600 dark:text-emerald-400 break-all">
                       {value}
                     </td>
                   </tr>
@@ -472,17 +705,15 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
         {/* Annotations */}
         {filteredAnnotations && Object.keys(filteredAnnotations).length > 0 && (
           <div>
-            <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-              Annotations ({Object.keys(filteredAnnotations).length})
-            </h5>
-            <table className="w-full text-sm">
+            <div className="text-xs text-gray-500 mb-2">Annotations</div>
+            <table className="w-full text-xs">
               <tbody>
                 {Object.entries(filteredAnnotations).map(([key, value]) => (
-                  <tr key={key} className="border-b border-gray-700/50 last:border-0">
-                    <td className="py-1.5 pr-3 text-purple-400 align-top whitespace-nowrap text-xs">
+                  <tr key={key} className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
+                    <td className="py-1.5 pr-3 text-purple-600 dark:text-purple-400 align-top whitespace-nowrap">
                       {key}
                     </td>
-                    <td className="py-1.5 text-gray-300 break-all text-xs">
+                    <td className="py-1.5 text-gray-600 dark:text-gray-300 break-all">
                       {value}
                     </td>
                   </tr>
@@ -491,102 +722,60 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
             </table>
           </div>
         )}
-
-        {/* Raw Data (collapsible) */}
-        <div>
-          <button
-            onClick={() => setShowRaw(!showRaw)}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors mb-2"
-          >
-            {showRaw ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            {showRaw ? 'Hide raw data' : 'Show raw data...'}
-          </button>
-          {showRaw && (
-            <div className="bg-gray-50 dark:bg-gray-900/50 rounded p-3">
-              <ObjectTree data={{
-                ...metadata,
-                labels: filteredLabels,
-                annotations: filteredAnnotations,
-              }} />
-            </div>
-          )}
-        </div>
       </div>
     </section>
   );
 }
 
-// Metadata table row
-function MetadataRow({ label, value, truncate }: { label: string; value: string; truncate?: boolean }) {
-  return (
-    <tr className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
-      <td className="py-1.5 pr-4 text-gray-500 whitespace-nowrap w-32">{label}</td>
-      <td className={`py-1.5 text-gray-900 dark:text-gray-100 ${truncate ? 'truncate max-w-xs' : ''}`} title={value}>
-        {value}
-      </td>
-    </tr>
-  );
-}
-
-// Format timestamp for display
-function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+// Events tab component (full page, no collapse)
+function EventsTab({ events, loading }: { events: CoreV1Event[]; loading: boolean }) {
+  if (loading && events.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-gray-500 text-sm">
+        <Loader2 size={14} className="animate-spin" />
+        Loading events...
+      </div>
+    );
+  }
   
-  const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
+  if (events.length === 0) {
+    return (
+      <div className="text-gray-500 text-sm italic">No events found for this resource</div>
+    );
+  }
 
-  let age: string;
-  if (days > 0) age = `${days}d ago`;
-  else if (hours > 0) age = `${hours}h ago`;
-  else if (minutes > 0) age = `${minutes}m ago`;
-  else age = `${seconds}s ago`;
-
-  return `${date.toLocaleString()} (${age})`;
-}
-
-// Events section component
-function EventsSection({ events, loading }: { events: CoreV1Event[]; loading: boolean }) {
-  const [isOpen, setIsOpen] = useState(true);
+  // Group events by type
+  const warnings = events.filter(e => e.type === 'Warning');
+  const normal = events.filter(e => e.type !== 'Warning');
 
   return (
-    <section className="mb-4">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-100 dark:hover:bg-gray-800/30 rounded transition-colors"
-      >
-        {isOpen ? (
-          <ChevronDown size={16} className="text-gray-500" />
-        ) : (
-          <ChevronRight size={16} className="text-gray-500" />
-        )}
-        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400">
-          Events {events.length > 0 && `(${events.length})`}
-        </h4>
-        {loading && <Loader2 size={12} className="animate-spin text-gray-500" />}
-      </button>
-      {isOpen && (
-        <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mt-2 overflow-auto">
-          {loading && events.length === 0 ? (
-            <div className="flex items-center gap-2 text-gray-500 text-sm">
-              <Loader2 size={14} className="animate-spin" />
-              Loading events...
-            </div>
-          ) : events.length === 0 ? (
-            <div className="text-gray-500 text-sm italic">No events found</div>
-          ) : (
-            <div className="space-y-3">
-              {events.map((event) => (
-                <EventItem key={event.metadata.uid} event={event} />
-              ))}
-            </div>
-          )}
+    <div className="space-y-4">
+      {warnings.length > 0 && (
+        <div>
+          <h5 className="text-xs font-medium text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+            Warnings ({warnings.length})
+          </h5>
+          <div className="space-y-2">
+            {warnings.map((event) => (
+              <EventItem key={event.metadata?.uid || `${event.reason}-${event.lastTimestamp}`} event={event} />
+            ))}
+          </div>
         </div>
       )}
-    </section>
+      
+      {normal.length > 0 && (
+        <div>
+          <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+            Normal Events ({normal.length})
+          </h5>
+          <div className="space-y-2">
+            {normal.map((event) => (
+              <EventItem key={event.metadata?.uid || `${event.reason}-${event.lastTimestamp}`} event={event} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -659,40 +848,4 @@ function formatEventTime(timestamp: string): string {
   if (hours > 0) return `${hours}h ago`;
   if (minutes > 0) return `${minutes}m ago`;
   return `${seconds}s ago`;
-}
-
-// Collapsible section component
-function CollapsibleSection({ 
-  title, 
-  children, 
-  defaultOpen = false 
-}: { 
-  title: string; 
-  children: React.ReactNode; 
-  defaultOpen?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-
-  return (
-    <section className="mb-4">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 text-left py-2 hover:bg-gray-100 dark:hover:bg-gray-800/30 rounded transition-colors"
-      >
-        {isOpen ? (
-          <ChevronDown size={16} className="text-gray-500" />
-        ) : (
-          <ChevronRight size={16} className="text-gray-500" />
-        )}
-        <h4 className="text-xs font-medium uppercase tracking-wider text-gray-400">
-          {title}
-        </h4>
-      </button>
-      {isOpen && (
-        <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mt-2 overflow-auto">
-          {children}
-        </div>
-      )}
-    </section>
-  );
 }

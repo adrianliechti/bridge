@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Server, Cpu, HardDrive, Box, ChevronDown, ChevronRight, AlertTriangle, Tag, CheckCircle2, XCircle } from 'lucide-react';
+import { Server, Cpu, HardDrive, Box, AlertTriangle, Tag, CheckCircle2, XCircle } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
 import { StatusCard, InfoRow, ConditionsSection } from './shared';
 import { formatMemory } from './utils';
@@ -121,7 +120,6 @@ export function NodeVisualizer({ resource }: ResourceVisualizerProps) {
       {conditions.length > 0 && (
         <ConditionsSection 
           conditions={sortNodeConditions(conditions)}
-          defaultOpen={true}
           isPositive={isNodeConditionPositive}
         />
       )}
@@ -193,8 +191,6 @@ function ResourceBar({
 }
 
 function TaintsSection({ taints }: { taints: V1Taint[] }) {
-  const [expanded, setExpanded] = useState(false);
-
   const effectColors: Record<string, string> = {
     'NoSchedule': 'bg-red-500/20 text-red-400 border-red-500/30',
     'PreferNoSchedule': 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -203,44 +199,36 @@ function TaintsSection({ taints }: { taints: V1Taint[] }) {
 
   return (
     <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+      <h5 className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
         <AlertTriangle size={12} className="text-amber-400" />
         Taints ({taints.length})
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {taints.map((taint, i) => (
-            <div 
-              key={i} 
-              className="flex items-center gap-2 text-xs bg-gray-900/50 px-2 py-1.5 rounded"
-            >
-              <span className="text-purple-400">{taint.key}</span>
-              {taint.value && (
-                <>
-                  <span className="text-gray-600">=</span>
-                  <span className="text-cyan-400">{taint.value}</span>
-                </>
-              )}
-              <span className="text-gray-600">:</span>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] border ${effectColors[taint.effect ?? ''] ?? 'bg-gray-700 text-gray-300'}`}>
-                {taint.effect}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      </h5>
+      <div className="flex flex-wrap gap-1">
+        {taints.map((taint, i) => (
+          <span 
+            key={i} 
+            className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded flex items-center gap-1"
+            title={`${taint.key}=${taint.value || ''}:${taint.effect}`}
+          >
+            <span className="text-purple-600 dark:text-purple-400">{taint.key}</span>
+            {taint.value && (
+              <>
+                <span className="text-gray-400">=</span>
+                <span className="text-cyan-600 dark:text-cyan-400">{taint.value}</span>
+              </>
+            )}
+            <span className={`ml-1 px-1 py-0.5 rounded text-[10px] border ${effectColors[taint.effect ?? ''] ?? 'bg-gray-700 text-gray-300'}`}>
+              {taint.effect}
+            </span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
 function LabelsSection({ labels }: { labels: Record<string, string> }) {
-  const [expanded, setExpanded] = useState(false);
-
-  // Filter out some common/noisy labels for the collapsed view
+  // Filter out some common/noisy labels
   const importantPrefixes = [
     'node-role.kubernetes.io/',
     'kubernetes.io/os',
@@ -257,50 +245,31 @@ function LabelsSection({ labels }: { labels: Record<string, string> }) {
     !importantPrefixes.some(p => k.startsWith(p))
   );
 
+  const allLabels = [...importantLabels, ...otherLabels];
+
   return (
     <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+      <h5 className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
         <Tag size={12} />
-        Labels ({entries.length})
-      </button>
-      
-      {/* Always show important labels */}
-      {importantLabels.length > 0 && (
-        <div className="space-y-1 mb-2">
-          {importantLabels.map(([key, value]) => (
-            <div key={key} className="text-xs bg-gray-900/50 px-2 py-1.5 rounded">
-              <span className="text-purple-400">{key}</span>
-              {value && (
-                <>
-                  <span className="text-gray-600 mx-1">=</span>
-                  <span className="text-cyan-400">{value}</span>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Show other labels when expanded */}
-      {expanded && otherLabels.length > 0 && (
-        <div className="space-y-1 border-t border-gray-800 pt-2">
-          {otherLabels.map(([key, value]) => (
-            <div key={key} className="text-xs bg-gray-900/50 px-2 py-1.5 rounded">
-              <span className="text-purple-400">{key}</span>
-              {value && (
-                <>
-                  <span className="text-gray-600 mx-1">=</span>
-                  <span className="text-cyan-400">{value}</span>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+        Labels
+      </h5>
+      <table className="w-full text-xs">
+        <tbody>
+          {allLabels.map(([key, value]) => {
+            const isImportant = importantPrefixes.some(p => key.startsWith(p));
+            return (
+              <tr key={key} className="border-b border-gray-200 dark:border-gray-700/50 last:border-0">
+                <td className={`py-1.5 pr-3 align-top whitespace-nowrap ${isImportant ? 'text-blue-600 dark:text-blue-400' : 'text-sky-600 dark:text-sky-400'}`}>
+                  {key}
+                </td>
+                <td className="py-1.5 text-emerald-600 dark:text-emerald-400 break-all">
+                  {value}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

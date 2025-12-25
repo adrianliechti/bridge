@@ -240,25 +240,9 @@ function ContainerCard({
 }
 
 function VolumesSection({ volumes, containers }: { volumes: V1Volume[]; containers: V1Container[] }) {
-  const [expanded, setExpanded] = useState(false);
-
-  // Helper to determine volume type and details
-  const getVolumeInfo = (volume: V1Volume): { type: string; detail: string } => {
-    if (volume.configMap) return { type: 'ConfigMap', detail: volume.configMap.name || '' };
-    if (volume.secret) return { type: 'Secret', detail: volume.secret.secretName || '' };
-    if (volume.emptyDir) return { type: 'EmptyDir', detail: volume.emptyDir.medium || 'default' };
-    if (volume.hostPath) return { type: 'HostPath', detail: volume.hostPath.path };
-    if (volume.persistentVolumeClaim) return { type: 'PVC', detail: volume.persistentVolumeClaim.claimName };
-    if (volume.projected) return { type: 'Projected', detail: `${volume.projected.sources?.length || 0} sources` };
-    if (volume.downwardAPI) return { type: 'DownwardAPI', detail: `${volume.downwardAPI.items?.length || 0} items` };
-    if (volume.nfs) return { type: 'NFS', detail: `${volume.nfs.server}:${volume.nfs.path}` };
-    if (volume.csi) return { type: 'CSI', detail: volume.csi.driver };
-    return { type: 'Unknown', detail: '' };
-  };
-
   // Get all mount points for a volume
-  const getVolumeMounts = (volumeName: string): Array<{ container: string; mountPath: string; readOnly: boolean; subPath?: string }> => {
-    const mounts: Array<{ container: string; mountPath: string; readOnly: boolean; subPath?: string }> = [];
+  const getVolumeMounts = (volumeName: string): Array<{ container: string; mountPath: string; readOnly: boolean; subPath?: string; subPathExpr?: string; mountPropagation?: string }> => {
+    const mounts: Array<{ container: string; mountPath: string; readOnly: boolean; subPath?: string; subPathExpr?: string; mountPropagation?: string }> = [];
     for (const container of containers) {
       if (container.volumeMounts) {
         for (const mount of container.volumeMounts) {
@@ -267,7 +251,9 @@ function VolumesSection({ volumes, containers }: { volumes: V1Volume[]; containe
               container: container.name,
               mountPath: mount.mountPath,
               readOnly: mount.readOnly ?? false,
-              subPath: mount.subPath
+              subPath: mount.subPath,
+              subPathExpr: mount.subPathExpr,
+              mountPropagation: mount.mountPropagation
             });
           }
         }
@@ -278,65 +264,251 @@ function VolumesSection({ volumes, containers }: { volumes: V1Volume[]; containe
 
   return (
     <div>
+      <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+        Volumes ({volumes.length})
+      </h5>
+      <div className="space-y-2">
+        {volumes.map((volume) => (
+          <VolumeCard 
+            key={volume.name} 
+            volume={volume} 
+            mounts={getVolumeMounts(volume.name)} 
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface VolumeMount {
+  container: string;
+  mountPath: string;
+  readOnly: boolean;
+  subPath?: string;
+  subPathExpr?: string;
+  mountPropagation?: string;
+}
+
+function VolumeCard({ volume, mounts }: { volume: V1Volume; mounts: VolumeMount[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const info = getVolumeInfo(volume);
+
+  const typeStyles: Record<string, string> = {
+    'ConfigMap': 'border-blue-500/30 bg-blue-500/5',
+    'Secret': 'border-amber-500/30 bg-amber-500/5',
+    'PVC': 'border-emerald-500/30 bg-emerald-500/5',
+    'EmptyDir': 'border-gray-500/30 bg-gray-500/5',
+    'HostPath': 'border-red-500/30 bg-red-500/5',
+    'Projected': 'border-purple-500/30 bg-purple-500/5',
+    'DownwardAPI': 'border-cyan-500/30 bg-cyan-500/5',
+    'NFS': 'border-orange-500/30 bg-orange-500/5',
+    'CSI': 'border-indigo-500/30 bg-indigo-500/5',
+  };
+
+  const typeBadgeStyles: Record<string, string> = {
+    'ConfigMap': 'bg-blue-500/20 text-blue-400',
+    'Secret': 'bg-amber-500/20 text-amber-400',
+    'PVC': 'bg-emerald-500/20 text-emerald-400',
+    'EmptyDir': 'bg-gray-500/20 text-gray-400',
+    'HostPath': 'bg-red-500/20 text-red-400',
+    'Projected': 'bg-purple-500/20 text-purple-400',
+    'DownwardAPI': 'bg-cyan-500/20 text-cyan-400',
+    'NFS': 'bg-orange-500/20 text-orange-400',
+    'CSI': 'bg-indigo-500/20 text-indigo-400',
+  };
+
+  return (
+    <div className={`border rounded-lg overflow-hidden ${typeStyles[info.type] || 'border-gray-700 bg-gray-900/50'}`}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-800/30 transition-colors"
       >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        Volumes ({volumes.length})
+        {expanded ? (
+          <ChevronDown size={14} className="text-gray-500" />
+        ) : (
+          <ChevronRight size={14} className="text-gray-500" />
+        )}
+        <HardDrive size={14} className="text-purple-400" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-100">{volume.name}</span>
+            <span className={`px-1.5 py-0.5 rounded text-xs ${typeBadgeStyles[info.type] || 'bg-gray-700 text-gray-400'}`}>
+              {info.type}
+            </span>
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {info.detail && <span className="text-cyan-400/70">{info.detail}</span>}
+            {mounts.length > 0 && (
+              <span className="ml-2">→ {mounts.map(m => m.mountPath).join(', ')}</span>
+            )}
+          </div>
+        </div>
+        {mounts.length > 0 && (
+          <span className="text-xs text-gray-500">{mounts.length} mount{mounts.length > 1 ? 's' : ''}</span>
+        )}
       </button>
+
       {expanded && (
-        <div className="space-y-2">
-          {volumes.map((volume) => {
-            const info = getVolumeInfo(volume);
-            const mounts = getVolumeMounts(volume.name);
-            return (
-              <div key={volume.name} className="text-xs bg-gray-900/50 px-3 py-2 rounded-lg border border-gray-800">
-                <div className="flex items-center gap-2 mb-1">
-                  <HardDrive size={12} className="text-purple-400" />
-                  <span className="text-purple-400 font-medium">{volume.name}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                    info.type === 'ConfigMap' ? 'bg-blue-500/20 text-blue-400' :
-                    info.type === 'Secret' ? 'bg-amber-500/20 text-amber-400' :
-                    info.type === 'PVC' ? 'bg-emerald-500/20 text-emerald-400' :
-                    info.type === 'EmptyDir' ? 'bg-gray-500/20 text-gray-400' :
-                    info.type === 'HostPath' ? 'bg-red-500/20 text-red-400' :
-                    'bg-gray-700 text-gray-400'
-                  }`}>
-                    {info.type}
-                  </span>
-                </div>
-                {info.detail && (
-                  <div className="text-gray-500 ml-5 mb-1">
-                    <span className="text-gray-600">Source:</span>{' '}
-                    <span className="text-cyan-400">{info.detail}</span>
+        <div className="border-t border-gray-800 p-3 space-y-3">
+          {/* Source Info */}
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Source</div>
+            <div className="text-xs">
+              <span className={`px-1.5 py-0.5 rounded ${typeBadgeStyles[info.type] || 'bg-gray-700 text-gray-400'}`}>
+                {info.type}
+              </span>
+              {info.detail && (
+                <span className="ml-2 text-cyan-400">{info.detail}</span>
+              )}
+            </div>
+            {/* Extra source details */}
+            {info.extra && Object.keys(info.extra).length > 0 && (
+              <div className="mt-2 text-xs space-y-1">
+                {Object.entries(info.extra).map(([key, value]) => (
+                  <div key={key} className="text-gray-400">
+                    <span className="text-gray-500">{key}:</span> <span className="text-gray-300">{value}</span>
                   </div>
-                )}
-                {mounts.length > 0 && (
-                  <div className="ml-5 mt-1.5 space-y-1 border-l border-gray-700 pl-2">
-                    {mounts.map((mount, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-gray-400">
-                        <Box size={10} className="text-gray-600" />
-                        <span className="text-gray-500">{mount.container}</span>
-                        <span className="text-gray-600">→</span>
-                        <span className="text-cyan-400 font-mono">{mount.mountPath}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Mount Points */}
+          {mounts.length > 0 && (
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Mount Points ({mounts.length})</div>
+              <div className="space-y-2">
+                {mounts.map((mount, i) => (
+                  <div key={i} className="text-xs bg-gray-900/50 rounded p-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Box size={10} className="text-blue-400" />
+                      <span className="text-gray-300">{mount.container}</span>
+                      <span className="text-gray-600">→</span>
+                      <span className="text-cyan-400 font-mono">{mount.mountPath}</span>
+                      {mount.readOnly && (
+                        <span className="px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px]">read-only</span>
+                      )}
+                    </div>
+                    {(mount.subPath || mount.subPathExpr || mount.mountPropagation) && (
+                      <div className="ml-4 mt-1 space-y-0.5 text-gray-500">
                         {mount.subPath && (
-                          <span className="text-gray-600">(subPath: {mount.subPath})</span>
+                          <div><span className="text-gray-600">subPath:</span> <span className="text-purple-400">{mount.subPath}</span></div>
                         )}
-                        {mount.readOnly && (
-                          <span className="text-amber-500/70 text-[10px]">RO</span>
+                        {mount.subPathExpr && (
+                          <div><span className="text-gray-600">subPathExpr:</span> <span className="text-purple-400">{mount.subPathExpr}</span></div>
+                        )}
+                        {mount.mountPropagation && (
+                          <div><span className="text-gray-600">propagation:</span> <span className="text-gray-300">{mount.mountPropagation}</span></div>
                         )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+// Helper to get volume type info
+function getVolumeInfo(volume: V1Volume): { type: string; detail: string; extra?: Record<string, string> } {
+  if (volume.configMap) {
+    return { 
+      type: 'ConfigMap', 
+      detail: volume.configMap.name || '',
+      extra: {
+        ...(volume.configMap.optional !== undefined && { optional: String(volume.configMap.optional) }),
+        ...(volume.configMap.defaultMode !== undefined && { defaultMode: String(volume.configMap.defaultMode).padStart(4, '0') }),
+      }
+    };
+  }
+  if (volume.secret) {
+    return { 
+      type: 'Secret', 
+      detail: volume.secret.secretName || '',
+      extra: {
+        ...(volume.secret.optional !== undefined && { optional: String(volume.secret.optional) }),
+        ...(volume.secret.defaultMode !== undefined && { defaultMode: String(volume.secret.defaultMode).padStart(4, '0') }),
+      }
+    };
+  }
+  if (volume.emptyDir) {
+    return { 
+      type: 'EmptyDir', 
+      detail: volume.emptyDir.medium || 'default',
+      extra: {
+        ...(volume.emptyDir.sizeLimit && { sizeLimit: volume.emptyDir.sizeLimit }),
+      }
+    };
+  }
+  if (volume.hostPath) {
+    return { 
+      type: 'HostPath', 
+      detail: volume.hostPath.path,
+      extra: {
+        ...(volume.hostPath.type && { type: volume.hostPath.type }),
+      }
+    };
+  }
+  if (volume.persistentVolumeClaim) {
+    return { 
+      type: 'PVC', 
+      detail: volume.persistentVolumeClaim.claimName,
+      extra: {
+        ...(volume.persistentVolumeClaim.readOnly && { readOnly: 'true' }),
+      }
+    };
+  }
+  if (volume.projected) {
+    const sources = volume.projected.sources || [];
+    const sourceTypes = sources.map(s => {
+      if (s.configMap) return 'ConfigMap';
+      if (s.secret) return 'Secret';
+      if (s.serviceAccountToken) return 'ServiceAccountToken';
+      if (s.downwardAPI) return 'DownwardAPI';
+      return 'Unknown';
+    });
+    return { 
+      type: 'Projected', 
+      detail: `${sources.length} sources`,
+      extra: {
+        sources: sourceTypes.join(', '),
+        ...(volume.projected.defaultMode !== undefined && { defaultMode: String(volume.projected.defaultMode).padStart(4, '0') }),
+      }
+    };
+  }
+  if (volume.downwardAPI) {
+    return { 
+      type: 'DownwardAPI', 
+      detail: `${volume.downwardAPI.items?.length || 0} items`,
+      extra: {
+        ...(volume.downwardAPI.defaultMode !== undefined && { defaultMode: String(volume.downwardAPI.defaultMode).padStart(4, '0') }),
+      }
+    };
+  }
+  if (volume.nfs) {
+    return { 
+      type: 'NFS', 
+      detail: `${volume.nfs.server}:${volume.nfs.path}`,
+      extra: {
+        ...(volume.nfs.readOnly && { readOnly: 'true' }),
+      }
+    };
+  }
+  if (volume.csi) {
+    return { 
+      type: 'CSI', 
+      detail: volume.csi.driver,
+      extra: {
+        ...(volume.csi.fsType && { fsType: volume.csi.fsType }),
+        ...(volume.csi.readOnly && { readOnly: 'true' }),
+      }
+    };
+  }
+  return { type: 'Unknown', detail: '' };
 }
 
 // Helper functions
