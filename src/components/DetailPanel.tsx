@@ -20,6 +20,7 @@ import './visualizer/CronJob';
 interface DetailPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  otherPanelOpen?: boolean;
   resource: V1ObjectReference | null;
 }
 
@@ -228,7 +229,7 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
   };
 }
 
-export function DetailPanel({ isOpen, onClose, resource: resourceId }: DetailPanelProps) {
+export function DetailPanel({ isOpen, onClose, otherPanelOpen = false, resource: resourceId }: DetailPanelProps) {
   const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -300,8 +301,13 @@ export function DetailPanel({ isOpen, onClose, resource: resourceId }: DetailPan
   const resourceKind = resourceId.kind || 'Resource';
 
   return (
-    <aside className="fixed top-0 right-0 h-screen w-120 bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col z-20 shadow-xl">
-      {/* Header */}
+    <aside 
+      className="fixed top-0 h-screen bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col z-20 shadow-xl transition-all duration-300"
+      style={{
+        right: otherPanelOpen ? '28rem' : '0',
+        width: otherPanelOpen ? '28rem' : '40rem',
+      }}
+    >      {/* Header */}
       <header className="shrink-0 h-16 flex items-center justify-between px-5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">

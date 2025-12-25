@@ -15,10 +15,11 @@ interface Message {
 interface AIPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  otherPanelOpen?: boolean;
   context?: ChatContext;
 }
 
-export function AIPanel({ isOpen, onClose, context }: AIPanelProps) {
+export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AIPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -131,9 +132,12 @@ export function AIPanel({ isOpen, onClose, context }: AIPanelProps) {
 
   return (
     <div
-      className={`fixed top-0 right-0 h-screen w-lg bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col transition-all duration-300 ease-in-out ${
+      className={`fixed top-0 right-0 h-screen bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col transition-all duration-300 ease-in-out z-30 ${
         isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
       }`}
+      style={{
+        width: otherPanelOpen ? '28rem' : '40rem',
+      }}
     >
       {/* Header */}
       <div className="shrink-0 h-16 px-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">

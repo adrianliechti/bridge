@@ -3,11 +3,16 @@ import { Sparkles } from 'lucide-react';
 import type { V1APIResource } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
+import { usePanels } from '../hooks/usePanelState';
 import { DynamicResourceTable } from './DynamicResourceTable';
 import { ColumnFilter } from './ColumnFilter';
 import { AIPanel } from './AIPanel';
 import { DetailPanel } from './DetailPanel';
 import { getConfig } from '../config';
+
+// Panel IDs
+const PANEL_AI = 'ai';
+const PANEL_DETAIL = 'detail';
 
 function getDisplayName(resource: V1APIResource): string {
   return resource.name.charAt(0).toUpperCase() + resource.name.slice(1);
@@ -21,32 +26,50 @@ interface MainContentProps {
 export function MainContent({ resource, namespace }: MainContentProps) {
   const [title, setTitle] = useState(() => getDisplayName(resource));
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
-  const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
   
   const { hiddenColumns, toggleColumn } = useColumnVisibility();
+  const panels = usePanels();
+  
+  const isAIPanelOpen = panels.isOpen(PANEL_AI);
+  const isDetailPanelOpen = panels.isOpen(PANEL_DETAIL);
 
   useEffect(() => {
     setTitle(getDisplayName(resource));
   }, [resource]);
 
-  // Clear selected item when resource changes
+  // Clear selected item and close detail panel when resource changes
   useEffect(() => {
     setSelectedItem(null);
+    panels.close(PANEL_DETAIL);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resource, namespace]);
+
+  // Sync selected item with detail panel state
+  const handleSelectItem = useCallback((item: TableRow | null) => {
+    setSelectedItem(item);
+    if (item) {
+      panels.open(PANEL_DETAIL);
+    } else {
+      panels.close(PANEL_DETAIL);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleColumnsLoaded = useCallback((cols: TableColumnDefinition[]) => {
     setColumns(cols);
   }, []);
 
-  const isDetailPanelOpen = selectedItem !== null;
-
-  // Determine right margin based on which panel is open (detail panel takes precedence as it's wider)
-  const rightMarginClass = isDetailPanelOpen ? 'mr-120' : isAIPanelOpen ? 'mr-[32rem]' : '';
+  // Calculate right margin based on which panels are open
+  const getRightMargin = () => {
+    if (isDetailPanelOpen && isAIPanelOpen) return 'mr-[56rem]'; // 28rem + 28rem
+    if (isDetailPanelOpen || isAIPanelOpen) return 'mr-[40rem]';
+    return '';
+  };
 
   return (
     <>
-      <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${rightMarginClass}`}>
+      <main className={`flex-1 ml-64 flex flex-col h-screen min-w-0 transition-all duration-300 ${getRightMargin()}`}>
         <header className="shrink-0 h-16 flex items-center justify-between px-5 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
@@ -65,7 +88,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
             />
             {getConfig().ai && (
               <button
-                onClick={() => setIsAIPanelOpen(!isAIPanelOpen)}
+                onClick={() => panels.toggle(PANEL_AI)}
                 className={`p-2 rounded-md transition-colors ${
                   isAIPanelOpen 
                     ? 'text-sky-400 hover:text-sky-300 hover:bg-gray-100 dark:hover:bg-gray-800' 
@@ -86,23 +109,28 @@ export function MainContent({ resource, namespace }: MainContentProps) {
               hiddenColumns={hiddenColumns}
               onColumnsLoaded={handleColumnsLoaded}
               selectedItem={selectedItem}
-              onSelectItem={setSelectedItem}
+              onSelectItem={handleSelectItem}
             />
           </div>
         </section>
       </main>
       <AIPanel 
-        isOpen={isAIPanelOpen} 
-        onClose={() => setIsAIPanelOpen(false)}
+        isOpen={isAIPanelOpen}
+        onClose={() => panels.close(PANEL_AI)}
+        otherPanelOpen={isDetailPanelOpen}
         context={{
           currentNamespace: namespace,
           selectedResourceKind: resource.name,
           selectedResourceName: selectedItem?.object.metadata.name,
         }}
       />
-      <DetailPanel 
-        isOpen={isDetailPanelOpen} 
-        onClose={() => setSelectedItem(null)} 
+      <DetailPanel
+        isOpen={isDetailPanelOpen}
+        onClose={() => {
+          setSelectedItem(null);
+          panels.close(PANEL_DETAIL);
+        }}
+        otherPanelOpen={isAIPanelOpen}
         resource={selectedItem ? {
           name: selectedItem.object.metadata.name,
           namespace: selectedItem.object.metadata.namespace,
