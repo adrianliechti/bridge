@@ -6,6 +6,7 @@ import type {
   V1CustomResourceDefinition,
   V1CustomResourceDefinitionList,
 } from '@kubernetes/client-node';
+import type { KubernetesObject, KubernetesListObject } from '@kubernetes/client-node';
 
 import { getApiBase } from './kubernetesDiscovery';
 
@@ -54,19 +55,40 @@ export async function getCustomResourceDefinitions(): Promise<V1CustomResourceDe
   return response.items;
 }
 
+// Extended KubernetesObject with common spec/status fields for generic resource handling
+export interface KubernetesResource extends KubernetesObject {
+  spec?: Record<string, unknown>;
+  status?: Record<string, unknown>;
+}
+
 // Fetch a single resource by name
 export async function getResource(
   config: V1APIResource,
   resourceName: string,
   namespace?: string
-): Promise<Record<string, unknown>> {
+): Promise<KubernetesResource> {
   const apiBase = getApiBase(config);
   const url =
     config.namespaced && namespace
       ? `${apiBase}/namespaces/${namespace}/${config.name}/${resourceName}`
       : `${apiBase}/${config.name}/${resourceName}`;
 
-  return fetchApi<Record<string, unknown>>(url);
+  return fetchApi<KubernetesResource>(url);
+}
+
+// Fetch a list of resources (full objects, not Table API)
+export async function getResourceList(
+  config: V1APIResource,
+  namespace?: string
+): Promise<KubernetesResource[]> {
+  const apiBase = getApiBase(config);
+  const url =
+    config.namespaced && namespace
+      ? `${apiBase}/namespaces/${namespace}/${config.name}`
+      : `${apiBase}/${config.name}`;
+
+  const response = await fetchApi<KubernetesListObject<KubernetesResource>>(url);
+  return response.items;
 }
 
 // Fetch events for a specific resource

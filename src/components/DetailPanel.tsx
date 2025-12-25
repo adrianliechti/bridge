@@ -1,7 +1,7 @@
 import { X, Copy, Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
-import { getResource, getResourceEvents, type CoreV1Event } from '../api/kubernetes';
+import { getResource, getResourceEvents, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
 import { getVisualizer } from './visualizer/Visualizer';
 
@@ -214,8 +214,8 @@ const HIDDEN_METADATA_FIELDS = new Set([
 ]);
 
 // Filter hidden fields from metadata for display
-function filterHiddenMetadataFields(obj: Record<string, unknown>): Record<string, unknown> {
-  const meta = obj.metadata as Record<string, unknown> | undefined;
+function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource {
+  const meta = obj.metadata;
   if (!meta) return obj;
   
   const filteredMeta = Object.fromEntries(
@@ -230,7 +230,7 @@ function filterHiddenMetadataFields(obj: Record<string, unknown>): Record<string
 
 export function DetailPanel({ isOpen, onClose, resource: resourceId }: DetailPanelProps) {
   const [copied, setCopied] = useState(false);
-  const [fullObject, setFullObject] = useState<Record<string, unknown> | null>(null);
+  const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<CoreV1Event[]>([]);

@@ -1,12 +1,44 @@
-import { useState, useMemo } from 'react';
-import { Play, CheckCircle2, XCircle, Clock, Box, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { Play, CheckCircle2, XCircle, Clock, Box } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
+import { StatusCard, ConditionsSection } from './shared';
+import { formatDuration } from './utils';
 import type { V1Job, V1JobCondition } from '@kubernetes/client-node';
 
 export function JobVisualizer({ resource }: ResourceVisualizerProps) {
   const job = resource as unknown as V1Job;
   const spec = job.spec;
   const status = job.status;
+
+  // Memoize timestamps to avoid recreating Date objects on every render
+  // All hooks must be called before any early returns
+  const startTime = useMemo(
+    () => (status?.startTime ? new Date(status.startTime) : null),
+    [status]
+  );
+  const completionTime = useMemo(
+    () => (status?.completionTime ? new Date(status.completionTime) : null),
+    [status]
+  );
+
+  // Track current time in state for running jobs
+  const [now, setNow] = useState(() => Date.now());
+  const isRunning = startTime && !completionTime;
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  // Calculate duration
+  const duration = useMemo(() => {
+    if (!startTime) return null;
+    if (completionTime) {
+      return formatDuration(completionTime.getTime() - startTime.getTime());
+    }
+    return formatDuration(now - startTime.getTime()) + ' (running)';
+  }, [startTime, completionTime, now]);
 
   if (!spec) {
     return <div className="text-gray-500 text-sm">No job spec available</div>;
@@ -23,17 +55,6 @@ export function JobVisualizer({ resource }: ResourceVisualizerProps) {
   const isComplete = succeeded >= completions;
   const isFailed = status?.conditions?.some(c => c.type === 'Failed' && c.status === 'True');
   const jobStatus = isComplete ? 'Complete' : isFailed ? 'Failed' : active > 0 ? 'Running' : 'Pending';
-
-  // Calculate duration
-  const startTime = status?.startTime ? new Date(status.startTime) : null;
-  const completionTime = status?.completionTime ? new Date(status.completionTime) : null;
-  const duration = useMemo(() => {
-    if (!startTime) return null;
-    if (completionTime) {
-      return formatDuration(completionTime.getTime() - startTime.getTime());
-    }
-    return formatDuration(Date.now() - startTime.getTime()) + ' (running)';
-  }, [startTime, completionTime]);
 
   return (
     <div className="space-y-4">
@@ -141,7 +162,11 @@ export function JobVisualizer({ resource }: ResourceVisualizerProps) {
 
       {/* Conditions */}
       {status?.conditions && status.conditions.length > 0 && (
-        <ConditionsSection conditions={status.conditions} />
+        <ConditionsSection 
+          conditions={status.conditions}
+          defaultOpen={true}
+          isPositive={isJobConditionPositive}
+        />
       )}
 
       {/* Timestamps */}
@@ -190,96 +215,10 @@ export function JobVisualizer({ resource }: ResourceVisualizerProps) {
 registerVisualizer('Job', JobVisualizer);
 registerVisualizer('Jobs', JobVisualizer);
 
-// Helper components
-
-function StatusCard({ 
-  label, 
-  value, 
-  status,
-  icon
-}: { 
-  label: string; 
-  value: string; 
-  status?: 'success' | 'warning' | 'error' | 'neutral';
-  icon?: React.ReactNode;
-}) {
-  const statusColors = {
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
-    error: 'text-red-400',
-    neutral: 'text-gray-100',
-  };
-
-  return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-sm font-medium flex items-center gap-2 ${statusColors[status || 'neutral']}`}>
-        {icon}
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function ConditionsSection({ conditions }: { conditions: V1JobCondition[] }) {
-  const [expanded, setExpanded] = useState(true);
-
-  return (
-    <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        Conditions ({conditions.length})
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {conditions.map((condition, i) => (
-            <div 
-              key={i} 
-              className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
-                condition.type === 'Complete' && condition.status === 'True'
-                  ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                  : condition.type === 'Failed' && condition.status === 'True'
-                  ? 'bg-red-500/10 border border-red-500/20'
-                  : 'bg-gray-900/50 border border-gray-700'
-              }`}
-            >
-              {condition.type === 'Complete' && condition.status === 'True' ? (
-                <CheckCircle2 size={12} className="text-emerald-400 mt-0.5" />
-              ) : condition.type === 'Failed' && condition.status === 'True' ? (
-                <XCircle size={12} className="text-red-400 mt-0.5" />
-              ) : (
-                <AlertTriangle size={12} className="text-amber-400 mt-0.5" />
-              )}
-              <div>
-                <div className="text-gray-300">{condition.type}</div>
-                {condition.reason && (
-                  <div className="text-gray-500">{condition.reason}</div>
-                )}
-                {condition.message && (
-                  <div className="text-gray-500 text-[10px] mt-1">{condition.message}</div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Helper functions
-
-function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) return `${days}d ${hours % 24}h`;
-  if (hours > 0) return `${hours}h ${minutes % 60}m`;
-  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-  return `${seconds}s`;
+// Helper function to determine if a job condition is positive
+function isJobConditionPositive(condition: V1JobCondition): boolean {
+  // Complete + True is good, Failed + True is bad
+  if (condition.type === 'Complete') return condition.status === 'True';
+  if (condition.type === 'Failed') return condition.status !== 'True';
+  return condition.status === 'True';
 }

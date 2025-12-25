@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { HardDrive, Database, Link, ArrowRight } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
-import { getResourceTable } from '../../api/kubernetesTable';
-import { getResourceConfig } from '../../api/kubernetes';
-import type { V1PersistentVolumeClaim, V1PersistentVolumeClaimCondition } from '@kubernetes/client-node';
+import { StatusCard, ConditionsSection } from './shared';
+import { getAccessModeStyle, formatAccessMode } from './utils';
+import { getResourceList, getResourceConfig } from '../../api/kubernetes';
+import type { V1PersistentVolumeClaim } from '@kubernetes/client-node';
 
 interface PVInfo {
   name: string;
@@ -36,17 +37,15 @@ export function PersistentVolumeClaimVisualizer({ resource }: ResourceVisualizer
           return;
         }
         
-        const response = await getResourceTable(pvConfig);
+        const pvs = await getResourceList(pvConfig);
 
-        const pv = response.rows.find(row => {
-          const obj = row.object as Record<string, unknown>;
-          const meta = obj.metadata as Record<string, unknown>;
+        const pv = pvs.find(p => {
+          const meta = p.metadata as Record<string, unknown>;
           return meta.name === volumeName;
         });
 
         if (pv) {
-          const obj = pv.object as Record<string, unknown>;
-          const pvSpec = obj.spec as Record<string, unknown>;
+          const pvSpec = pv.spec as Record<string, unknown>;
           
           setPvInfo({
             name: volumeName,
@@ -259,76 +258,6 @@ export function PersistentVolumeClaimVisualizer({ resource }: ResourceVisualizer
 registerVisualizer('PersistentVolumeClaim', PersistentVolumeClaimVisualizer);
 registerVisualizer('PersistentVolumeClaims', PersistentVolumeClaimVisualizer);
 
-// Helper components
-
-function StatusCard({ 
-  label, 
-  value, 
-  status,
-  icon
-}: { 
-  label: string; 
-  value: string; 
-  status?: 'success' | 'warning' | 'error' | 'neutral';
-  icon?: React.ReactNode;
-}) {
-  const statusColors = {
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
-    error: 'text-red-400',
-    neutral: 'text-gray-100',
-  };
-
-  return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-sm font-medium flex items-center gap-2 ${statusColors[status || 'neutral']}`}>
-        {icon}
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function ConditionsSection({ conditions }: { conditions: V1PersistentVolumeClaimCondition[] }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? '▼' : '▶'} Conditions ({conditions.length})
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {conditions.map((condition, i) => (
-            <div 
-              key={i} 
-              className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
-                condition.status === 'True' 
-                  ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                  : 'bg-gray-900/50 border border-gray-700'
-              }`}
-            >
-              <div>
-                <div className="text-gray-300">{condition.type}</div>
-                {condition.reason && (
-                  <div className="text-gray-500">{condition.reason}</div>
-                )}
-                {condition.message && (
-                  <div className="text-gray-500 text-[10px] mt-1">{condition.message}</div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // Helper functions
 
 function getPhaseStatus(phase: string): 'success' | 'warning' | 'error' | 'neutral' {
@@ -337,26 +266,6 @@ function getPhaseStatus(phase: string): 'success' | 'warning' | 'error' | 'neutr
     case 'pending': return 'warning';
     case 'lost': return 'error';
     default: return 'neutral';
-  }
-}
-
-function getAccessModeStyle(mode: string): string {
-  switch (mode) {
-    case 'ReadWriteOnce': return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
-    case 'ReadOnlyMany': return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-    case 'ReadWriteMany': return 'bg-purple-500/20 text-purple-400 border border-purple-500/30';
-    case 'ReadWriteOncePod': return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
-    default: return 'bg-gray-700 text-gray-300';
-  }
-}
-
-function formatAccessMode(mode: string): string {
-  switch (mode) {
-    case 'ReadWriteOnce': return 'RWO';
-    case 'ReadOnlyMany': return 'ROX';
-    case 'ReadWriteMany': return 'RWX';
-    case 'ReadWriteOncePod': return 'RWOP';
-    default: return mode;
   }
 }
 

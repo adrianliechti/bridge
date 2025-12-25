@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Database, ChevronDown, ChevronRight, Box, AlertTriangle, CheckCircle2, HardDrive } from 'lucide-react';
+import { Database, Box, HardDrive } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
-import { getResourceTable } from '../../api/kubernetesTable';
-import { getResourceConfig } from '../../api/kubernetes';
-import type { V1StatefulSet, V1StatefulSetCondition } from '@kubernetes/client-node';
+import { StatusGauge, ConditionsSection } from './shared';
+import { getResourceList, getResourceConfig } from '../../api/kubernetes';
+import type { V1StatefulSet } from '@kubernetes/client-node';
 
 interface PVCDisplay {
   name: string;
@@ -32,16 +32,15 @@ export function StatefulSetVisualizer({ resource, namespace }: ResourceVisualize
           return;
         }
         
-        const response = await getResourceTable(pvcConfig, namespace);
+        const pvcs = await getResourceList(pvcConfig, namespace);
 
         // Filter PVCs that match StatefulSet naming pattern: <claim-name>-<statefulset-name>-<ordinal>
         const stsName = metadata.name;
         const claimTemplates = spec?.volumeClaimTemplates?.map(t => t.metadata?.name) ?? [];
         
-        const ownedPVCs = response.rows
-          .filter(row => {
-            const obj = row.object as Record<string, unknown>;
-            const meta = obj.metadata as Record<string, unknown>;
+        const ownedPVCs = pvcs
+          .filter(pvc => {
+            const meta = pvc.metadata as Record<string, unknown>;
             const pvcName = meta.name as string;
             
             // Check if PVC matches any volume claim template pattern
@@ -49,11 +48,10 @@ export function StatefulSetVisualizer({ resource, namespace }: ResourceVisualize
               pvcName.startsWith(`${claimName}-${stsName}-`)
             );
           })
-          .map(row => {
-            const obj = row.object as Record<string, unknown>;
-            const meta = obj.metadata as Record<string, unknown>;
-            const pvcSpec = obj.spec as Record<string, unknown>;
-            const pvcStatus = obj.status as Record<string, unknown>;
+          .map(pvc => {
+            const meta = pvc.metadata as Record<string, unknown>;
+            const pvcSpec = pvc.spec as Record<string, unknown>;
+            const pvcStatus = pvc.status as Record<string, unknown>;
             
             return {
               name: meta.name as string,
@@ -299,84 +297,3 @@ export function StatefulSetVisualizer({ resource, namespace }: ResourceVisualize
 // Register this visualizer
 registerVisualizer('StatefulSet', StatefulSetVisualizer);
 registerVisualizer('StatefulSets', StatefulSetVisualizer);
-
-// Helper components
-
-function StatusGauge({ 
-  label, 
-  current, 
-  total, 
-  color 
-}: { 
-  label: string; 
-  current: number; 
-  total: number; 
-  color: 'emerald' | 'blue' | 'cyan';
-}) {
-  const percentage = total > 0 ? (current / total) * 100 : 0;
-  const colorClasses = {
-    emerald: 'text-emerald-400',
-    blue: 'text-blue-400',
-    cyan: 'text-cyan-400',
-  };
-
-  return (
-    <div className="flex-1">
-      <div className="flex items-center justify-between text-xs mb-1">
-        <span className="text-gray-500">{label}</span>
-        <span className={colorClasses[color]}>{current}/{total}</span>
-      </div>
-      <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-        <div 
-          className={`h-full ${
-            color === 'emerald' ? 'bg-emerald-500' :
-            color === 'blue' ? 'bg-blue-500' : 'bg-cyan-500'
-          }`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ConditionsSection({ conditions }: { conditions: V1StatefulSetCondition[] }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        Conditions ({conditions.length})
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {conditions.map((condition, i) => (
-            <div 
-              key={i} 
-              className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
-                condition.status === 'True' 
-                  ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                  : 'bg-gray-900/50 border border-gray-700'
-              }`}
-            >
-              {condition.status === 'True' ? (
-                <CheckCircle2 size={12} className="text-emerald-400 mt-0.5" />
-              ) : (
-                <AlertTriangle size={12} className="text-amber-400 mt-0.5" />
-              )}
-              <div>
-                <div className="text-gray-300">{condition.type}</div>
-                {condition.reason && (
-                  <div className="text-gray-500">{condition.reason}</div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Server, ChevronDown, ChevronRight, Box, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Server, Box, AlertTriangle } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
-import type { V1DaemonSet, V1DaemonSetCondition } from '@kubernetes/client-node';
+import { StatusGauge, ConditionsSection } from './shared';
+import type { V1DaemonSet } from '@kubernetes/client-node';
 
 export function DaemonSetVisualizer({ resource }: ResourceVisualizerProps) {
   const daemonSet = resource as unknown as V1DaemonSet;
@@ -162,87 +162,6 @@ export function DaemonSetVisualizer({ resource }: ResourceVisualizerProps) {
   );
 }
 
-// Register this visualizer
 registerVisualizer('DaemonSet', DaemonSetVisualizer);
 registerVisualizer('DaemonSets', DaemonSetVisualizer);
 
-// Helper components
-
-function StatusGauge({ 
-  label, 
-  current, 
-  total, 
-  color 
-}: { 
-  label: string; 
-  current: number; 
-  total: number; 
-  color: 'emerald' | 'blue' | 'cyan';
-}) {
-  const percentage = total > 0 ? (current / total) * 100 : 0;
-  const colorClasses = {
-    emerald: 'text-emerald-400',
-    blue: 'text-blue-400',
-    cyan: 'text-cyan-400',
-  };
-
-  return (
-    <div className="flex-1">
-      <div className="flex items-center justify-between text-xs mb-1">
-        <span className="text-gray-500">{label}</span>
-        <span className={colorClasses[color]}>{current}/{total}</span>
-      </div>
-      <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-        <div 
-          className={`h-full ${
-            color === 'emerald' ? 'bg-emerald-500' :
-            color === 'blue' ? 'bg-blue-500' : 'bg-cyan-500'
-          }`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ConditionsSection({ conditions }: { conditions: V1DaemonSetCondition[] }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        Conditions ({conditions.length})
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {conditions.map((condition, i) => (
-            <div 
-              key={i} 
-              className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
-                condition.status === 'True' 
-                  ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                  : 'bg-gray-900/50 border border-gray-700'
-              }`}
-            >
-              {condition.status === 'True' ? (
-                <CheckCircle2 size={12} className="text-emerald-400 mt-0.5" />
-              ) : (
-                <AlertTriangle size={12} className="text-amber-400 mt-0.5" />
-              )}
-              <div>
-                <div className="text-gray-300">{condition.type}</div>
-                {condition.reason && (
-                  <div className="text-gray-500">{condition.reason}</div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

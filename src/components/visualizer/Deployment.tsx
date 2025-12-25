@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Layers, RefreshCw, ChevronDown, ChevronRight, Box, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Layers, RefreshCw, Box } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
-import { getResourceTable } from '../../api/kubernetesTable';
-import { getResourceConfig } from '../../api/kubernetes';
-import type { V1Deployment, V1DeploymentCondition } from '@kubernetes/client-node';
+import { StatusGauge as ReplicaGauge, ConditionsSection } from './shared';
+import { getResourceList, getResourceConfig } from '../../api/kubernetes';
+import type { V1Deployment } from '@kubernetes/client-node';
 
 interface ReplicaSetDisplay {
   name: string;
@@ -35,23 +35,35 @@ export function DeploymentVisualizer({ resource, namespace }: ResourceVisualizer
           return;
         }
         
-        const response = await getResourceTable(rsConfig, namespace);
+        const replicaSets = await getResourceList(rsConfig, namespace);
 
         // Filter ReplicaSets owned by this deployment
-        const deploymentName = metadata.name;
+        const deploymentName = metadata.name ?? '';
         const deploymentUid = metadata.uid;
         
-        const ownedRS = response.rows
-          .filter(row => {
-            const ownerRefs = (row.object as Record<string, unknown>)?.metadata as Record<string, unknown>;
-            const refs = ownerRefs?.ownerReferences as Array<{ name: string; uid: string }> | undefined;
-            return refs?.some(ref => ref.name === deploymentName || ref.uid === deploymentUid);
+        const ownedRS = replicaSets
+          .filter(rs => {
+            const meta = rs.metadata as Record<string, unknown>;
+            const rsName = meta.name as string;
+            
+            // Check ownerReferences
+            const refs = meta.ownerReferences as Array<{ name: string; uid: string; kind?: string }> | undefined;
+            if (refs?.some(ref => (ref.kind === 'Deployment' && ref.name === deploymentName) || ref.uid === deploymentUid)) {
+              return true;
+            }
+            
+            // Fallback: match by name prefix (deployment-name-<hash>)
+            if (rsName.startsWith(deploymentName + '-')) {
+              const suffix = rsName.slice(deploymentName.length + 1);
+              return /^[a-z0-9]{7,10}$/.test(suffix);
+            }
+            
+            return false;
           })
-          .map(row => {
-            const obj = row.object as Record<string, unknown>;
-            const meta = obj.metadata as Record<string, unknown>;
-            const rsSpec = obj.spec as { replicas?: number; template?: { spec?: { containers?: Array<{ image: string }> } } };
-            const rsStatus = obj.status as { replicas?: number; readyReplicas?: number };
+          .map(rs => {
+            const meta = rs.metadata as Record<string, unknown>;
+            const rsSpec = rs.spec as { replicas?: number; template?: { spec?: { containers?: Array<{ image: string }> } } };
+            const rsStatus = rs.status as { replicas?: number; readyReplicas?: number };
             const annotations = meta.annotations as Record<string, string> | undefined;
             
             return {
@@ -59,7 +71,7 @@ export function DeploymentVisualizer({ resource, namespace }: ResourceVisualizer
               replicas: rsStatus?.replicas ?? 0,
               readyReplicas: rsStatus?.readyReplicas ?? 0,
               revision: annotations?.['deployment.kubernetes.io/revision'],
-              images: rsSpec.template?.spec?.containers?.map(c => c.image) ?? [],
+              images: rsSpec?.template?.spec?.containers?.map(c => c.image) ?? [],
               creationTime: meta.creationTimestamp as string,
               isCurrent: (rsStatus?.replicas ?? 0) > 0,
             };
@@ -219,85 +231,6 @@ registerVisualizer('Deployment', DeploymentVisualizer);
 registerVisualizer('Deployments', DeploymentVisualizer);
 
 // Helper components
-
-function ReplicaGauge({ 
-  label, 
-  current, 
-  total, 
-  color 
-}: { 
-  label: string; 
-  current: number; 
-  total: number; 
-  color: 'emerald' | 'blue' | 'cyan';
-}) {
-  const percentage = total > 0 ? (current / total) * 100 : 0;
-  const colorClasses = {
-    emerald: 'text-emerald-400',
-    blue: 'text-blue-400',
-    cyan: 'text-cyan-400',
-  };
-
-  return (
-    <div className="flex-1">
-      <div className="flex items-center justify-between text-xs mb-1">
-        <span className="text-gray-500">{label}</span>
-        <span className={colorClasses[color]}>{current}/{total}</span>
-      </div>
-      <div className="h-1 bg-gray-700 rounded-full overflow-hidden">
-        <div 
-          className={`h-full ${
-            color === 'emerald' ? 'bg-emerald-500' :
-            color === 'blue' ? 'bg-blue-500' : 'bg-cyan-500'
-          }`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ConditionsSection({ conditions }: { conditions: V1DeploymentCondition[] }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        Conditions ({conditions.length})
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {conditions.map((condition, i) => (
-            <div 
-              key={i} 
-              className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
-                condition.status === 'True' 
-                  ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                  : 'bg-gray-900/50 border border-gray-700'
-              }`}
-            >
-              {condition.status === 'True' ? (
-                <CheckCircle2 size={12} className="text-emerald-400 mt-0.5" />
-              ) : (
-                <AlertTriangle size={12} className="text-amber-400 mt-0.5" />
-              )}
-              <div>
-                <div className="text-gray-300">{condition.type}</div>
-                {condition.reason && (
-                  <div className="text-gray-500">{condition.reason}</div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ReplicaSetCard({ replicaSet }: { replicaSet: ReplicaSetDisplay }) {
   return (

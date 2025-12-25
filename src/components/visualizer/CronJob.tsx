@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Clock, Play, Pause, CheckCircle2, XCircle, Box, ChevronDown, ChevronRight } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
-import { getResourceTable } from '../../api/kubernetesTable';
-import { getResourceConfig } from '../../api/kubernetes';
+import { StatusCard } from './shared';
+import { parseCronSchedule, formatTimeAgo } from './utils';
+import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1CronJob } from '@kubernetes/client-node';
 
 interface JobDisplay {
@@ -34,23 +35,34 @@ export function CronJobVisualizer({ resource, namespace }: ResourceVisualizerPro
           return;
         }
         
-        const response = await getResourceTable(jobConfig, namespace);
+        const jobs = await getResourceList(jobConfig, namespace);
 
         // Filter Jobs owned by this CronJob
-        const cronJobName = metadata.name;
+        const cronJobName = metadata.name ?? '';
         const cronJobUid = metadata.uid;
         
-        const ownedJobs = response.rows
-          .filter(row => {
-            const obj = row.object as Record<string, unknown>;
-            const meta = obj.metadata as Record<string, unknown>;
-            const refs = meta.ownerReferences as Array<{ name: string; uid: string }> | undefined;
-            return refs?.some(ref => ref.name === cronJobName || ref.uid === cronJobUid);
+        const ownedJobs = jobs
+          .filter(job => {
+            const meta = job.metadata as Record<string, unknown>;
+            const jobName = meta.name as string;
+            
+            // Check ownerReferences
+            const refs = meta.ownerReferences as Array<{ name: string; uid: string; kind?: string }> | undefined;
+            if (refs?.some(ref => (ref.kind === 'CronJob' && ref.name === cronJobName) || ref.uid === cronJobUid)) {
+              return true;
+            }
+            
+            // Fallback: match by name prefix (cronjob-name-<timestamp>)
+            if (jobName.startsWith(cronJobName + '-')) {
+              const suffix = jobName.slice(cronJobName.length + 1);
+              return /^\d{10}$/.test(suffix);
+            }
+            
+            return false;
           })
-          .map(row => {
-            const obj = row.object as Record<string, unknown>;
-            const meta = obj.metadata as Record<string, unknown>;
-            const jobStatus = obj.status as Record<string, unknown>;
+          .map(job => {
+            const meta = job.metadata as Record<string, unknown>;
+            const jobStatus = job.status as Record<string, unknown>;
             const conditions = jobStatus?.conditions as Array<{ type: string; status: string }> | undefined;
             
             const isComplete = conditions?.some(c => c.type === 'Complete' && c.status === 'True');
@@ -230,35 +242,6 @@ registerVisualizer('CronJobs', CronJobVisualizer);
 
 // Helper components
 
-function StatusCard({ 
-  label, 
-  value, 
-  status,
-  icon
-}: { 
-  label: string; 
-  value: string; 
-  status?: 'success' | 'warning' | 'error' | 'neutral';
-  icon?: React.ReactNode;
-}) {
-  const statusColors = {
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
-    error: 'text-red-400',
-    neutral: 'text-gray-100',
-  };
-
-  return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-sm font-medium flex items-center gap-2 ${statusColors[status || 'neutral']}`}>
-        {icon}
-        {value}
-      </div>
-    </div>
-  );
-}
-
 function JobsSection({ jobs }: { jobs: JobDisplay[] }) {
   const [expanded, setExpanded] = useState(true);
   const displayJobs = expanded ? jobs : jobs.slice(0, 3);
@@ -313,55 +296,6 @@ function JobsSection({ jobs }: { jobs: JobDisplay[] }) {
 }
 
 // Helper functions
-
-function parseCronSchedule(schedule: string): string {
-  const parts = schedule.split(' ');
-  if (parts.length !== 5) return schedule;
-
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
-
-  // Common patterns
-  if (schedule === '* * * * *') return 'Every minute';
-  if (schedule === '0 * * * *') return 'Every hour';
-  if (schedule === '0 0 * * *') return 'Every day at midnight';
-  if (schedule === '0 0 * * 0') return 'Every Sunday at midnight';
-  if (schedule === '0 0 1 * *') return 'First day of every month at midnight';
-
-  // Build description
-  const descriptions: string[] = [];
-
-  if (minute !== '*') {
-    descriptions.push(`at minute ${minute}`);
-  }
-  if (hour !== '*') {
-    descriptions.push(`at hour ${hour}`);
-  }
-  if (dayOfMonth !== '*') {
-    descriptions.push(`on day ${dayOfMonth}`);
-  }
-  if (month !== '*') {
-    descriptions.push(`in month ${month}`);
-  }
-  if (dayOfWeek !== '*') {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const dayNum = parseInt(dayOfWeek);
-    descriptions.push(`on ${isNaN(dayNum) ? dayOfWeek : days[dayNum] || dayOfWeek}`);
-  }
-
-  return descriptions.length > 0 ? descriptions.join(', ') : 'Custom schedule';
-}
-
-function formatTimeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 function getConcurrencyColor(policy?: string): string {
   switch (policy) {

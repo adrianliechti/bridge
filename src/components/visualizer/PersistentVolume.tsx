@@ -1,5 +1,7 @@
-import { HardDrive, Database, Link, Server, Cloud } from 'lucide-react';
+import { HardDrive, Database, Server, Cloud, Link } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
+import { StatusCard } from './shared';
+import { getAccessModeStyle, formatAccessMode } from './utils';
 import type { V1PersistentVolume } from '@kubernetes/client-node';
 
 export function PersistentVolumeVisualizer({ resource }: ResourceVisualizerProps) {
@@ -134,35 +136,6 @@ registerVisualizer('PersistentVolumes', PersistentVolumeVisualizer);
 
 // Helper components
 
-function StatusCard({ 
-  label, 
-  value, 
-  status,
-  icon
-}: { 
-  label: string; 
-  value: string; 
-  status?: 'success' | 'warning' | 'error' | 'neutral';
-  icon?: React.ReactNode;
-}) {
-  const statusColors = {
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
-    error: 'text-red-400',
-    neutral: 'text-gray-100',
-  };
-
-  return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-sm font-medium flex items-center gap-2 ${statusColors[status || 'neutral']}`}>
-        {icon}
-        {value}
-      </div>
-    </div>
-  );
-}
-
 function VolumeSourceSection({ spec }: { spec: V1PersistentVolume['spec'] }) {
   if (!spec) return null;
 
@@ -204,26 +177,6 @@ function getPhaseStatus(phase: string): 'success' | 'warning' | 'error' | 'neutr
     case 'failed': return 'error';
     case 'pending': return 'warning';
     default: return 'neutral';
-  }
-}
-
-function getAccessModeStyle(mode: string): string {
-  switch (mode) {
-    case 'ReadWriteOnce': return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
-    case 'ReadOnlyMany': return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-    case 'ReadWriteMany': return 'bg-purple-500/20 text-purple-400 border border-purple-500/30';
-    case 'ReadWriteOncePod': return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
-    default: return 'bg-gray-700 text-gray-300';
-  }
-}
-
-function formatAccessMode(mode: string): string {
-  switch (mode) {
-    case 'ReadWriteOnce': return 'RWO';
-    case 'ReadOnlyMany': return 'ROX';
-    case 'ReadWriteMany': return 'RWX';
-    case 'ReadWriteOncePod': return 'RWOP';
-    default: return mode;
   }
 }
 

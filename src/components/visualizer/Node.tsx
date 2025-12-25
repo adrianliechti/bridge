@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Server, Cpu, HardDrive, Box, ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, XCircle, Tag } from 'lucide-react';
+import { Server, Cpu, HardDrive, Box, ChevronDown, ChevronRight, AlertTriangle, Tag, CheckCircle2, XCircle } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
+import { StatusCard, InfoRow, ConditionsSection } from './shared';
+import { formatMemory } from './utils';
 import type { V1Node, V1NodeCondition, V1Taint } from '@kubernetes/client-node';
 
 export function NodeVisualizer({ resource }: ResourceVisualizerProps) {
@@ -117,7 +119,11 @@ export function NodeVisualizer({ resource }: ResourceVisualizerProps) {
 
       {/* Conditions */}
       {conditions.length > 0 && (
-        <ConditionsSection conditions={conditions} />
+        <ConditionsSection 
+          conditions={sortNodeConditions(conditions)}
+          defaultOpen={true}
+          isPositive={isNodeConditionPositive}
+        />
       )}
 
       {/* Taints */}
@@ -135,46 +141,24 @@ export function NodeVisualizer({ resource }: ResourceVisualizerProps) {
 registerVisualizer('Node', NodeVisualizer);
 registerVisualizer('Nodes', NodeVisualizer);
 
+// Helper function to determine if a node condition is positive
+function isNodeConditionPositive(condition: V1NodeCondition): boolean {
+  // For Ready condition, True is good
+  // For all other conditions (MemoryPressure, DiskPressure, etc.), False is good
+  return condition.type === 'Ready' 
+    ? condition.status === 'True'
+    : condition.status === 'False';
+}
+
+// Helper function to sort node conditions
+function sortNodeConditions(conditions: V1NodeCondition[]): V1NodeCondition[] {
+  const order = ['Ready', 'MemoryPressure', 'DiskPressure', 'PIDPressure', 'NetworkUnavailable'];
+  return [...conditions].sort((a, b) => 
+    order.indexOf(a.type ?? '') - order.indexOf(b.type ?? '')
+  );
+}
+
 // Helper components
-
-function StatusCard({ 
-  label, 
-  value, 
-  status,
-  icon
-}: { 
-  label: string; 
-  value: string; 
-  status?: 'success' | 'warning' | 'error' | 'neutral';
-  icon?: React.ReactNode;
-}) {
-  const statusColors = {
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
-    error: 'text-red-400',
-    neutral: 'text-gray-100',
-  };
-
-  return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-sm font-medium flex items-center gap-2 ${statusColors[status || 'neutral']}`}>
-        {icon}
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value?: string }) {
-  if (!value) return null;
-  return (
-    <div className="overflow-hidden">
-      <span className="text-gray-500">{label}:</span>{' '}
-      <span className="text-gray-300 truncate">{value}</span>
-    </div>
-  );
-}
 
 function ResourceBar({ 
   label, 
@@ -204,68 +188,6 @@ function ResourceBar({
         <span>Allocatable</span>
         <span>Capacity</span>
       </div>
-    </div>
-  );
-}
-
-function ConditionsSection({ conditions }: { conditions: V1NodeCondition[] }) {
-  const [expanded, setExpanded] = useState(true);
-
-  // Sort conditions to show important ones first
-  const sortedConditions = [...conditions].sort((a, b) => {
-    const order = ['Ready', 'MemoryPressure', 'DiskPressure', 'PIDPressure', 'NetworkUnavailable'];
-    return order.indexOf(a.type ?? '') - order.indexOf(b.type ?? '');
-  });
-
-  return (
-    <div>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 hover:text-gray-300 transition-colors"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        Conditions ({conditions.length})
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {sortedConditions.map((condition, i) => {
-            const isGood = condition.type === 'Ready' 
-              ? condition.status === 'True'
-              : condition.status === 'False';
-            
-            return (
-              <div 
-                key={i} 
-                className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
-                  isGood
-                    ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                    : 'bg-red-500/10 border border-red-500/20'
-                }`}
-              >
-                {isGood ? (
-                  <CheckCircle2 size={12} className="text-emerald-400 mt-0.5 shrink-0" />
-                ) : (
-                  <AlertTriangle size={12} className="text-red-400 mt-0.5 shrink-0" />
-                )}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-300">{condition.type}</span>
-                    <span className={isGood ? 'text-emerald-400' : 'text-red-400'}>
-                      {condition.status}
-                    </span>
-                  </div>
-                  {condition.reason && (
-                    <div className="text-gray-500">{condition.reason}</div>
-                  )}
-                  {condition.message && (
-                    <div className="text-gray-500 text-[10px] truncate">{condition.message}</div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -381,30 +303,4 @@ function LabelsSection({ labels }: { labels: Record<string, string> }) {
       )}
     </div>
   );
-}
-
-// Helper functions
-
-function formatMemory(value: string): string {
-  // Handle Ki, Mi, Gi suffixes
-  const match = value.match(/^(\d+)(Ki|Mi|Gi|Ti|K|M|G|T)?$/);
-  if (!match) return value;
-  
-  const num = parseInt(match[1], 10);
-  const unit = match[2];
-  
-  if (!unit) {
-    // Bytes
-    if (num >= 1024 * 1024 * 1024) return `${(num / (1024 * 1024 * 1024)).toFixed(1)}Gi`;
-    if (num >= 1024 * 1024) return `${(num / (1024 * 1024)).toFixed(1)}Mi`;
-    if (num >= 1024) return `${(num / 1024).toFixed(1)}Ki`;
-    return `${num}B`;
-  }
-  
-  // Already has unit - convert to more readable format if large
-  if (unit === 'Ki' && num >= 1024 * 1024) return `${(num / (1024 * 1024)).toFixed(1)}Gi`;
-  if (unit === 'Ki' && num >= 1024) return `${(num / 1024).toFixed(1)}Mi`;
-  if (unit === 'Mi' && num >= 1024) return `${(num / 1024).toFixed(1)}Gi`;
-  
-  return value;
 }

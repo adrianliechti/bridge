@@ -1,7 +1,9 @@
 // Base types and registry for specialized resource visualizers
 
+import type { KubernetesResource } from '../../api/kubernetes';
+
 export interface ResourceVisualizerProps {
-  resource: Record<string, unknown>;
+  resource: KubernetesResource;
   namespace?: string;
 }
 

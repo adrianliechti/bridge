@@ -9,14 +9,12 @@ const OVERVIEW_VIEW = Symbol('OVERVIEW');
 type ViewMode = typeof OVERVIEW_VIEW | V1APIResource;
 
 function App() {
-  const [selectedView, setSelectedView] = useState<ViewMode | null>(null);
+  const [selectedView, setSelectedView] = useState<ViewMode>(OVERVIEW_VIEW);
   const [selectedNamespace, setSelectedNamespace] = useState<string | undefined>(undefined);
 
-  // Load initial resource (overview) from discovery
+  // Preload discovery data on mount
   useEffect(() => {
     preloadDiscovery();
-    // Start with overview by default
-    setSelectedView(OVERVIEW_VIEW);
   }, []);
 
   // Handler for sidebar resource selection
@@ -34,17 +32,7 @@ function App() {
   // Create a key for MainContent to force remount when resource changes
   const resourceKey = isOverview
     ? 'overview'
-    : selectedView
-    ? `${(selectedView as V1APIResource).group || ''}/${(selectedView as V1APIResource).name}`
-    : 'loading';
-
-  if (!selectedView) {
-    return (
-      <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-500">Loading...</div>
-      </div>
-    );
-  }
+    : `${(selectedView as V1APIResource).group || ''}/${(selectedView as V1APIResource).name}`;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">

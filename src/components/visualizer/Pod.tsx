@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Box, ChevronDown, ChevronRight, Cpu, HardDrive, Activity } from 'lucide-react';
 import { registerVisualizer, type ResourceVisualizerProps } from './Visualizer';
+import { StatusCard } from './shared';
 import type { V1Pod, V1Container, V1ContainerStatus, V1Volume } from '@kubernetes/client-node';
 
 export function PodVisualizer({ resource }: ResourceVisualizerProps) {
@@ -67,32 +68,6 @@ registerVisualizer('Pod', PodVisualizer);
 registerVisualizer('Pods', PodVisualizer);
 
 // Helper components
-
-function StatusCard({ 
-  label, 
-  value, 
-  status 
-}: { 
-  label: string; 
-  value: string | number; 
-  status?: 'success' | 'warning' | 'error' | 'neutral';
-}) {
-  const statusColors = {
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
-    error: 'text-red-400',
-    neutral: 'text-gray-100',
-  };
-
-  return (
-    <div className="bg-gray-900/50 rounded-lg p-3">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-sm font-medium ${statusColors[status || 'neutral']}`}>
-        {value}
-      </div>
-    </div>
-  );
-}
 
 function ContainerSection({ 
   title, 
