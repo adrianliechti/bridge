@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, X, Loader2 } from 'lucide-react';
-import { chat, type Message as APIMessage } from '../api/openai';
+import { chat } from '../api/kubernetesChat';
+import type { Message as APIMessage } from '../api/openai';
 import { Markdown } from './Markdown';
 import { getConfig } from '../config';
 
