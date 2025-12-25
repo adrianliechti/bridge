@@ -241,6 +241,13 @@ export async function executeTool(toolCall: ToolCall): Promise<ToolResult> {
   };
 }
 
+// Context about what the user is currently viewing in the UI
+export interface ChatContext {
+  currentNamespace?: string;
+  selectedResourceKind?: string;
+  selectedResourceName?: string;
+}
+
 // High-level chat function that handles the full conversation loop with tool execution
 export async function chat(
   userMessage: string,
@@ -248,17 +255,38 @@ export async function chat(
   options?: {
     model?: string;
     instructions?: string;
+    context?: ChatContext;
     onStream?: (delta: string, snapshot: string) => void;
     onToolCall?: (toolName: string, args: Record<string, string>) => void;
   }
 ): Promise<{ response: Message; history: Message[] }> {
   const model = options?.model || '';
+  
+  // Build context-aware instructions
+  let contextInfo = '';
+  if (options?.context) {
+    const ctx = options.context;
+    const parts: string[] = [];
+    if (ctx.currentNamespace) {
+      parts.push(`- Current namespace: ${ctx.currentNamespace}`);
+    }
+    if (ctx.selectedResourceKind) {
+      parts.push(`- Currently viewing resource type: ${ctx.selectedResourceKind}`);
+    }
+    if (ctx.selectedResourceName) {
+      parts.push(`- Currently selected resource: ${ctx.selectedResourceName}`);
+    }
+    if (parts.length > 0) {
+      contextInfo = `\n\nThe user is currently viewing:\n${parts.join('\n')}\n\nUse this context to provide more relevant answers. When the user asks about resources without specifying a namespace, use the current namespace.`;
+    }
+  }
+
   const instructions =
     options?.instructions ||
     `You are a helpful Kubernetes assistant. You can help users understand and manage their Kubernetes clusters.
 When users ask about resources, use the available tools to fetch real data from the cluster.
 Provide clear, concise explanations and highlight any issues or warnings you find.
-Format your responses using markdown for better readability.`;
+Format your responses using markdown for better readability.${contextInfo}`;
 
   // Add user message to history
   const newHistory: Message[] = [

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
 import { getResourceTable, type V1APIResource } from '../api/kubernetesTable';
@@ -95,7 +95,7 @@ export function DynamicResourceTable({
   }, [data, hiddenColumns]);
 
   // Notify parent of columns when data loads
-  useMemo(() => {
+  useEffect(() => {
     if (data && onColumnsLoaded) {
       onColumnsLoaded(data.columnDefinitions);
     }

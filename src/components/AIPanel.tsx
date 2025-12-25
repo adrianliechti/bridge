@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, X, Loader2 } from 'lucide-react';
-import { chat } from '../api/kubernetesChat';
+import { chat, type ChatContext } from '../api/kubernetesChat';
 import type { Message as APIMessage } from '../api/openai';
 import { Markdown } from './Markdown';
 import { getConfig } from '../config';
@@ -15,9 +15,10 @@ interface Message {
 interface AIPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  context?: ChatContext;
 }
 
-export function AIPanel({ isOpen, onClose }: AIPanelProps) {
+export function AIPanel({ isOpen, onClose, context }: AIPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -76,6 +77,7 @@ export function AIPanel({ isOpen, onClose }: AIPanelProps) {
         conversationHistory,
         {
           model: getConfig().ai?.model || '',
+          context,
           onStream: (_delta, snapshot) => {
             setMessages((prev) =>
               prev.map((m) =>

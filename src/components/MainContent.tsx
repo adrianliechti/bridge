@@ -91,7 +91,15 @@ export function MainContent({ resource, namespace }: MainContentProps) {
           </div>
         </section>
       </main>
-      <AIPanel isOpen={isAIPanelOpen} onClose={() => setIsAIPanelOpen(false)} />
+      <AIPanel 
+        isOpen={isAIPanelOpen} 
+        onClose={() => setIsAIPanelOpen(false)}
+        context={{
+          currentNamespace: namespace,
+          selectedResourceKind: resource.name,
+          selectedResourceName: selectedItem?.object.metadata.name,
+        }}
+      />
       <DetailPanel 
         isOpen={isDetailPanelOpen} 
         onClose={() => setSelectedItem(null)} 
