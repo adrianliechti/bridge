@@ -1,4 +1,4 @@
-import { X, Copy, Check, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
@@ -229,7 +229,6 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
 }
 
 export function DetailPanel({ isOpen, onClose, resource: resourceId }: DetailPanelProps) {
-  const [copied, setCopied] = useState(false);
   const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -300,18 +299,6 @@ export function DetailPanel({ isOpen, onClose, resource: resourceId }: DetailPan
   const resourceName = resourceId.name;
   const resourceKind = resourceId.kind || 'Resource';
 
-  const handleCopyYAML = async () => {
-    try {
-      // Simple YAML-like representation
-      const yaml = JSON.stringify(displayObject, null, 2);
-      await navigator.clipboard.writeText(yaml);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
   return (
     <aside className="fixed top-0 right-0 h-screen w-120 bg-white border-l border-gray-200 dark:bg-gray-900 dark:border-gray-800 flex flex-col z-20 shadow-xl">
       {/* Header */}
@@ -324,22 +311,13 @@ export function DetailPanel({ isOpen, onClose, resource: resourceId }: DetailPan
             <p className="text-xs text-gray-500 dark:text-gray-500">{resourceKind}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCopyYAML}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-md transition-colors"
-            title="Copy as JSON"
-          >
-            {copied ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
-          </button>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-md transition-colors"
-            title="Close"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-md transition-colors"
+          title="Close"
+        >
+          <X size={18} />
+        </button>
       </header>
 
       {/* Content */}

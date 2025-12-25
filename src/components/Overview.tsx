@@ -98,9 +98,31 @@ const APP_LABELS = {
   ARGOCD_INSTANCE: 'argocd.argoproj.io/instance',
 };
 
-function getAppName(r: K8sResource): string | undefined {
+function getAppName(r: K8sResource, uidToResource?: Map<string, K8sResource>): string | undefined {
   const labels = r.metadata.labels || {};
-  return labels[APP_LABELS.NAME] || labels[APP_LABELS.INSTANCE] || labels[APP_LABELS.PART_OF] || labels[APP_LABELS.APP];
+  
+  // Check direct labels in priority order (aligned with getGroupLabel)
+  const name = labels[APP_LABELS.PART_OF] || 
+               labels[APP_LABELS.ARGOCD_INSTANCE] ||
+               labels[APP_LABELS.NAME] || 
+               labels[APP_LABELS.INSTANCE] || 
+               labels[APP_LABELS.APP] ||
+               labels[APP_LABELS.K8S_APP] ||
+               labels[APP_LABELS.RELEASE];
+  if (name) return name;
+  
+  // Traverse owner chain if uidToResource is provided
+  if (uidToResource) {
+    const ownerRef = r.metadata.ownerReferences?.[0];
+    if (ownerRef) {
+      const parent = uidToResource.get(ownerRef.uid);
+      if (parent) {
+        return getAppName(parent, uidToResource);
+      }
+    }
+  }
+  
+  return undefined;
 }
 
 function getStatus(r: K8sResource): { status: string; color: string } {
@@ -1136,11 +1158,17 @@ function buildLayout(resources: K8sResource[]): Application[] {
     
     const firstResource = componentResources[0];
     
+    // Prefer workload controllers for naming (they typically have the canonical app labels)
+    const namingPriority = ['Deployment', 'StatefulSet', 'DaemonSet', 'CronJob', 'Job', 'ReplicaSet'];
+    const workloadResources = componentResources
+      .filter(r => namingPriority.includes(r.kind))
+      .sort((a, b) => namingPriority.indexOf(a.kind) - namingPriority.indexOf(b.kind));
+    
     // Find the best name for the application - prefer group label (part-of)
     let appName: string | undefined;
     
-    // First, check if this application has a common group label
-    for (const r of componentResources) {
+    // First, check workload controllers for group labels (most authoritative)
+    for (const r of workloadResources) {
       const groupLabel = r.metadata.labels?.[APP_LABELS.PART_OF] ||
                         r.metadata.labels?.[APP_LABELS.ARGOCD_INSTANCE];
       if (groupLabel) {
@@ -1149,22 +1177,43 @@ function buildLayout(resources: K8sResource[]): Application[] {
       }
     }
     
-    // Fall back to app name
+    // Then check all resources for group labels
     if (!appName) {
-      appName = getAppName(firstResource);
-    }
-    if (!appName) {
-      // Try to find any resource with an app name in this component
       for (const r of componentResources) {
-        const name = getAppName(r);
+        const groupLabel = r.metadata.labels?.[APP_LABELS.PART_OF] ||
+                          r.metadata.labels?.[APP_LABELS.ARGOCD_INSTANCE];
+        if (groupLabel) {
+          appName = groupLabel;
+          break;
+        }
+      }
+    }
+    
+    // Fall back to app name from workload controllers first
+    if (!appName) {
+      for (const r of workloadResources) {
+        const name = getAppName(r, uidToResource);
         if (name) { appName = name; break; }
       }
     }
+    
+    // Then try any resource with an app name (using owner chain traversal)
     if (!appName) {
-      // Use the first root resource name or the first resource name
-      const rootResources = componentResources.filter(r => !parentMap.has(r.metadata.uid));
-      const nameSource = rootResources[0] || firstResource;
-      appName = nameSource.metadata.name;
+      for (const r of componentResources) {
+        const name = getAppName(r, uidToResource);
+        if (name) { appName = name; break; }
+      }
+    }
+    
+    // Final fallback: use the workload controller's name, or root resource name
+    if (!appName) {
+      if (workloadResources.length > 0) {
+        appName = workloadResources[0].metadata.name;
+      } else {
+        const rootResources = componentResources.filter(r => !parentMap.has(r.metadata.uid));
+        const nameSource = rootResources[0] || firstResource;
+        appName = nameSource.metadata.name;
+      }
     }
 
     const appNodes: LayoutNode[] = component.map((uid) => {
