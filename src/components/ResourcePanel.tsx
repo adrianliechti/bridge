@@ -3,20 +3,12 @@ import { useState, useEffect } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
-import { getVisualizer } from './visualizer/Visualizer';
+import { ResourceVisualizer } from './ResourceVisualizer';
+import { hasAdapter } from './resources';
 import { LogViewer } from './LogViewer';
 
-// Import visualizers to register them
-import './visualizer/Pod';
-import './visualizer/Deployment';
-import './visualizer/DaemonSet';
-import './visualizer/StatefulSet';
-import './visualizer/ReplicaSet';
-import './visualizer/PersistentVolume';
-import './visualizer/PersistentVolumeClaim';
-import './visualizer/Node';
-import './visualizer/Job';
-import './visualizer/CronJob';
+// NOTE: Old visualizer imports removed - we now use the adapter pattern
+// which automatically registers adapters via the adapters/index.ts registry
 
 interface ResourcePanelProps {
   isOpen: boolean;
@@ -398,11 +390,10 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             <>
           {/* Specialized Resource Visualizer */}
           {(() => {
-            const Visualizer = getVisualizer(resourceKind);
-            if (Visualizer && fullObject && !loading) {
+            if (hasAdapter(resourceKind) && fullObject && !loading) {
               return (
                 <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg p-4 mb-4">
-                  <Visualizer resource={fullObject} namespace={resourceId.namespace} />
+                  <ResourceVisualizer resource={fullObject} namespace={resourceId.namespace} />
                 </div>
               );
             }
