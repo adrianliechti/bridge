@@ -2,12 +2,10 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Box,
   Rocket,
-  Layers,
   Ghost,
   Database,
   Zap,
   Clock,
-  Plug,
   Globe,
   HardDrive,
   Disc,
@@ -19,28 +17,24 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Shield,
+  Network,
+  Route,
+  Share2,
   type LucideIcon,
 } from 'lucide-react';
 import { fetchApi } from '../api/kubernetes';
 
 import { ResourcePanel } from './ResourcePanel';
-import type { V1ObjectReference } from '@kubernetes/client-node';
+import type { V1ObjectReference, V1ObjectMeta } from '@kubernetes/client-node';
 
-// Types for Kubernetes resources
+// Strict resource type with required fields for this component
 interface K8sResource {
   apiVersion: string;
   kind: string;
-  metadata: {
+  metadata: V1ObjectMeta & {
     name: string;
-    namespace?: string;
     uid: string;
-    labels?: Record<string, string>;
-    ownerReferences?: Array<{
-      apiVersion: string;
-      kind: string;
-      name: string;
-      uid: string;
-    }>;
   };
   spec?: Record<string, unknown>;
   status?: Record<string, unknown>;
@@ -54,13 +48,16 @@ interface K8sResourceList {
 const kindIcons: Record<string, LucideIcon> = {
   Pod: Box,
   Deployment: Rocket,
-  ReplicaSet: Layers,
   DaemonSet: Ghost,
   StatefulSet: Database,
   Job: Zap,
   CronJob: Clock,
-  Service: Plug,
+  Service: Share2,
   Ingress: Globe,
+  Gateway: Network,
+  HTTPRoute: Route,
+  GRPCRoute: Route,
+  NetworkPolicy: Shield,
   PersistentVolume: HardDrive,
   PersistentVolumeClaim: Disc,
   ConfigMap: FileText,
@@ -72,13 +69,16 @@ const kindIcons: Record<string, LucideIcon> = {
 const kindColors: Record<string, { bg: string; border: string; text: string }> = {
   Pod: { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
   Deployment: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
-  ReplicaSet: { bg: '#e0e7ff', border: '#6366f1', text: '#3730a3' },
   DaemonSet: { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
   StatefulSet: { bg: '#ede9fe', border: '#8b5cf6', text: '#5b21b6' },
   Job: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
   CronJob: { bg: '#ffedd5', border: '#f97316', text: '#9a3412' },
   Service: { bg: '#cffafe', border: '#06b6d4', text: '#155e75' },
   Ingress: { bg: '#ccfbf1', border: '#14b8a6', text: '#115e59' },
+  Gateway: { bg: '#d1fae5', border: '#10b981', text: '#065f46' },
+  HTTPRoute: { bg: '#a7f3d0', border: '#34d399', text: '#047857' },
+  GRPCRoute: { bg: '#a7f3d0', border: '#34d399', text: '#047857' },
+  NetworkPolicy: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
   PersistentVolume: { bg: '#f1f5f9', border: '#64748b', text: '#334155' },
   PersistentVolumeClaim: { bg: '#f8fafc', border: '#94a3b8', text: '#475569' },
   ConfigMap: { bg: '#fef9c3', border: '#eab308', text: '#854d0e' },
@@ -86,44 +86,6 @@ const kindColors: Record<string, { bg: string; border: string; text: string }> =
 };
 
 const defaultColors = { bg: '#f3f4f6', border: '#9ca3af', text: '#374151' };
-
-// Common Kubernetes labels for naming and grouping
-const APP_LABELS = {
-  NAME: 'app.kubernetes.io/name',
-  INSTANCE: 'app.kubernetes.io/instance',
-  PART_OF: 'app.kubernetes.io/part-of',
-  APP: 'app',
-  K8S_APP: 'k8s-app',
-  RELEASE: 'release',
-  ARGOCD_INSTANCE: 'argocd.argoproj.io/instance',
-};
-
-function getAppName(r: K8sResource, uidToResource?: Map<string, K8sResource>): string | undefined {
-  const labels = r.metadata.labels || {};
-  
-  // Check direct labels in priority order (aligned with getGroupLabel)
-  const name = labels[APP_LABELS.PART_OF] || 
-               labels[APP_LABELS.ARGOCD_INSTANCE] ||
-               labels[APP_LABELS.NAME] || 
-               labels[APP_LABELS.INSTANCE] || 
-               labels[APP_LABELS.APP] ||
-               labels[APP_LABELS.K8S_APP] ||
-               labels[APP_LABELS.RELEASE];
-  if (name) return name;
-  
-  // Traverse owner chain if uidToResource is provided
-  if (uidToResource) {
-    const ownerRef = r.metadata.ownerReferences?.[0];
-    if (ownerRef) {
-      const parent = uidToResource.get(ownerRef.uid);
-      if (parent) {
-        return getAppName(parent, uidToResource);
-      }
-    }
-  }
-  
-  return undefined;
-}
 
 function getStatus(r: K8sResource): { status: string; color: string } {
   let status = 'Unknown';
@@ -142,7 +104,7 @@ function getStatus(r: K8sResource): { status: string; color: string } {
     const ready = (r.status as { numberReady?: number })?.numberReady || 0;
     status = `${ready}/${desired}`;
     color = ready === desired && desired > 0 ? '#22c55e' : '#eab308';
-  } else if (['Deployment', 'StatefulSet', 'ReplicaSet'].includes(r.kind)) {
+  } else if (['Deployment', 'StatefulSet'].includes(r.kind)) {
     const replicas = (r.status as { replicas?: number })?.replicas || 0;
     const ready = (r.status as { readyReplicas?: number })?.readyReplicas || 0;
     status = `${ready}/${replicas}`;
@@ -175,12 +137,13 @@ interface LayoutNode {
   y: number;
   width: number;
   height: number;
+  childPods?: LayoutNode[];  // For controllers that contain pods
 }
 
 interface LayoutEdge {
   from: string;
   to: string;
-  type: 'owner' | 'selector' | 'service' | 'ingress';
+  type: 'owner' | 'selector' | 'service' | 'ingress' | 'gateway' | 'network-policy';
 }
 
 interface Application {
@@ -198,18 +161,28 @@ interface Application {
 // Node dimensions
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 60;
+const COMPACT_NODE_SIZE = 48;  // For services and gateways
+const POD_WIDTH = 120;
+const POD_HEIGHT = 32;
+const POD_GAP = 6;
+const CONTROLLER_HEADER = 32;
+const CONTROLLER_PADDING = 8;
+const CONFIG_ICON_SIZE = 20;
+const CONFIG_ICON_GAP = 4;
+const CONFIG_ICONS_PER_ROW = 5;
 const NODE_GAP_X = 32;
 const NODE_GAP_Y = 10;
 const APP_PADDING = 12;
-const APP_HEADER = 36;
+const APP_TITLE_HEIGHT = 36;
 const APP_GAP = 20;
 
 interface ResourceOverviewProps {
-  namespace: string;
+  namespace?: string;
 }
 
 export function ResourceOverview({ namespace }: ResourceOverviewProps) {
   const [applications, setApplications] = useState<Application[]>([]);
+  const [allResources, setAllResources] = useState<K8sResource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [transform, setTransform] = useState({ x: 40, y: 40, scale: 1 });
@@ -219,29 +192,31 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const loadResources = useCallback(async () => {
-    if (!namespace) {
-      setApplications([]);
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
     
     try {
+      // If no namespace is selected, fetch from all namespaces
+      const namespacePath = namespace ? `/namespaces/${namespace}` : '';
+      
       const resourceTypes = [
-        { path: namespace ? `/api/v1/namespaces/${namespace}/pods` : '/api/v1/pods', kind: 'Pod' },
-        { path: namespace ? `/apis/apps/v1/namespaces/${namespace}/deployments` : '/apis/apps/v1/deployments', kind: 'Deployment' },
-        { path: namespace ? `/apis/apps/v1/namespaces/${namespace}/replicasets` : '/apis/apps/v1/replicasets', kind: 'ReplicaSet' },
-        { path: namespace ? `/apis/apps/v1/namespaces/${namespace}/statefulsets` : '/apis/apps/v1/statefulsets', kind: 'StatefulSet' },
-        { path: namespace ? `/apis/apps/v1/namespaces/${namespace}/daemonsets` : '/apis/apps/v1/daemonsets', kind: 'DaemonSet' },
-        { path: namespace ? `/api/v1/namespaces/${namespace}/services` : '/api/v1/services', kind: 'Service' },
-        { path: namespace ? `/api/v1/namespaces/${namespace}/configmaps` : '/api/v1/configmaps', kind: 'ConfigMap' },
-        { path: namespace ? `/api/v1/namespaces/${namespace}/secrets` : '/api/v1/secrets', kind: 'Secret' },
-        { path: namespace ? `/api/v1/namespaces/${namespace}/persistentvolumeclaims` : '/api/v1/persistentvolumeclaims', kind: 'PersistentVolumeClaim' },
-        { path: namespace ? `/apis/batch/v1/namespaces/${namespace}/jobs` : '/apis/batch/v1/jobs', kind: 'Job' },
-        { path: namespace ? `/apis/batch/v1/namespaces/${namespace}/cronjobs` : '/apis/batch/v1/cronjobs', kind: 'CronJob' },
-        { path: namespace ? `/apis/networking.k8s.io/v1/namespaces/${namespace}/ingresses` : '/apis/networking.k8s.io/v1/ingresses', kind: 'Ingress' },
+        { path: `/api/v1${namespacePath}/pods`, kind: 'Pod' },
+        { path: `/apis/apps/v1${namespacePath}/deployments`, kind: 'Deployment' },
+        { path: `/apis/apps/v1${namespacePath}/replicasets`, kind: 'ReplicaSet' },  // For owner chain traversal
+        { path: `/apis/apps/v1${namespacePath}/statefulsets`, kind: 'StatefulSet' },
+        { path: `/apis/apps/v1${namespacePath}/daemonsets`, kind: 'DaemonSet' },
+        { path: `/api/v1${namespacePath}/services`, kind: 'Service' },
+        { path: `/api/v1${namespacePath}/configmaps`, kind: 'ConfigMap' },
+        { path: `/api/v1${namespacePath}/secrets`, kind: 'Secret' },
+        { path: `/api/v1${namespacePath}/persistentvolumeclaims`, kind: 'PersistentVolumeClaim' },
+        { path: `/apis/batch/v1${namespacePath}/jobs`, kind: 'Job' },
+        { path: `/apis/batch/v1${namespacePath}/cronjobs`, kind: 'CronJob' },
+        { path: `/apis/networking.k8s.io/v1${namespacePath}/ingresses`, kind: 'Ingress' },
+        { path: `/apis/networking.k8s.io/v1${namespacePath}/networkpolicies`, kind: 'NetworkPolicy' },
+        // Gateway API resources (may not be available on all clusters)
+        { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/gateways`, kind: 'Gateway' },
+        { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/httproutes`, kind: 'HTTPRoute' },
+        { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/grpcroutes`, kind: 'GRPCRoute' },
       ];
 
       const results = await Promise.allSettled(
@@ -263,6 +238,7 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
         }
       });
 
+      setAllResources(allResources);
       const layoutApps = buildLayout(allResources);
       setApplications(layoutApps);
     } catch (err) {
@@ -355,6 +331,21 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
     setSelectedNode(node);
   }, []);
 
+  // Handle config icon click (ConfigMap, Secret, PVC)
+  const handleConfigClick = useCallback((kind: string, name: string, ns?: string) => {
+    const resource = allResources.find(
+      r => r.kind === kind && r.metadata.name === name && r.metadata.namespace === ns
+    );
+    if (resource) {
+      // Create a fake LayoutNode for the config resource
+      setSelectedNode({
+        uid: resource.metadata.uid,
+        resource,
+        x: 0, y: 0, width: 0, height: 0,
+      });
+    }
+  }, [allResources]);
+
   // Convert selected node to V1ObjectReference for DetailPanel
   const selectedResource: V1ObjectReference | null = selectedNode ? {
     name: selectedNode.resource.metadata.name,
@@ -416,7 +407,7 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 z-10 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="absolute bottom-4 right-4 z-10 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Connections</div>
         <div className="flex flex-col gap-1 text-xs">
           <div className="flex items-center gap-2">
@@ -430,6 +421,18 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
           <div className="flex items-center gap-2">
             <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#06b6d4" strokeWidth="2" strokeDasharray="4,2" /></svg>
             <span className="text-gray-500 dark:text-gray-400">Service</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#14b8a6" strokeWidth="2" strokeDasharray="4,2" /></svg>
+            <span className="text-gray-500 dark:text-gray-400">Ingress</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#10b981" strokeWidth="2" strokeDasharray="4,2" /></svg>
+            <span className="text-gray-500 dark:text-gray-400">Gateway</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2,2" /></svg>
+            <span className="text-gray-500 dark:text-gray-400">NetworkPolicy</span>
           </div>
         </div>
       </div>
@@ -465,9 +468,15 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
             <marker id="arrow-ingress" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#14b8a6" />
             </marker>
+            <marker id="arrow-gateway" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+            </marker>
+            <marker id="arrow-network-policy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
+            </marker>
           </defs>
           {applications.map((app) => (
-            <ApplicationGroup key={app.id} application={app} onNodeClick={handleNodeClick} />
+            <ApplicationGroup key={app.id} application={app} onNodeClick={handleNodeClick} onConfigClick={handleConfigClick} />
           ))}
         </svg>
       </div>
@@ -482,8 +491,40 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
 }
 
 // Application component
-function ApplicationGroup({ application, onNodeClick }: { application: Application; onNodeClick: (node: LayoutNode) => void }) {
-  const nodeMap = useMemo(() => new Map(application.nodes.map((n) => [n.uid, n])), [application.nodes]);
+function ApplicationGroup({ application, onNodeClick, onConfigClick }: { 
+  application: Application; 
+  onNodeClick: (node: LayoutNode) => void;
+  onConfigClick: (kind: string, name: string, ns?: string) => void;
+}) {
+  // Build node map including nested pods (with calculated absolute positions)
+  const nodeMap = useMemo(() => {
+    const map = new Map(application.nodes.map((n) => [n.uid, n]));
+    // Add nested pods with their absolute positions
+    application.nodes.forEach((n) => {
+      if (n.childPods) {
+        n.childPods.forEach((pod) => {
+          map.set(pod.uid, {
+            ...pod,
+            x: n.x + pod.x,  // Convert to absolute position
+            y: n.y + pod.y,
+          });
+        });
+      }
+    });
+    return map;
+  }, [application.nodes]);
+
+  // Get non-pod nodes (pods are rendered inside controllers)
+  const standaloneNodes = useMemo(() => 
+    application.nodes.filter(n => !n.resource.kind.match(/^Pod$/) || !application.nodes.some(
+      parent => ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'].includes(parent.resource.kind) && 
+        parent.childPods?.some(p => p.uid === n.uid)
+    )),
+    [application.nodes]
+  );
+
+  // Determine if we should show the title
+  const showTitle = application.name && application.name.length > 0;
 
   return (
     <g>
@@ -500,40 +541,57 @@ function ApplicationGroup({ application, onNodeClick }: { application: Applicati
         className="dark:fill-gray-800 dark:stroke-gray-700"
       />
       
-      {/* Application header */}
-      <text
-        x={application.x + 12}
-        y={application.y + 16}
-        fontSize={11}
-        fontWeight={600}
-        className="fill-gray-600 dark:fill-gray-300"
-      >
-        <tspan style={{ textOverflow: 'ellipsis' }}>
-          {application.name.length > 28 ? application.name.slice(0, 26) + '…' : application.name}
-        </tspan>
-      </text>
-      {application.namespace && (
-        <text
-          x={application.x + 12}
-          y={application.y + 30}
-          fontSize={10}
-          className="fill-gray-400 dark:fill-gray-500"
-        >
-          {application.namespace}
-        </text>
+      {/* Application title */}
+      {showTitle && (
+        <g>
+          {/* Title text with truncation */}
+          <text
+            x={application.x + 10}
+            y={application.y + 13}
+            fontSize={12}
+            fontWeight={600}
+            fill="#374151"
+            dominantBaseline="hanging"
+            className="dark:fill-gray-200"
+          >
+            {application.name.length > Math.floor((application.width - 20) / 7) 
+              ? application.name.slice(0, Math.floor((application.width - 20) / 7) - 1) + '…' 
+              : application.name}
+          </text>
+          {/* Namespace on second line */}
+          {application.namespace && (
+            <text
+              x={application.x + 10}
+              y={application.y + 26}
+              fontSize={10}
+              fill="#6b7280"
+              dominantBaseline="hanging"
+              className="dark:fill-gray-400"
+            >
+              {application.namespace.length > Math.floor((application.width - 20) / 6) 
+                ? application.namespace.slice(0, Math.floor((application.width - 20) / 6) - 1) + '…' 
+                : application.namespace}
+            </text>
+          )}
+        </g>
       )}
-
-      {/* Edges */}
+      
+      {/* Edges - only for non-nested relationships */}
       {application.edges.map((edge, i) => {
         const from = nodeMap.get(edge.from);
         const to = nodeMap.get(edge.to);
         if (!from || !to) return null;
+        // Skip owner edges between controller and its contained pods (but keep service edges)
+        if (edge.type === 'owner') {
+          const isInternalEdge = from.childPods?.some(p => p.uid === to.uid) || to.childPods?.some(p => p.uid === from.uid);
+          if (isInternalEdge) return null;
+        }
         return <EdgeLine key={i} from={from} to={to} type={edge.type} />;
       })}
 
       {/* Nodes */}
-      {application.nodes.map((node) => (
-        <ResourceNodeSVG key={node.uid} node={node} onClick={() => onNodeClick(node)} />
+      {standaloneNodes.map((node) => (
+        <ResourceNodeSVG key={node.uid} node={node} onClick={() => onNodeClick(node)} onPodClick={onNodeClick} onConfigClick={onConfigClick} />
       ))}
     </g>
   );
@@ -554,36 +612,67 @@ function EdgeLine({ from, to, type }: { from: LayoutNode; to: LayoutNode; type: 
     selector: '#8b5cf6',
     service: '#06b6d4',
     ingress: '#14b8a6',
+    gateway: '#10b981',
+    'network-policy': '#f59e0b',
   };
   
-  const dashArray = type === 'owner' ? undefined : '6,3';
+  const dashArrays: Record<string, string | undefined> = {
+    owner: undefined,
+    selector: '6,3',
+    service: '6,3',
+    ingress: '4,2',
+    gateway: '4,2',
+    'network-policy': '2,2',
+  };
 
   return (
     <path
       d={path}
       fill="none"
       stroke={colors[type]}
-      strokeWidth={2}
-      strokeDasharray={dashArray}
+      strokeWidth={type === 'network-policy' ? 1.5 : 2}
+      strokeDasharray={dashArrays[type]}
       markerEnd={`url(#arrow-${type})`}
     />
   );
 }
 
 // Resource node component (SVG)
-function ResourceNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => void }) {
+function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick }: { 
+  node: LayoutNode; 
+  onClick: () => void; 
+  onPodClick?: (node: LayoutNode) => void;
+  onConfigClick?: (kind: string, name: string, ns?: string) => void;
+}) {
   const { resource, x, y, width, height } = node;
+  
+  // Route to specialized renderers
+  if (resource.kind === 'NetworkPolicy') {
+    return <NetworkPolicyNodeSVG node={node} onClick={onClick} />;
+  }
+  if (resource.kind === 'Service') {
+    return <CompactNodeSVG node={node} onClick={onClick} />;
+  }
+  if (['Gateway', 'HTTPRoute', 'GRPCRoute'].includes(resource.kind)) {
+    return <CompactNodeSVG node={node} onClick={onClick} />;
+  }
+  if (resource.kind === 'Ingress') {
+    return <IngressNodeSVG node={node} onClick={onClick} />;
+  }
+  
+  // Controllers with pods
+  if (['Deployment', 'StatefulSet', 'DaemonSet', 'Job'].includes(resource.kind) && node.childPods && node.childPods.length > 0) {
+    return <ControllerNodeSVG node={node} onClick={onClick} onPodClick={onPodClick} onConfigClick={onConfigClick} />;
+  }
+  
   const colors = kindColors[resource.kind] || defaultColors;
   const Icon = kindIcons[resource.kind] || Hexagon;
-  const { status, color: statusColor } = getStatus(resource);
-  
-  // Determine if we should show status text (replica counts like 1/1, 2/2)
-  const showStatusText = ['Deployment', 'StatefulSet', 'DaemonSet', 'ReplicaSet'].includes(resource.kind);
+  const { color: statusColor } = getStatus(resource);
   
   // Truncate name based on width
-  const maxNameChars = Math.floor((width - 40) / 6.5);
+  const maxNameChars = Math.floor((width - 20) / 6.5);
   const displayName = resource.metadata.name.length > maxNameChars 
-    ? resource.metadata.name.slice(0, maxNameChars - 2) + '...' 
+    ? resource.metadata.name.slice(0, maxNameChars - 2) + '…' 
     : resource.metadata.name;
 
   return (
@@ -603,14 +692,6 @@ function ResourceNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => v
         strokeWidth={2}
       />
       
-      {/* Status indicator and optional count */}
-      <circle cx={width - 12} cy={14} r={5} fill={statusColor} />
-      {showStatusText && (
-        <text x={width - 24} y={18} fontSize={10} fill="#6b7280" textAnchor="end">
-          {status}
-        </text>
-      )}
-      
       {/* Kind icon and label */}
       <g transform="translate(10, 10)">
         <foreignObject width={18} height={18}>
@@ -620,6 +701,9 @@ function ResourceNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => v
           {resource.kind}
         </text>
       </g>
+      
+      {/* Status indicator */}
+      <circle cx={width - 12} cy={14} r={5} fill={statusColor} />
       
       {/* Resource name */}
       <text
@@ -635,7 +719,335 @@ function ResourceNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => v
   );
 }
 
+// Compact node for services and gateways (square with icon only)
+function CompactNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => void }) {
+  const { resource, x, y, width, height } = node;
+  const colors = kindColors[resource.kind] || defaultColors;
+  const Icon = kindIcons[resource.kind] || Hexagon;
+
+  return (
+    <g 
+      transform={`translate(${x}, ${y})`} 
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      style={{ cursor: 'pointer' }}
+      className="hover:opacity-80 transition-opacity"
+    >
+      <rect
+        width={width}
+        height={height}
+        rx={8}
+        fill={colors.bg}
+        stroke={colors.border}
+        strokeWidth={2}
+      />
+      
+      {/* Centered icon */}
+      <g transform={`translate(${width / 2 - 12}, ${height / 2 - 12})`}>
+        <foreignObject width={24} height={24}>
+          <div style={{ color: colors.text }}><Icon size={22} /></div>
+        </foreignObject>
+      </g>
+    </g>
+  );
+}
+
+// Controller node that contains pods
+function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick }: { 
+  node: LayoutNode; 
+  onClick: () => void; 
+  onPodClick?: (node: LayoutNode) => void;
+  onConfigClick?: (kind: string, name: string, ns?: string) => void;
+}) {
+  const { resource, x, y, width, height, childPods = [] } = node;
+  const colors = kindColors[resource.kind] || defaultColors;
+  const Icon = kindIcons[resource.kind] || Hexagon;
+  
+  const maxNameChars = Math.floor((width - 60) / 6);
+  const displayName = resource.metadata.name.length > maxNameChars 
+    ? resource.metadata.name.slice(0, maxNameChars - 2) + '…' 
+    : resource.metadata.name;
+  
+  // Get config resources attached to this controller (stored in metadata)
+  const configIcons = (node as LayoutNode & { configIcons?: Array<{ kind: string; name: string }> }).configIcons || [];
+
+  return (
+    <g transform={`translate(${x}, ${y})`}>
+      {/* Controller background */}
+      <rect
+        width={width}
+        height={height}
+        rx={10}
+        fill={colors.bg}
+        stroke={colors.border}
+        strokeWidth={2}
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        style={{ cursor: 'pointer' }}
+        className="hover:opacity-90"
+      />
+      
+      {/* Controller header */}
+      <g 
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        style={{ cursor: 'pointer' }}
+      >
+        <g transform="translate(8, 8)">
+          <foreignObject width={18} height={18}>
+            <div style={{ color: colors.text }}><Icon size={16} /></div>
+          </foreignObject>
+          <text x={22} y={13} fontSize={11} fill={colors.text} fontWeight={600}>
+            {displayName}
+          </text>
+        </g>
+      </g>
+      
+      {/* Nested pods */}
+      {childPods.map((pod, i) => {
+        const podColors = kindColors['Pod'];
+        const { color: statusColor } = getStatus(pod.resource);
+        const podX = CONTROLLER_PADDING;
+        const podY = CONTROLLER_HEADER + i * (POD_HEIGHT + POD_GAP);
+        const podNameChars = Math.floor((POD_WIDTH - 30) / 5.5);
+        const podName = pod.resource.metadata.name.length > podNameChars
+          ? pod.resource.metadata.name.slice(0, podNameChars - 2) + '…'
+          : pod.resource.metadata.name;
+        
+        return (
+          <g
+            key={pod.uid}
+            transform={`translate(${podX}, ${podY})`}
+            onClick={(e) => { e.stopPropagation(); onPodClick?.(pod); }}
+            style={{ cursor: 'pointer' }}
+            className="hover:opacity-80"
+          >
+            <rect
+              width={POD_WIDTH}
+              height={POD_HEIGHT}
+              rx={4}
+              fill={podColors.bg}
+              stroke={podColors.border}
+              strokeWidth={1.5}
+            />
+            <circle cx={12} cy={POD_HEIGHT / 2} r={4} fill={statusColor} />
+            <text x={22} y={POD_HEIGHT / 2 + 4} fontSize={10} fill="#1f2937" fontWeight={500}>
+              {podName}
+            </text>
+          </g>
+        );
+      })}
+      
+      {/* Config icons at bottom (ConfigMaps, Secrets, PVCs) - wrapped to multiple rows */}
+      {configIcons.length > 0 && (
+        <g transform={`translate(${CONTROLLER_PADDING}, ${height - Math.ceil(configIcons.length / CONFIG_ICONS_PER_ROW) * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) - CONFIG_ICON_GAP})`}>
+          {configIcons.map((config, i) => {
+            const ConfigIcon = kindIcons[config.kind];
+            const configColors = kindColors[config.kind] || defaultColors;
+            const row = Math.floor(i / CONFIG_ICONS_PER_ROW);
+            const col = i % CONFIG_ICONS_PER_ROW;
+            const xOffset = col * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP);
+            const yOffset = row * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP);
+            
+            return (
+              <g 
+                key={`${config.kind}-${config.name}-${i}`} 
+                transform={`translate(${xOffset}, ${yOffset})`}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (onConfigClick) {
+                    onConfigClick(config.kind, config.name, resource.metadata.namespace);
+                  }
+                }}
+                style={{ cursor: 'pointer' }}
+                className="hover:opacity-80"
+              >
+                <title>{config.name}</title>
+                <rect
+                  width={CONFIG_ICON_SIZE}
+                  height={CONFIG_ICON_SIZE}
+                  rx={3}
+                  fill={configColors.bg}
+                  stroke={configColors.border}
+                  strokeWidth={1}
+                />
+                <g transform={`translate(${CONFIG_ICON_SIZE / 2 - 6}, ${CONFIG_ICON_SIZE / 2 - 6})`}>
+                  <foreignObject width={12} height={12}>
+                    <div style={{ color: configColors.text }}><ConfigIcon size={12} /></div>
+                  </foreignObject>
+                </g>
+              </g>
+            );
+          })}
+        </g>
+      )}
+    </g>
+  );
+}
+
+// Ingress node with hosts
+function IngressNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => void }) {
+  const { resource, x, y, width, height } = node;
+  const colors = kindColors['Ingress'];
+  const Icon = kindIcons['Ingress'];
+  
+  const spec = resource.spec as { rules?: Array<{ host?: string }> };
+  const hosts = spec.rules?.map(r => r.host).filter(Boolean) || [];
+  
+  const maxNameChars = Math.floor((width - 20) / 6.5);
+  const displayName = resource.metadata.name.length > maxNameChars 
+    ? resource.metadata.name.slice(0, maxNameChars - 2) + '…' 
+    : resource.metadata.name;
+
+  return (
+    <g 
+      transform={`translate(${x}, ${y})`} 
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      style={{ cursor: 'pointer' }}
+      className="hover:opacity-80 transition-opacity"
+    >
+      <rect width={width} height={height} rx={8} fill={colors.bg} stroke={colors.border} strokeWidth={2} />
+      
+      {/* Kind icon and label */}
+      <g transform="translate(10, 10)">
+        <foreignObject width={18} height={18}>
+          <div style={{ color: colors.text }}><Icon size={16} /></div>
+        </foreignObject>
+        <text x={22} y={13} fontSize={11} fill={colors.text} fontWeight={600}>Ingress</text>
+      </g>
+      
+      {/* Host badge */}
+      {hosts.length > 0 && hosts[0] && (
+        <text x={width - 10} y={18} fontSize={9} fill="#115e59" textAnchor="end">
+          {hosts[0].length > 18 ? hosts[0].slice(0, 16) + '…' : hosts[0]}
+        </text>
+      )}
+      
+      {/* Resource name */}
+      <text x={10} y={height - 12} fontSize={12} fontWeight={600} fill="#1f2937">
+        {displayName}
+      </text>
+    </g>
+  );
+}
+
+// NetworkPolicy node with rules summary
+function NetworkPolicyNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => void }) {
+  const { resource, x, y, width, height } = node;
+  const colors = kindColors['NetworkPolicy'];
+  const Icon = kindIcons['NetworkPolicy'];
+  
+  const spec = resource.spec as {
+    podSelector?: { matchLabels?: Record<string, string> };
+    policyTypes?: string[];
+    ingress?: Array<{
+      from?: Array<{
+        namespaceSelector?: { matchLabels?: Record<string, string> };
+        podSelector?: { matchLabels?: Record<string, string> };
+        ipBlock?: { cidr: string };
+      }>;
+      ports?: Array<{ port?: number; protocol?: string }>;
+    }>;
+    egress?: Array<{
+      to?: Array<{
+        namespaceSelector?: { matchLabels?: Record<string, string> };
+        podSelector?: { matchLabels?: Record<string, string> };
+        ipBlock?: { cidr: string };
+      }>;
+      ports?: Array<{ port?: number; protocol?: string }>;
+    }>;
+  };
+  
+  const policyTypes = spec.policyTypes || [];
+  const hasIngress = policyTypes.includes('Ingress') || spec.ingress;
+  const hasEgress = policyTypes.includes('Egress') || spec.egress;
+  const ingressRules = spec.ingress || [];
+  const egressRules = spec.egress || [];
+  
+  // Determine policy effect
+  const ingressDeny = hasIngress && ingressRules.length === 0;
+  const egressDeny = hasEgress && egressRules.length === 0;
+  const isDenyAll = ingressDeny && egressDeny;
+  
+  const maxNameChars = Math.floor((width - 20) / 6.5);
+  const displayName = resource.metadata.name.length > maxNameChars 
+    ? resource.metadata.name.slice(0, maxNameChars - 2) + '…' 
+    : resource.metadata.name;
+
+  // Build rule summary
+  const getSummary = () => {
+    const parts: string[] = [];
+    if (isDenyAll) return '🔒 Deny All';
+    if (ingressDeny) parts.push('⛔ No Ingress');
+    else if (hasIngress && ingressRules.length > 0) parts.push(`↓${ingressRules.length}`);
+    if (egressDeny) parts.push('⛔ No Egress');
+    else if (hasEgress && egressRules.length > 0) parts.push(`↑${egressRules.length}`);
+    return parts.join(' ') || '✓ Allow';
+  };
+
+  return (
+    <g 
+      transform={`translate(${x}, ${y})`} 
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      style={{ cursor: 'pointer' }}
+      className="hover:opacity-80 transition-opacity"
+    >
+      <rect 
+        width={width} 
+        height={height} 
+        rx={8} 
+        fill={isDenyAll ? '#fef2f2' : colors.bg} 
+        stroke={isDenyAll ? '#ef4444' : colors.border} 
+        strokeWidth={2} 
+      />
+      
+      {/* Kind icon and label */}
+      <g transform="translate(10, 10)">
+        <foreignObject width={18} height={18}>
+          <div style={{ color: isDenyAll ? '#ef4444' : colors.text }}><Icon size={16} /></div>
+        </foreignObject>
+        <text x={22} y={13} fontSize={10} fill={isDenyAll ? '#ef4444' : colors.text} fontWeight={600}>
+          NetworkPolicy
+        </text>
+      </g>
+      
+      {/* Rule summary badge */}
+      <text x={width - 10} y={18} fontSize={9} fill={isDenyAll ? '#dc2626' : '#92400e'} textAnchor="end" fontWeight={500}>
+        {getSummary()}
+      </text>
+      
+      {/* Resource name */}
+      <text x={10} y={height - 12} fontSize={12} fontWeight={600} fill="#1f2937">
+        {displayName}
+      </text>
+    </g>
+  );
+}
+
 // Build layout from resources
+// Helper to extract app name from common Kubernetes labels
+function extractAppName(resource: K8sResource): string | undefined {
+  const labels = resource.metadata.labels || {};
+  // Prioritize instance/release labels (often more specific)
+  return labels['app.kubernetes.io/instance'] ||
+    labels['release'] ||
+    // Then app labels
+    labels['app'] ||
+    labels['app.kubernetes.io/name'] ||
+    labels['k8s-app'] ||
+    labels['name'] ||
+    // Finally, other Kubernetes labels
+    labels['app.kubernetes.io/component'] ||
+    labels['app.kubernetes.io/part-of'];
+}
+
+// Priority order for determining application anchor (controller)
+const ANCHOR_PRIORITY: Record<string, number> = {
+  'Deployment': 1,
+  'StatefulSet': 2,
+  'DaemonSet': 3,
+  'CronJob': 4,
+  'Job': 5,
+  'Pod': 6,  // Standalone pods as last resort
+};
+
 function buildLayout(resources: K8sResource[]): Application[] {
   const uidToResource = new Map<string, K8sResource>();
   resources.forEach((r) => {
@@ -677,23 +1089,10 @@ function buildLayout(resources: K8sResource[]): Application[] {
     }
   });
 
-  // Service selectors -> Pods
-  resources.forEach((r) => {
-    if (r.kind !== 'Service') return;
-    const selector = (r.spec as { selector?: Record<string, string> })?.selector;
-    if (!selector || Object.keys(selector).length === 0) return;
-    
-    resources.filter((p) => p.kind === 'Pod' && p.metadata.namespace === r.metadata.namespace).forEach((pod) => {
-      const labels = pod.metadata.labels || {};
-      if (Object.entries(selector).every(([k, v]) => labels[k] === v)) {
-        addConnection(r.metadata.uid, pod.metadata.uid);
-        addEdge(pod.metadata.uid, r.metadata.uid, 'service');
-      }
-    });
-  });
+  // Service selectors -> Pods (will be added later after controller mapping)
 
-  // Controller selectors -> Pods
-  const controllerKinds = ['Deployment', 'StatefulSet', 'DaemonSet', 'ReplicaSet', 'Job'];
+  // Controller selectors -> Pods (for connection tracking, not owner)
+  const controllerKinds = ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'];
   resources.forEach((r) => {
     if (!controllerKinds.includes(r.kind)) return;
     const matchLabels = (r.spec as { selector?: { matchLabels?: Record<string, string> } })?.selector?.matchLabels;
@@ -702,13 +1101,188 @@ function buildLayout(resources: K8sResource[]): Application[] {
     resources.filter((p) => p.kind === 'Pod' && p.metadata.namespace === r.metadata.namespace).forEach((pod) => {
       const labels = pod.metadata.labels || {};
       if (Object.entries(matchLabels).every(([k, v]) => labels[k] === v)) {
-        if (parentMap.get(pod.metadata.uid) !== r.metadata.uid) {
-          addConnection(r.metadata.uid, pod.metadata.uid);
-          addEdge(r.metadata.uid, pod.metadata.uid, 'selector');
+        addConnection(r.metadata.uid, pod.metadata.uid);
+        // Don't add edge here - pods will be nested inside controller
+      }
+    });
+  });
+  
+  // Build controller -> pods mapping (pods that will be nested)
+  // A pod belongs to a controller if it's owned by that controller OR owned by a ReplicaSet owned by that controller
+  const controllerToPods = new Map<string, K8sResource[]>();
+  const podToController = new Map<string, string>();
+  
+  // Track static pods (owned by Node) to filter them out
+  const staticPodUids = new Set<string>();
+  
+  resources.filter(r => r.kind === 'Pod').forEach((pod) => {
+    // Check direct owner
+    const ownerRef = pod.metadata.ownerReferences?.[0];
+    if (!ownerRef) return;
+    
+    // Static pods are owned by Node - mark them for filtering
+    if (ownerRef.kind === 'Node') {
+      staticPodUids.add(pod.metadata.uid);
+      return;
+    }
+    
+    const owner = uidToResource.get(ownerRef.uid);
+    if (!owner) return;
+    
+    // If owner is a controller (Deployment/StatefulSet/DaemonSet/Job), use it directly
+    if (controllerKinds.includes(owner.kind)) {
+      if (!controllerToPods.has(owner.metadata.uid)) controllerToPods.set(owner.metadata.uid, []);
+      controllerToPods.get(owner.metadata.uid)!.push(pod);
+      podToController.set(pod.metadata.uid, owner.metadata.uid);
+      return;
+    }
+    
+    // If owner is ReplicaSet, look for its Deployment owner
+    if (owner.kind === 'ReplicaSet') {
+      const rsOwnerRef = owner.metadata.ownerReferences?.[0];
+      if (rsOwnerRef) {
+        const deployment = uidToResource.get(rsOwnerRef.uid);
+        if (deployment && deployment.kind === 'Deployment') {
+          if (!controllerToPods.has(deployment.metadata.uid)) controllerToPods.set(deployment.metadata.uid, []);
+          controllerToPods.get(deployment.metadata.uid)!.push(pod);
+          podToController.set(pod.metadata.uid, deployment.metadata.uid);
+        }
+      }
+    }
+  });
+  
+  // Sort pods within each controller by name
+  controllerToPods.forEach((pods) => {
+    pods.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
+  });
+  
+  // Service -> Pod edges (point from service to individual pods)
+  resources.forEach((r) => {
+    if (r.kind !== 'Service') return;
+    const selector = (r.spec as { selector?: Record<string, string> })?.selector;
+    if (!selector || Object.keys(selector).length === 0) return;
+    
+    resources.filter((p) => p.kind === 'Pod' && p.metadata.namespace === r.metadata.namespace).forEach((pod) => {
+      const labels = pod.metadata.labels || {};
+      if (Object.entries(selector).every(([k, v]) => labels[k] === v)) {
+        // Service connects to individual pod
+        addConnection(r.metadata.uid, pod.metadata.uid);
+        addEdge(r.metadata.uid, pod.metadata.uid, 'service');
+      }
+    });
+  });
+  
+  // Update NetworkPolicy -> Pod edges to point to controller instead when pods are nested
+  resources.forEach((r) => {
+    if (r.kind !== 'NetworkPolicy') return;
+    const spec = r.spec as {
+      podSelector?: { matchLabels?: Record<string, string> };
+    };
+    const ns = r.metadata.namespace || '';
+    const matchLabels = spec.podSelector?.matchLabels || {};
+    const matchesAllPods = Object.keys(matchLabels).length === 0;
+    
+    resources.filter((p) => p.kind === 'Pod' && p.metadata.namespace === ns).forEach((pod) => {
+      const labels = pod.metadata.labels || {};
+      const matches = matchesAllPods || Object.entries(matchLabels).every(([k, v]) => labels[k] === v);
+      if (matches) {
+        const controllerId = podToController.get(pod.metadata.uid);
+        if (controllerId) {
+          addEdge(controllerId, r.metadata.uid, 'network-policy');
+        } else {
+          addEdge(pod.metadata.uid, r.metadata.uid, 'network-policy');
         }
       }
     });
   });
+
+  // Build lookup map for Services by namespace/name
+  const servicesByKey = new Map<string, K8sResource>();
+  resources.forEach((r) => {
+    if (r.kind === 'Service') {
+      const key = `${r.metadata.namespace || ''}/${r.metadata.name}`;
+      servicesByKey.set(key, r);
+    }
+  });
+
+  // Ingress -> Service connections
+  resources.forEach((r) => {
+    if (r.kind !== 'Ingress') return;
+    const spec = r.spec as {
+      defaultBackend?: { service?: { name: string } };
+      rules?: Array<{
+        http?: {
+          paths?: Array<{
+            backend?: { service?: { name: string } };
+          }>;
+        };
+      }>;
+    };
+    const ns = r.metadata.namespace || '';
+    
+    // Check default backend
+    if (spec.defaultBackend?.service?.name) {
+      const svc = servicesByKey.get(`${ns}/${spec.defaultBackend.service.name}`);
+      if (svc) {
+        addConnection(r.metadata.uid, svc.metadata.uid);
+        addEdge(r.metadata.uid, svc.metadata.uid, 'ingress');
+      }
+    }
+    
+    // Check rules
+    spec.rules?.forEach((rule) => {
+      rule.http?.paths?.forEach((path) => {
+        if (path.backend?.service?.name) {
+          const svc = servicesByKey.get(`${ns}/${path.backend.service.name}`);
+          if (svc) {
+            addConnection(r.metadata.uid, svc.metadata.uid);
+            addEdge(r.metadata.uid, svc.metadata.uid, 'ingress');
+          }
+        }
+      });
+    });
+  });
+
+  // HTTPRoute/GRPCRoute -> Service connections (Gateway API)
+  resources.forEach((r) => {
+    if (r.kind !== 'HTTPRoute' && r.kind !== 'GRPCRoute') return;
+    const spec = r.spec as {
+      parentRefs?: Array<{ name: string; kind?: string }>;
+      rules?: Array<{
+        backendRefs?: Array<{ name: string; kind?: string }>;
+      }>;
+    };
+    const ns = r.metadata.namespace || '';
+    
+    // Connect to parent Gateways
+    spec.parentRefs?.forEach((ref) => {
+      if (!ref.kind || ref.kind === 'Gateway') {
+        const gateway = resources.find(
+          (g) => g.kind === 'Gateway' && g.metadata.name === ref.name && g.metadata.namespace === ns
+        );
+        if (gateway) {
+          addConnection(gateway.metadata.uid, r.metadata.uid);
+          addEdge(gateway.metadata.uid, r.metadata.uid, 'gateway');
+        }
+      }
+    });
+    
+    // Connect to backend Services
+    spec.rules?.forEach((rule) => {
+      rule.backendRefs?.forEach((ref) => {
+        if (!ref.kind || ref.kind === 'Service') {
+          const svc = servicesByKey.get(`${ns}/${ref.name}`);
+          if (svc) {
+            addConnection(r.metadata.uid, svc.metadata.uid);
+            addEdge(r.metadata.uid, svc.metadata.uid, 'gateway');
+          }
+        }
+      });
+    });
+  });
+
+  // Build layout from connected components
+  // Note: NetworkPolicy -> Pod connections are already handled above
 
   // Build lookup maps for ConfigMaps, Secrets, and PVCs by namespace/name
   const configMapsByKey = new Map<string, K8sResource>();
@@ -775,6 +1349,54 @@ function buildLayout(resources: K8sResource[]): Application[] {
       });
     });
   };
+
+  // Build controller -> config resources mapping (after extractContainerRefs is defined)
+  const controllerToConfigs = new Map<string, Map<string, Set<string>>>();  // controllerId -> kind -> set of resource names
+  
+  resources.filter(r => r.kind === 'Pod').forEach((pod) => {
+    const controllerId = podToController.get(pod.metadata.uid);
+    if (!controllerId) return;
+    
+    const spec = pod.spec as {
+      containers?: ContainerSpec[];
+      initContainers?: ContainerSpec[];
+      volumes?: VolumeSpec[];
+    };
+
+    const referencedConfigMaps = new Set<string>();
+    const referencedSecrets = new Set<string>();
+    const referencedPVCs = new Set<string>();
+
+    spec.volumes?.forEach((vol) => {
+      if (vol.configMap?.name) referencedConfigMaps.add(vol.configMap.name);
+      if (vol.secret?.secretName) referencedSecrets.add(vol.secret.secretName);
+      if (vol.persistentVolumeClaim?.claimName) referencedPVCs.add(vol.persistentVolumeClaim.claimName);
+      vol.projected?.sources?.forEach((source) => {
+        if (source.configMap?.name) referencedConfigMaps.add(source.configMap.name);
+        if (source.secret?.name) referencedSecrets.add(source.secret.name);
+      });
+    });
+    extractContainerRefs(spec.containers, referencedConfigMaps, referencedSecrets);
+    extractContainerRefs(spec.initContainers, referencedConfigMaps, referencedSecrets);
+    
+    if (!controllerToConfigs.has(controllerId)) {
+      controllerToConfigs.set(controllerId, new Map());
+    }
+    const configMap = controllerToConfigs.get(controllerId)!;
+    
+    if (referencedConfigMaps.size > 0) {
+      if (!configMap.has('ConfigMap')) configMap.set('ConfigMap', new Set());
+      referencedConfigMaps.forEach(name => configMap.get('ConfigMap')!.add(name));
+    }
+    if (referencedSecrets.size > 0) {
+      if (!configMap.has('Secret')) configMap.set('Secret', new Set());
+      referencedSecrets.forEach(name => configMap.get('Secret')!.add(name));
+    }
+    if (referencedPVCs.size > 0) {
+      if (!configMap.has('PersistentVolumeClaim')) configMap.set('PersistentVolumeClaim', new Set());
+      referencedPVCs.forEach(name => configMap.get('PersistentVolumeClaim')!.add(name));
+    }
+  });
 
   // Helper to find the root owner of a resource (for grouping detection)
   const findRootOwner = (uid: string): string => {
@@ -908,77 +1530,22 @@ function buildLayout(resources: K8sResource[]): Application[] {
     });
   });
 
-  // Group by app.kubernetes.io/part-of label (meta-application grouping)
-  // This groups related components like argocd-server, argocd-redis, argocd-repo-server together
-  // Also check parent resources for the part-of label (since Pods often don't have it but their Deployments do)
-  const getGroupLabel = (r: K8sResource): string | undefined => {
-    const labels = r.metadata.labels || {};
-    
-    // Check direct labels in priority order
-    const directLabel = labels[APP_LABELS.PART_OF] || 
-                        labels[APP_LABELS.ARGOCD_INSTANCE] ||
-                        labels[APP_LABELS.INSTANCE];
-    if (directLabel) return directLabel;
-    
-    // Check parent via owner reference (e.g., Pod -> ReplicaSet)
-    const ownerRef = r.metadata.ownerReferences?.[0];
-    if (ownerRef) {
-      const parent = uidToResource.get(ownerRef.uid);
-      if (parent) {
-        const parentLabels = parent.metadata.labels || {};
-        const parentLabel = parentLabels[APP_LABELS.PART_OF] || 
-                           parentLabels[APP_LABELS.ARGOCD_INSTANCE] ||
-                           parentLabels[APP_LABELS.INSTANCE];
-        if (parentLabel) return parentLabel;
-        
-        // Go one more level up (Pod -> RS -> Deployment)
-        const grandparentRef = parent.metadata.ownerReferences?.[0];
-        if (grandparentRef) {
-          const grandparent = uidToResource.get(grandparentRef.uid);
-          if (grandparent) {
-            const gpLabels = grandparent.metadata.labels || {};
-            const gpLabel = gpLabels[APP_LABELS.PART_OF] || 
-                           gpLabels[APP_LABELS.ARGOCD_INSTANCE] ||
-                           gpLabels[APP_LABELS.INSTANCE];
-            if (gpLabel) return gpLabel;
-          }
-        }
-      }
-    }
-    return undefined;
-  };
-
-  // Build groups based on labels
-  const labelGroups = new Map<string, string[]>();
-  resources.forEach((r) => {
-    const groupLabel = getGroupLabel(r);
-    if (groupLabel) {
-      const key = `${r.metadata.namespace || ''}/${groupLabel}`;
-      if (!labelGroups.has(key)) labelGroups.set(key, []);
-      labelGroups.get(key)!.push(r.metadata.uid);
-    }
-  });
-  
-  // Connect all resources within the same label group
-  labelGroups.forEach((uids) => {
-    // Connect all resources in the same group to form a single application
-    for (let i = 1; i < uids.length; i++) {
-      addConnection(uids[0], uids[i]);
-    }
-  });
-
-  // Find connected components
+  // Find connected components (excluding static pods)
   const visited = new Set<string>();
   const components: string[][] = [];
   
   function dfs(uid: string, component: string[]) {
     if (visited.has(uid)) return;
+    // Skip static pods
+    if (staticPodUids.has(uid)) return;
     visited.add(uid);
     component.push(uid);
     (connections.get(uid) || new Set()).forEach((n) => dfs(n, component));
   }
   
   resources.forEach((r) => {
+    // Skip static pods
+    if (staticPodUids.has(r.metadata.uid)) return;
     if (!visited.has(r.metadata.uid)) {
       const component: string[] = [];
       dfs(r.metadata.uid, component);
@@ -986,267 +1553,228 @@ function buildLayout(resources: K8sResource[]): Application[] {
     }
   });
 
-  // Helper to check if a resource has recommended app labels (or legacy fallbacks)
-  const hasAppLabels = (r: K8sResource): boolean => {
-    const labels = r.metadata.labels || {};
-    return !!(
-      // Recommended Kubernetes labels
-      labels[APP_LABELS.PART_OF] ||
-      labels[APP_LABELS.INSTANCE] ||
-      labels[APP_LABELS.NAME] ||
-      // ArgoCD specific
-      labels[APP_LABELS.ARGOCD_INSTANCE] ||
-      // Legacy fallbacks
-      labels[APP_LABELS.APP] ||
-      labels[APP_LABELS.K8S_APP] ||
-      labels[APP_LABELS.RELEASE]
-    );
-  };
+  // Sort components by size (largest first)
+  components.sort((a, b) => b.length - a.length);
 
-  // Filter components to only include those with at least one resource having app labels
-  const filteredComponents = components.filter((component) => {
-    return component.some((uid) => {
-      const r = uidToResource.get(uid);
-      if (!r) return false;
-      // Check direct labels
-      if (hasAppLabels(r)) return true;
-      // Check parent labels (for pods that inherit from deployments)
-      const ownerRef = r.metadata.ownerReferences?.[0];
-      if (ownerRef) {
-        const parent = uidToResource.get(ownerRef.uid);
-        if (parent && hasAppLabels(parent)) return true;
-        // Check grandparent
-        const gpRef = parent?.metadata.ownerReferences?.[0];
-        if (gpRef) {
-          const grandparent = uidToResource.get(gpRef.uid);
-          if (grandparent && hasAppLabels(grandparent)) return true;
-        }
-      }
-      return false;
-    });
-  });
-
-  filteredComponents.sort((a, b) => b.length - a.length);
-
-  // Build applications with layout
+  // Build applications with swim-lane layout
   const applications: Application[] = [];
   
-  // Kind priority for column sorting
-  const kindPriority: Record<string, number> = {
-    'Deployment': 0, 'StatefulSet': 0, 'DaemonSet': 0, 'CronJob': 0,
-    'Job': 1, 'ReplicaSet': 2, 'Pod': 3,
-    'Service': 10, 'Ingress': 11, 'ConfigMap': 12, 'Secret': 13, 'PersistentVolumeClaim': 14
+  // Define swim lanes (left to right flow)
+  // Lane 0: Ingress/Gateway (traffic entry points)
+  // Lane 1: HTTPRoute/GRPCRoute (routing)
+  // Lane 2: Service (load balancing)
+  // Lane 3: Controller (Deployment/StatefulSet/DaemonSet/Job) - contains pods
+  // Lane 4: Config (ConfigMap/Secret/PVC)
+  // Lane 5: NetworkPolicy (security)
+  const kindToLane: Record<string, number> = {
+    'Gateway': 0,
+    'Ingress': 0,
+    'HTTPRoute': 1,
+    'GRPCRoute': 1,
+    'Service': 2,
+    'Deployment': 3,
+    'StatefulSet': 3,
+    'DaemonSet': 3,
+    'Job': 3,
+    'CronJob': 3,
+    'Pod': 3,  // Standalone pods go in controller lane
+    'ConfigMap': 4,
+    'Secret': 4,
+    'PersistentVolumeClaim': 4,
+    'NetworkPolicy': 5,
   };
 
-  filteredComponents.forEach((component, idx) => {
-    const componentSet = new Set(component);
+  components.forEach((component, idx) => {
     const componentResources = component.map((uid) => uidToResource.get(uid)!).filter(Boolean);
+    if (componentResources.length === 0) return;
     
-    // Identify root nodes (no parent in this component)
-    const isRoot = (uid: string) => {
-      const parent = parentMap.get(uid);
-      return !parent || !componentSet.has(parent);
-    };
-    
-    // Categorize roots by kind
-    const roots = component.filter(isRoot);
-    const ownerRoots = roots.filter(uid => {
-      const r = uidToResource.get(uid)!;
-      return ['Deployment', 'StatefulSet', 'DaemonSet', 'CronJob', 'Job'].includes(r.kind);
-    });
-    const serviceRoots = roots.filter(uid => {
-      const r = uidToResource.get(uid)!;
-      return r.kind === 'Service' || r.kind === 'Ingress';
-    });
-    const configRoots = roots.filter(uid => {
-      const r = uidToResource.get(uid)!;
-      return ['ConfigMap', 'Secret', 'PersistentVolumeClaim'].includes(r.kind);
-    });
-    const otherRoots = roots.filter(uid => {
-      const r = uidToResource.get(uid)!;
-      return !['Deployment', 'StatefulSet', 'DaemonSet', 'CronJob', 'Job', 'Service', 'Ingress', 'ConfigMap', 'Secret', 'PersistentVolumeClaim'].includes(r.kind);
-    });
-
-    // Layout nodes in columns by depth
-    const nodePositions = new Map<string, { x: number; y: number }>();
-    const depthColumns = new Map<number, string[]>();
-    const nodeDepth = new Map<string, number>();
-    
-    // BFS to compute depth from roots
-    function computeDepths(rootUid: string, startDepth: number) {
-      const queue: { uid: string; depth: number }[] = [{ uid: rootUid, depth: startDepth }];
-      while (queue.length > 0) {
-        const { uid, depth } = queue.shift()!;
-        if (nodeDepth.has(uid)) continue;
-        nodeDepth.set(uid, depth);
-        
-        const children = (childrenMap.get(uid) || []).filter((c) => componentSet.has(c));
-        children.forEach((childUid) => {
-          if (!nodeDepth.has(childUid)) {
-            queue.push({ uid: childUid, depth: depth + 1 });
-          }
-        });
-      }
-    }
-    
-    // Compute depths for owner hierarchy
-    [...ownerRoots, ...otherRoots].forEach((uid) => computeDepths(uid, 0));
-    
-    // Find max depth
-    let maxOwnerDepth = 0;
-    nodeDepth.forEach((d) => { maxOwnerDepth = Math.max(maxOwnerDepth, d); });
-    
-    // Position services/configs: left if they have children, right otherwise
-    [...serviceRoots, ...configRoots].forEach((uid) => {
-      if (!nodeDepth.has(uid)) {
-        const children = (childrenMap.get(uid) || []).filter((c) => componentSet.has(c));
-        nodeDepth.set(uid, children.length > 0 ? -1 : maxOwnerDepth + 1);
-      }
+    // Filter out pods that are nested in controllers, ReplicaSets, and config resources
+    const standaloneResources = componentResources.filter(r => {
+      // Skip ReplicaSets entirely
+      if (r.kind === 'ReplicaSet') return false;
+      // Skip pods that are nested in a controller
+      if (r.kind === 'Pod' && podToController.has(r.metadata.uid)) return false;
+      // Skip config resources (they're shown as icons on controllers)
+      if (['ConfigMap', 'Secret', 'PersistentVolumeClaim'].includes(r.kind)) return false;
+      return true;
     });
     
-    // Put remaining unpositioned nodes
-    component.forEach((uid) => {
-      if (!nodeDepth.has(uid)) {
-        nodeDepth.set(uid, 0);
-      }
+    if (standaloneResources.length === 0) return;
+    
+    // Group resources by lane
+    const lanes = new Map<number, string[]>();
+    standaloneResources.forEach((r) => {
+      const lane = kindToLane[r.kind] ?? 3; // Default to controller lane
+      if (!lanes.has(lane)) lanes.set(lane, []);
+      lanes.get(lane)!.push(r.metadata.uid);
     });
     
-    // Find min depth (might be -1 for services)
-    let minDepth = 0;
-    nodeDepth.forEach((d) => { minDepth = Math.min(minDepth, d); });
-    
-    // Normalize depths so min is 0
-    if (minDepth < 0) {
-      const offset = -minDepth;
-      nodeDepth.forEach((d, uid) => nodeDepth.set(uid, d + offset));
-      maxOwnerDepth += offset;
-    }
-    
-    // Group by depth
-    component.forEach((uid) => {
-      const depth = nodeDepth.get(uid) || 0;
-      if (!depthColumns.has(depth)) depthColumns.set(depth, []);
-      depthColumns.get(depth)!.push(uid);
-    });
-    
-    // Sort each column
-    depthColumns.forEach((uids) => {
+    // Sort within each lane by name for consistency
+    lanes.forEach((uids) => {
       uids.sort((a, b) => {
         const ra = uidToResource.get(a)!;
         const rb = uidToResource.get(b)!;
-        const pa = kindPriority[ra.kind] ?? 99;
-        const pb = kindPriority[rb.kind] ?? 99;
-        if (pa !== pb) return pa - pb;
         return ra.metadata.name.localeCompare(rb.metadata.name);
       });
     });
     
-    // Position nodes by column
-    let maxX = 0;
-    let maxY = APP_PADDING + APP_HEADER;
-    
-    const depths = Array.from(depthColumns.keys()).sort((a, b) => a - b);
-    depths.forEach((depth) => {
-      const x = APP_PADDING + depth * (NODE_WIDTH + NODE_GAP_X);
-      let y = APP_PADDING + APP_HEADER;
+    // Calculate node sizes - controllers with pods need larger sizes, services/gateways are compact
+    const nodeSizes = new Map<string, { width: number; height: number }>();
+    standaloneResources.forEach((r) => {
+      // Compact nodes for services and gateway resources
+      if (['Service', 'Gateway', 'HTTPRoute', 'GRPCRoute'].includes(r.kind)) {
+        nodeSizes.set(r.metadata.uid, { width: COMPACT_NODE_SIZE, height: COMPACT_NODE_SIZE });
+        return;
+      }
       
-      depthColumns.get(depth)!.forEach((uid) => {
-        nodePositions.set(uid, { x, y });
-        maxY = Math.max(maxY, y + NODE_HEIGHT);
-        y += NODE_HEIGHT + NODE_GAP_Y;
+      const pods = controllerToPods.get(r.metadata.uid);
+      if (pods && pods.length > 0) {
+        // Controller with nested pods
+        const configsByKind = controllerToConfigs.get(r.metadata.uid);
+        // Count total individual config resources
+        let numConfigs = 0;
+        if (configsByKind) {
+          configsByKind.forEach(names => numConfigs += names.size);
+        }
+        const minWidth = POD_WIDTH + CONTROLLER_PADDING * 2;
+        // Calculate config icons with wrapping
+        const iconsPerRow = Math.min(numConfigs, CONFIG_ICONS_PER_ROW);
+        const configIconsWidth = iconsPerRow > 0 ? iconsPerRow * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) - CONFIG_ICON_GAP + CONTROLLER_PADDING * 2 : 0;
+        const width = Math.max(minWidth, configIconsWidth);
+        const numConfigRows = numConfigs > 0 ? Math.ceil(numConfigs / CONFIG_ICONS_PER_ROW) : 0;
+        const configIconsHeight = numConfigRows > 0 ? numConfigRows * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) + CONFIG_ICON_GAP : 0;
+        const height = CONTROLLER_HEADER + pods.length * (POD_HEIGHT + POD_GAP) - POD_GAP + CONTROLLER_PADDING + configIconsHeight;
+        nodeSizes.set(r.metadata.uid, { width, height });
+      } else {
+        nodeSizes.set(r.metadata.uid, { width: NODE_WIDTH, height: NODE_HEIGHT });
+      }
+    });
+    
+    // Position nodes in lanes
+    const nodePositions = new Map<string, { x: number; y: number }>();
+    let maxX = 0;
+    // Leave space for the title bar
+    let maxY = APP_PADDING + APP_TITLE_HEIGHT;
+    
+    // Get sorted lane numbers that exist in this component
+    const activeLanes = Array.from(lanes.keys()).sort((a, b) => a - b);
+    
+    // Calculate max width per lane (for alignment)
+    const laneMaxWidth = new Map<number, number>();
+    activeLanes.forEach((lane) => {
+      const maxWidth = Math.max(...(lanes.get(lane) || []).map(uid => nodeSizes.get(uid)?.width || NODE_WIDTH));
+      laneMaxWidth.set(lane, maxWidth);
+    });
+    
+    // Calculate positions - each lane is a column
+    let currentX = APP_PADDING;
+    activeLanes.forEach((lane) => {
+      const laneWidth = laneMaxWidth.get(lane) || NODE_WIDTH;
+      // Start below the title bar
+      let y = APP_PADDING + APP_TITLE_HEIGHT;
+      
+      lanes.get(lane)!.forEach((uid) => {
+        const size = nodeSizes.get(uid) || { width: NODE_WIDTH, height: NODE_HEIGHT };
+        // Center smaller nodes within the lane
+        const xOffset = (laneWidth - size.width) / 2;
+        nodePositions.set(uid, { x: currentX + xOffset, y });
+        maxY = Math.max(maxY, y + size.height);
+        y += size.height + NODE_GAP_Y;
       });
       
-      maxX = Math.max(maxX, x + NODE_WIDTH);
+      maxX = Math.max(maxX, currentX + laneWidth);
+      currentX += laneWidth + NODE_GAP_X;
     });
 
     const appWidth = maxX + APP_PADDING;
     const appHeight = maxY + APP_PADDING;
-    
-    const firstResource = componentResources[0];
-    
-    // Prefer workload controllers for naming (they typically have the canonical app labels)
-    const namingPriority = ['Deployment', 'StatefulSet', 'DaemonSet', 'CronJob', 'Job', 'ReplicaSet'];
-    const workloadResources = componentResources
-      .filter(r => namingPriority.includes(r.kind))
-      .sort((a, b) => namingPriority.indexOf(a.kind) - namingPriority.indexOf(b.kind));
-    
-    // Find the best name for the application - prefer group label (part-of)
-    let appName: string | undefined;
-    
-    // First, check workload controllers for group labels (most authoritative)
-    for (const r of workloadResources) {
-      const groupLabel = r.metadata.labels?.[APP_LABELS.PART_OF] ||
-                        r.metadata.labels?.[APP_LABELS.ARGOCD_INSTANCE];
-      if (groupLabel) {
-        appName = groupLabel;
-        break;
-      }
-    }
-    
-    // Then check all resources for group labels
-    if (!appName) {
-      for (const r of componentResources) {
-        const groupLabel = r.metadata.labels?.[APP_LABELS.PART_OF] ||
-                          r.metadata.labels?.[APP_LABELS.ARGOCD_INSTANCE];
-        if (groupLabel) {
-          appName = groupLabel;
-          break;
-        }
-      }
-    }
-    
-    // Fall back to app name from workload controllers first
-    if (!appName) {
-      for (const r of workloadResources) {
-        const name = getAppName(r, uidToResource);
-        if (name) { appName = name; break; }
-      }
-    }
-    
-    // Then try any resource with an app name (using owner chain traversal)
-    if (!appName) {
-      for (const r of componentResources) {
-        const name = getAppName(r, uidToResource);
-        if (name) { appName = name; break; }
-      }
-    }
-    
-    // Final fallback: use the workload controller's name, or root resource name
-    if (!appName) {
-      if (workloadResources.length > 0) {
-        appName = workloadResources[0].metadata.name;
-      } else {
-        const rootResources = componentResources.filter(r => !parentMap.has(r.metadata.uid));
-        const nameSource = rootResources[0] || firstResource;
-        appName = nameSource.metadata.name;
-      }
-    }
 
-    const appNodes: LayoutNode[] = component.map((uid) => {
-      const pos = nodePositions.get(uid)!;
+    const appNodes: LayoutNode[] = standaloneResources.map((r) => {
+      const pos = nodePositions.get(r.metadata.uid)!;
+      const size = nodeSizes.get(r.metadata.uid) || { width: NODE_WIDTH, height: NODE_HEIGHT };
+      const pods = controllerToPods.get(r.metadata.uid);
+      
+      // Create child pod nodes
+      const childPods: LayoutNode[] | undefined = pods?.map((pod, i) => ({
+        uid: pod.metadata.uid,
+        resource: pod,
+        x: CONTROLLER_PADDING,
+        y: CONTROLLER_HEADER + i * (POD_HEIGHT + POD_GAP),
+        width: POD_WIDTH,
+        height: POD_HEIGHT,
+      }));
+      
+      // Get config icons for this controller - one icon per distinct resource
+      const configsByKind = controllerToConfigs.get(r.metadata.uid);
+      const configIcons: Array<{ kind: string; name: string }> = [];
+      if (configsByKind) {
+        configsByKind.forEach((names, kind) => {
+          names.forEach(name => configIcons.push({ kind, name }));
+        });
+      }
+      
       return {
-        uid,
-        resource: uidToResource.get(uid)!,
+        uid: r.metadata.uid,
+        resource: r,
         x: pos.x,
         y: pos.y,
-        width: NODE_WIDTH,
-        height: NODE_HEIGHT,
-      };
+        width: size.width,
+        height: size.height,
+        childPods,
+        configIcons,  // Add config metadata
+      } as LayoutNode & { configIcons?: Array<{ kind: string; name: string }> };
     });
 
     const appEdges: LayoutEdge[] = [];
+    const processedEdges = new Set<string>();
+    
+    // Build set of nested pod UIDs for this component
+    const nestedPodUids = new Set<string>();
+    standaloneResources.forEach(r => {
+      const pods = controllerToPods.get(r.metadata.uid);
+      if (pods) pods.forEach(p => nestedPodUids.add(p.metadata.uid));
+    });
+    
     edges.forEach((edgeList) => {
       edgeList.forEach((edge) => {
-        if (componentSet.has(edge.from) && componentSet.has(edge.to)) {
-          appEdges.push(edge);
+        // Check if both ends are relevant to this component
+        const fromStandalone = standaloneResources.some(r => r.metadata.uid === edge.from);
+        const toStandalone = standaloneResources.some(r => r.metadata.uid === edge.to);
+        const toNestedPod = nestedPodUids.has(edge.to);
+        const fromNestedPod = nestedPodUids.has(edge.from);
+        
+        // Include edge if: both standalone, or one is standalone and other is nested pod
+        if ((fromStandalone && toStandalone) || (fromStandalone && toNestedPod) || (toStandalone && fromNestedPod)) {
+          const edgeKey = `${edge.from}-${edge.to}-${edge.type}`;
+          if (!processedEdges.has(edgeKey)) {
+            processedEdges.add(edgeKey);
+            appEdges.push(edge);
+          }
         }
       });
     });
 
+    // Find the anchor resource (controller) for naming the application
+    // Priority: Deployment > StatefulSet > DaemonSet > CronJob > Job > Pod
+    let anchorResource: K8sResource | undefined;
+    let anchorPriority = Infinity;
+    
+    standaloneResources.forEach((r) => {
+      const priority = ANCHOR_PRIORITY[r.kind];
+      if (priority !== undefined && priority < anchorPriority) {
+        anchorPriority = priority;
+        anchorResource = r;
+      }
+    });
+    
+    // Extract application name from anchor's labels
+    const appName = anchorResource ? (extractAppName(anchorResource) || anchorResource.metadata.name) : undefined;
+    const appNamespace = anchorResource?.metadata.namespace;
+
     applications.push({
       id: `app-${idx}`,
-      name: appName,
-      namespace: firstResource.metadata.namespace,
+      name: appName || '',
+      namespace: appNamespace,
       nodes: appNodes,
       edges: appEdges,
       x: 0,
@@ -1256,30 +1784,92 @@ function buildLayout(resources: K8sResource[]): Application[] {
     });
   });
 
+  // Group applications by app name + namespace (same app name in same namespace = same group)
+  const appsByKey = new Map<string, Application[]>();
+  applications.forEach((app) => {
+    const ns = app.namespace || '';
+    const name = app.name || '';
+    const key = `${ns}/${name}`;
+    if (!appsByKey.has(key)) appsByKey.set(key, []);
+    appsByKey.get(key)!.push(app);
+  });
+
+  // Merge applications with the same app name in the same namespace
+  const mergedApplications: Application[] = [];
+  
+  appsByKey.forEach((groupApps, key) => {
+    if (groupApps.length === 1) {
+      // Single app in group, use as-is
+      mergedApplications.push(groupApps[0]);
+    } else {
+      // Multiple apps with same name in namespace - combine them
+      // Sort by resource name for consistent ordering
+      groupApps.sort((a, b) => {
+        const aFirstNode = a.nodes[0]?.resource.metadata.name || '';
+        const bFirstNode = b.nodes[0]?.resource.metadata.name || '';
+        return aFirstNode.localeCompare(bFirstNode);
+      });
+      
+      // Layout apps horizontally within the merged group
+      const mergedNodes: LayoutNode[] = [];
+      const mergedEdges: LayoutEdge[] = [];
+      let offsetX = APP_PADDING;
+      let maxHeight = 0;
+      
+      groupApps.forEach((app) => {
+        // Offset all nodes by current position
+        app.nodes.forEach((node) => {
+          mergedNodes.push({
+            ...node,
+            x: node.x + offsetX - APP_PADDING,
+            y: node.y,
+          });
+        });
+        mergedEdges.push(...app.edges);
+        
+        offsetX += app.width + APP_GAP;
+        maxHeight = Math.max(maxHeight, app.height);
+      });
+      
+      // Extract namespace and name from key
+      const [ns, name] = key.split('/');
+      
+      // Create merged application
+      mergedApplications.push({
+        id: `app-${key}`,
+        name: name,
+        namespace: ns,
+        nodes: mergedNodes,
+        edges: mergedEdges,
+        x: 0,
+        y: 0,
+        width: offsetX - APP_GAP + APP_PADDING,
+        height: maxHeight,
+      });
+    }
+  });
+
   // Arrange applications using row-based layout
   // Sort by height (tallest first) for better packing
-  applications.sort((a, b) => b.height - a.height);
+  mergedApplications.sort((a, b) => b.height - a.height);
   
   const MAX_ROW_WIDTH = 1800;
   let currentX = 0;
-  let rowHeight = 0;
   let rowApps: { app: Application; tempX: number }[] = [];
   
   const rows: { app: Application; tempX: number }[][] = [];
   
-  applications.forEach((app) => {
+  mergedApplications.forEach((app) => {
     // Check if app fits in current row
     if (currentX + app.width > MAX_ROW_WIDTH && rowApps.length > 0) {
       // Start new row
       rows.push([...rowApps]);
       currentX = 0;
-      rowHeight = 0;
       rowApps = [];
     }
     
     rowApps.push({ app, tempX: currentX });
     currentX += app.width + APP_GAP;
-    rowHeight = Math.max(rowHeight, app.height);
   });
   
   // Don't forget the last row
@@ -1307,7 +1897,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
     y += maxHeight + APP_GAP;
   });
 
-  return applications;
+  return mergedApplications;
 }
 
 export default ResourceOverview;

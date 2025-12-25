@@ -2,11 +2,11 @@ import { Hexagon, Layers, Database, Zap } from 'lucide-react';
 
 export function WelcomePage() {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
+    <div className="flex flex-col items-center justify-center h-full bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
       <div className="max-w-2xl mx-auto px-8 text-center">
         {/* Logo / Icon */}
         <div className="mb-8 relative">
-          <div className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25">
+          <div className="w-24 h-24 mx-auto rounded-2xl bg-linear-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25">
             <Hexagon size={48} className="text-white" strokeWidth={1.5} />
           </div>
         </div>
