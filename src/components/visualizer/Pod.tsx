@@ -57,7 +57,7 @@ export function PodVisualizer({ resource }: ResourceVisualizerProps) {
 
       {/* Volumes */}
       {spec.volumes && spec.volumes.length > 0 && (
-        <VolumesSection volumes={spec.volumes} />
+        <VolumesSection volumes={spec.volumes} containers={[...(spec.initContainers || []), ...spec.containers]} />
       )}
     </div>
   );
@@ -239,21 +239,41 @@ function ContainerCard({
   );
 }
 
-function VolumesSection({ volumes }: { volumes: V1Volume[] }) {
+function VolumesSection({ volumes, containers }: { volumes: V1Volume[]; containers: V1Container[] }) {
   const [expanded, setExpanded] = useState(false);
 
-  // Helper to determine volume type
-  const getVolumeType = (volume: V1Volume): string => {
-    if (volume.configMap) return 'configMap';
-    if (volume.secret) return 'secret';
-    if (volume.emptyDir) return 'emptyDir';
-    if (volume.hostPath) return 'hostPath';
-    if (volume.persistentVolumeClaim) return 'pvc';
-    if (volume.projected) return 'projected';
-    if (volume.downwardAPI) return 'downwardAPI';
-    if (volume.nfs) return 'nfs';
-    if (volume.csi) return 'csi';
-    return 'unknown';
+  // Helper to determine volume type and details
+  const getVolumeInfo = (volume: V1Volume): { type: string; detail: string } => {
+    if (volume.configMap) return { type: 'ConfigMap', detail: volume.configMap.name || '' };
+    if (volume.secret) return { type: 'Secret', detail: volume.secret.secretName || '' };
+    if (volume.emptyDir) return { type: 'EmptyDir', detail: volume.emptyDir.medium || 'default' };
+    if (volume.hostPath) return { type: 'HostPath', detail: volume.hostPath.path };
+    if (volume.persistentVolumeClaim) return { type: 'PVC', detail: volume.persistentVolumeClaim.claimName };
+    if (volume.projected) return { type: 'Projected', detail: `${volume.projected.sources?.length || 0} sources` };
+    if (volume.downwardAPI) return { type: 'DownwardAPI', detail: `${volume.downwardAPI.items?.length || 0} items` };
+    if (volume.nfs) return { type: 'NFS', detail: `${volume.nfs.server}:${volume.nfs.path}` };
+    if (volume.csi) return { type: 'CSI', detail: volume.csi.driver };
+    return { type: 'Unknown', detail: '' };
+  };
+
+  // Get all mount points for a volume
+  const getVolumeMounts = (volumeName: string): Array<{ container: string; mountPath: string; readOnly: boolean; subPath?: string }> => {
+    const mounts: Array<{ container: string; mountPath: string; readOnly: boolean; subPath?: string }> = [];
+    for (const container of containers) {
+      if (container.volumeMounts) {
+        for (const mount of container.volumeMounts) {
+          if (mount.name === volumeName) {
+            mounts.push({
+              container: container.name,
+              mountPath: mount.mountPath,
+              readOnly: mount.readOnly ?? false,
+              subPath: mount.subPath
+            });
+          }
+        }
+      }
+    }
+    return mounts;
   };
 
   return (
@@ -266,14 +286,53 @@ function VolumesSection({ volumes }: { volumes: V1Volume[] }) {
         Volumes ({volumes.length})
       </button>
       {expanded && (
-        <div className="space-y-1">
-          {volumes.map((volume) => (
-            <div key={volume.name} className="flex items-center gap-2 text-xs bg-gray-900/50 px-2 py-1.5 rounded">
-              <HardDrive size={12} className="text-gray-500" />
-              <span className="text-purple-400">{volume.name}</span>
-              <span className="text-gray-600">({getVolumeType(volume)})</span>
-            </div>
-          ))}
+        <div className="space-y-2">
+          {volumes.map((volume) => {
+            const info = getVolumeInfo(volume);
+            const mounts = getVolumeMounts(volume.name);
+            return (
+              <div key={volume.name} className="text-xs bg-gray-900/50 px-3 py-2 rounded-lg border border-gray-800">
+                <div className="flex items-center gap-2 mb-1">
+                  <HardDrive size={12} className="text-purple-400" />
+                  <span className="text-purple-400 font-medium">{volume.name}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                    info.type === 'ConfigMap' ? 'bg-blue-500/20 text-blue-400' :
+                    info.type === 'Secret' ? 'bg-amber-500/20 text-amber-400' :
+                    info.type === 'PVC' ? 'bg-emerald-500/20 text-emerald-400' :
+                    info.type === 'EmptyDir' ? 'bg-gray-500/20 text-gray-400' :
+                    info.type === 'HostPath' ? 'bg-red-500/20 text-red-400' :
+                    'bg-gray-700 text-gray-400'
+                  }`}>
+                    {info.type}
+                  </span>
+                </div>
+                {info.detail && (
+                  <div className="text-gray-500 ml-5 mb-1">
+                    <span className="text-gray-600">Source:</span>{' '}
+                    <span className="text-cyan-400">{info.detail}</span>
+                  </div>
+                )}
+                {mounts.length > 0 && (
+                  <div className="ml-5 mt-1.5 space-y-1 border-l border-gray-700 pl-2">
+                    {mounts.map((mount, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-gray-400">
+                        <Box size={10} className="text-gray-600" />
+                        <span className="text-gray-500">{mount.container}</span>
+                        <span className="text-gray-600">→</span>
+                        <span className="text-cyan-400 font-mono">{mount.mountPath}</span>
+                        {mount.subPath && (
+                          <span className="text-gray-600">(subPath: {mount.subPath})</span>
+                        )}
+                        {mount.readOnly && (
+                          <span className="text-amber-500/70 text-[10px]">RO</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
