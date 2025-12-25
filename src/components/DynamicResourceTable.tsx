@@ -90,13 +90,13 @@ export function DynamicResourceTable({
 
   // Get visible columns
   const visibleColumns = useMemo(() => {
-    if (!data) return [];
+    if (!data?.columnDefinitions) return [];
     return data.columnDefinitions.filter((col) => !hiddenColumns.has(col.name.toLowerCase()));
   }, [data, hiddenColumns]);
 
   // Notify parent of columns when data loads
   useEffect(() => {
-    if (data && onColumnsLoaded) {
+    if (data?.columnDefinitions && onColumnsLoaded) {
       onColumnsLoaded(data.columnDefinitions);
     }
   }, [data, onColumnsLoaded]);
@@ -125,7 +125,7 @@ export function DynamicResourceTable({
     );
   }
 
-  if (!data || data.rows.length === 0) {
+  if (!data || !data.columnDefinitions || data.rows.length === 0) {
     return (
       <div className="flex items-center justify-center py-12 text-gray-600 bg-gray-50 dark:text-gray-500 dark:bg-gray-900 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
         <span>No {config.name} found</span>

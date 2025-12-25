@@ -29,10 +29,10 @@ export function MainContent({ resource, namespace }: MainContentProps) {
   const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
   
   const { hiddenColumns, toggleColumn } = useColumnVisibility();
-  const panels = usePanels();
+  const { isOpen, open, close, toggle } = usePanels();
   
-  const isAIPanelOpen = panels.isOpen(PANEL_AI);
-  const isDetailPanelOpen = panels.isOpen(PANEL_DETAIL);
+  const isAIPanelOpen = isOpen(PANEL_AI);
+  const isDetailPanelOpen = isOpen(PANEL_DETAIL);
 
   useEffect(() => {
     setTitle(getDisplayName(resource));
@@ -41,20 +41,18 @@ export function MainContent({ resource, namespace }: MainContentProps) {
   // Clear selected item and close detail panel when resource changes
   useEffect(() => {
     setSelectedItem(null);
-    panels.close(PANEL_DETAIL);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resource, namespace]);
+    close(PANEL_DETAIL);
+  }, [resource, namespace, close]);
 
   // Sync selected item with detail panel state
   const handleSelectItem = useCallback((item: TableRow | null) => {
     setSelectedItem(item);
     if (item) {
-      panels.open(PANEL_DETAIL);
+      open(PANEL_DETAIL);
     } else {
-      panels.close(PANEL_DETAIL);
+      close(PANEL_DETAIL);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [open, close]);
 
   const handleColumnsLoaded = useCallback((cols: TableColumnDefinition[]) => {
     setColumns(cols);
@@ -88,7 +86,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
             />
             {getConfig().ai && (
               <button
-                onClick={() => panels.toggle(PANEL_AI)}
+                onClick={() => toggle(PANEL_AI)}
                 className={`p-2 rounded-md transition-colors ${
                   isAIPanelOpen 
                     ? 'text-sky-400 hover:text-sky-300 hover:bg-gray-100 dark:hover:bg-gray-800' 
@@ -116,7 +114,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
       </main>
       <AIPanel 
         isOpen={isAIPanelOpen}
-        onClose={() => panels.close(PANEL_AI)}
+        onClose={() => close(PANEL_AI)}
         otherPanelOpen={isDetailPanelOpen}
         context={{
           currentNamespace: namespace,
@@ -128,7 +126,7 @@ export function MainContent({ resource, namespace }: MainContentProps) {
         isOpen={isDetailPanelOpen}
         onClose={() => {
           setSelectedItem(null);
-          panels.close(PANEL_DETAIL);
+          close(PANEL_DETAIL);
         }}
         otherPanelOpen={isAIPanelOpen}
         resource={selectedItem ? {
