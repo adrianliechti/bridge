@@ -194,12 +194,12 @@ export function NamespaceSelector({
         <input
           ref={inputRef}
           type="text"
-          className="w-full px-3 py-2 pr-8 bg-gray-50 border border-gray-300 text-gray-900 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 rounded-md text-sm text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600 cursor-default"
+          className="w-full px-3 py-1.5 pr-8 bg-white/60 dark:bg-gray-700/60 border-0 text-gray-900 dark:text-gray-100 rounded-lg text-[13px] text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-gray-400/50 dark:focus:ring-gray-500/50 cursor-default placeholder:text-gray-400"
           value={isOpen ? query : (selectedNamespace || 'All Namespaces')}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => !disabled && setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={isOpen ? "Type to search..." : undefined}
+          placeholder={isOpen ? "Search..." : undefined}
           disabled={disabled}
           readOnly={!isOpen}
         />
@@ -209,14 +209,14 @@ export function NamespaceSelector({
           className="absolute inset-y-0 right-0 flex items-center pr-2"
           disabled={disabled}
         >
-          <ChevronDown size={16} className="text-gray-500 dark:text-gray-500" />
+          <ChevronDown size={14} className="text-gray-400 dark:text-gray-500" />
         </button>
       </div>
 
       {isOpen && (
         <div
           ref={listRef}
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 dark:bg-gray-900 dark:border-gray-700 rounded-lg shadow-xl max-h-96 overflow-y-auto focus:outline-none"
+          className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-xl max-h-96 overflow-y-auto focus:outline-none border border-gray-200 dark:border-gray-700"
         >
           {!hasResults && !showAllNamespacesOption ? (
             <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
@@ -228,25 +228,25 @@ export function NamespaceSelector({
                 <div
                   data-index={++optionIndex}
                   onClick={() => handleSelect('')}
-                  className={`px-3 py-2.5 cursor-pointer text-sm flex items-center justify-between ${
+                  className={`px-3 py-2 cursor-pointer text-[13px] flex items-center justify-between ${
                     focusedIndex === optionIndex
-                      ? 'bg-gray-100 dark:bg-gray-800'
+                      ? 'bg-gray-100 dark:bg-gray-700'
                       : ''
                   } ${
                     selectedNamespace === undefined
                       ? 'text-gray-900 dark:text-gray-100'
-                      : 'text-gray-700 dark:text-gray-300'
+                      : 'text-gray-600 dark:text-gray-400'
                   }`}
                 >
                   <span className="truncate">All Namespaces</span>
                   {selectedNamespace === undefined && (
-                    <Check size={16} className="text-gray-600 dark:text-gray-400" />
+                    <Check size={14} className="text-gray-500 dark:text-gray-400" />
                   )}
                 </div>
               )}
               {filteredGroups.map((group) => (
-                <div key={group.label} className="py-1.5">
-                  <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                <div key={group.label} className="py-1">
+                  <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     {group.label}
                   </div>
                   {group.namespaces.map((ns) => {
@@ -259,17 +259,17 @@ export function NamespaceSelector({
                         key={ns.name}
                         data-index={currentIndex}
                         onClick={() => handleSelect(ns.name)}
-                        className={`ml-2 mr-1 px-3 py-2 rounded cursor-pointer text-sm flex items-center justify-between ${
-                          isFocused ? 'bg-gray-100 dark:bg-gray-800' : ''
+                        className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-[13px] flex items-center justify-between ${
+                          isFocused ? 'bg-gray-100 dark:bg-gray-700' : ''
                         } ${
                           isSelected
                             ? 'text-gray-900 dark:text-gray-100'
-                            : 'text-gray-700 dark:text-gray-300'
+                            : 'text-gray-600 dark:text-gray-400'
                         }`}
                       >
                         <span className="truncate">{ns.name}</span>
                         {isSelected && (
-                          <Check size={16} className="text-gray-600 dark:text-gray-400" />
+                          <Check size={14} className="text-gray-500 dark:text-gray-400" />
                         )}
                       </div>
                     );
