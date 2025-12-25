@@ -10,9 +10,30 @@ import type {
 } from '@kubernetes/client-node';
 import { fetchApi } from './kubernetes';
 
-// Discovery cache - maps plural, singular, and short names to resource config
-let discoveryCache: Map<string, V1APIResource> | null = null;
+// Discovery cache - stores resources by unique group/plural key
+// aliasCache maps plural, singular, and short names to resources (with priority)
+let resourceCache: Map<string, V1APIResource> | null = null;
+let aliasCache: Map<string, V1APIResource> | null = null;
 let discoveryPromise: Promise<Map<string, V1APIResource>> | null = null;
+
+// Group priority for alias resolution (lower = higher priority, like kubectl)
+// Core API has highest priority, then well-known groups
+function getGroupPriority(group: string): number {
+  if (group === '') return 0;  // Core API (v1)
+  if (group === 'apps') return 1;
+  if (group === 'batch') return 2;
+  if (group === 'networking.k8s.io') return 3;
+  if (group === 'storage.k8s.io') return 4;
+  if (group === 'rbac.authorization.k8s.io') return 5;
+  if (group.endsWith('.k8s.io')) return 10;  // Other k8s.io groups
+  return 100;  // Custom/third-party groups
+}
+
+// Build unique key for a resource (group/plural)
+function getResourceKey(resource: V1APIResource): string {
+  const group = resource.group || '';
+  return group ? `${resource.name}.${group}` : resource.name;
+}
 
 // Build API base path from group and version
 export function getApiBase(resource: V1APIResource): string {
@@ -21,20 +42,42 @@ export function getApiBase(resource: V1APIResource): string {
   return group ? `/apis/${group}/${version}` : '/api/v1';
 }
 
-// Add a resource to the map with all its name variations
-function addResourceToMap(map: Map<string, V1APIResource>, resource: V1APIResource): void {
-  // Add by plural name (primary key)
-  map.set(resource.name, resource);
+// Add a resource to the caches
+function addResourceToMap(
+  resources: Map<string, V1APIResource>,
+  aliases: Map<string, V1APIResource>,
+  resource: V1APIResource
+): void {
+  // Always store by unique key (group/plural)
+  const key = getResourceKey(resource);
+  resources.set(key, resource);
   
-  // Add by singular name if available
+  const resourcePriority = getGroupPriority(resource.group || '');
+  
+  // Helper to add alias with priority check
+  const addAlias = (alias: string) => {
+    const existing = aliases.get(alias);
+    if (!existing) {
+      aliases.set(alias, resource);
+    } else {
+      // Only overwrite if this resource has higher priority (lower number)
+      const existingPriority = getGroupPriority(existing.group || '');
+      if (resourcePriority < existingPriority) {
+        aliases.set(alias, resource);
+      }
+    }
+  };
+  
+  // Add aliases by plural, singular, and short names
+  addAlias(resource.name);
+  
   if (resource.singularName) {
-    map.set(resource.singularName, resource);
+    addAlias(resource.singularName);
   }
   
-  // Add by short names if available
   if (resource.shortNames) {
     for (const shortName of resource.shortNames) {
-      map.set(shortName, resource);
+      addAlias(shortName);
     }
   }
 }
@@ -42,8 +85,8 @@ function addResourceToMap(map: Map<string, V1APIResource>, resource: V1APIResour
 // Discover all API resources from the cluster
 export async function discoverResources(): Promise<Map<string, V1APIResource>> {
   // Return cached result if available
-  if (discoveryCache) {
-    return discoveryCache;
+  if (aliasCache) {
+    return aliasCache;
   }
 
   // Return in-flight promise if discovery is already running
@@ -52,7 +95,8 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
   }
 
   discoveryPromise = (async () => {
-    const resourceMap = new Map<string, V1APIResource>();
+    const resources = new Map<string, V1APIResource>();
+    const aliases = new Map<string, V1APIResource>();
 
     // Fetch core v1 resources
     try {
@@ -66,7 +110,7 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
           group: '',
           version: 'v1',
         };
-        addResourceToMap(resourceMap, enrichedResource);
+        addResourceToMap(resources, aliases, enrichedResource);
       }
     } catch (e) {
       console.warn('Failed to fetch core v1 resources:', e);
@@ -95,7 +139,7 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
                 group: resource.group || group.name,
                 version: resource.version || preferredVersion,
               };
-              addResourceToMap(resourceMap, enrichedResource);
+              addResourceToMap(resources, aliases, enrichedResource);
             }
           } catch (e) {
             console.warn(`Failed to fetch resources for ${apiBase}:`, e);
@@ -106,9 +150,10 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
       console.warn('Failed to fetch API groups:', e);
     }
 
-    discoveryCache = resourceMap;
+    resourceCache = resources;
+    aliasCache = aliases;
     discoveryPromise = null;
-    return resourceMap;
+    return aliases;
   })();
 
   return discoveryPromise;
@@ -118,6 +163,12 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
 export async function getResourceConfig(plural: string): Promise<V1APIResource | undefined> {
   const resources = await discoverResources();
   return resources.get(plural);
+}
+
+// Get resource config by fully qualified name (e.g., "pods.metrics.k8s.io")
+export async function getResourceConfigByQualifiedName(name: string): Promise<V1APIResource | undefined> {
+  await discoverResources(); // Ensure discovery is complete
+  return resourceCache?.get(name);
 }
 
 // Get resource config by kind name
