@@ -197,6 +197,9 @@ export function ResourceVisualizer({ resource, namespace, onActionComplete }: Re
   const sections = adaptResource(resource, namespace);
   const actions = getResourceActions(resource);
 
+  // Get kubernetes.io/description annotation if present
+  const description = resource.metadata?.annotations?.['kubernetes.io/description'];
+
   if (!sections || sections.sections.length === 0) {
     return (
       <div className="text-neutral-500 text-sm">
@@ -213,6 +216,11 @@ export function ResourceVisualizer({ resource, namespace, onActionComplete }: Re
         namespace={namespace}
         onActionComplete={onActionComplete}
       />
+      {description && (
+        <div className="text-sm text-neutral-400 bg-neutral-800/50 rounded-lg px-3 py-2 border border-neutral-700/50">
+          {description}
+        </div>
+      )}
       {sections.sections.map(section => (
         <SectionRenderer key={section.id} section={section} />
       ))}
@@ -334,6 +342,9 @@ function StatusCardsSection({ items }: { items: StatusCardData[] }) {
             {item.icon}
             {item.value}
           </div>
+          {item.description && (
+            <div className="text-xs text-neutral-500 mt-1">{item.description}</div>
+          )}
         </div>
       ))}
     </div>

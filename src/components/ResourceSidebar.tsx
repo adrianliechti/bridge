@@ -20,6 +20,10 @@ import {
   ChevronRight,
   Hexagon,
   Network,
+  ShieldCheck,
+  FileCheck,
+  AppWindow,
+  LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
@@ -53,8 +57,12 @@ const builtInNavItems: BuiltInNavItem[] = [
   { kind: 'jobs', label: 'Jobs', icon: Zap, category: 'workloads' },
   { kind: 'cronjobs', label: 'CronJobs', icon: Clock, category: 'workloads' },
   // Config
-  { kind: 'configmaps', label: 'ConfigMaps', icon: FileText, category: 'config' },
   { kind: 'secrets', label: 'Secrets', icon: KeyRound, category: 'config' },
+  { kind: 'configmaps', label: 'ConfigMaps', icon: FileText, category: 'config' },
+  { kind: 'applications', label: 'Applications', icon: AppWindow, category: 'config' },
+  { kind: 'applicationsets', label: 'ApplicationSets', icon: LayoutGrid, category: 'config' },
+  { kind: 'certificates', label: 'Certificates', icon: ShieldCheck, category: 'config' },
+  { kind: 'certificaterequests', label: 'CertificateRequests', icon: FileCheck, category: 'config' },
   // Network
   { kind: 'services', label: 'Services', icon: Plug, category: 'network' },
   { kind: 'ingresses', label: 'Ingresses', icon: Globe, category: 'network' },
@@ -106,7 +114,7 @@ export function ResourceSidebar({
     network: true,
     storage: true,
     cluster: true,
-    crd: true,
+    crd: false,
   });
 
   // Load built-in resource configs from discovery

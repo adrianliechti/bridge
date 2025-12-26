@@ -30,6 +30,7 @@ export interface StatusCardData {
   value: string | number;
   status?: StatusLevel;
   icon?: ReactNode;
+  description?: string;
 }
 
 /** Gauge showing progress (e.g., "Ready: 3/5") */
