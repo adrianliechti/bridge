@@ -1,4 +1,52 @@
 import { fetchApi } from './kubernetes';
+import { getResourceConfigByQualifiedName } from './kubernetesDiscovery';
+
+// Cache for metrics availability check
+let metricsAvailable: boolean | null = null;
+let metricsCheckPromise: Promise<boolean> | null = null;
+
+/**
+ * Check if metrics-server API is available in the cluster.
+ * Uses discovery to check for metrics.k8s.io API group.
+ * Results are cached to avoid repeated checks.
+ */
+export async function isMetricsAvailable(): Promise<boolean> {
+  // Return cached result if available
+  if (metricsAvailable !== null) {
+    return metricsAvailable;
+  }
+
+  // Return in-flight promise if check is already running
+  if (metricsCheckPromise) {
+    return metricsCheckPromise;
+  }
+
+  metricsCheckPromise = (async () => {
+    try {
+      // Try to discover the 'pods' resource in metrics.k8s.io group
+      const resource = await getResourceConfigByQualifiedName('pods.metrics.k8s.io');
+      metricsAvailable = resource !== undefined;
+      return metricsAvailable;
+    } catch (e) {
+      console.warn('Failed to check metrics availability:', e);
+      metricsAvailable = false;
+      return false;
+    } finally {
+      metricsCheckPromise = null;
+    }
+  })();
+
+  return metricsCheckPromise;
+}
+
+/**
+ * Reset the metrics availability cache.
+ * Useful if the cluster configuration changes or metrics-server is installed/uninstalled.
+ */
+export function resetMetricsCache(): void {
+  metricsAvailable = null;
+  metricsCheckPromise = null;
+}
 
 export interface ContainerMetrics {
   name: string;
@@ -118,6 +166,10 @@ export function calculatePercentage(usage: number, limit: number): number {
 
 export async function getPodMetrics(name: string, namespace: string): Promise<PodMetrics | null> {
   try {
+    // Check if metrics API is available before making request
+    if (!(await isMetricsAvailable())) {
+      return null;
+    }
     return await fetchApi<PodMetrics>(`/apis/metrics.k8s.io/v1beta1/namespaces/${namespace}/pods/${name}`);
   } catch {
     return null;
@@ -126,6 +178,10 @@ export async function getPodMetrics(name: string, namespace: string): Promise<Po
 
 export async function getNamespacePodMetrics(namespace: string): Promise<PodMetrics[]> {
   try {
+    // Check if metrics API is available before making request
+    if (!(await isMetricsAvailable())) {
+      return [];
+    }
     const response = await fetchApi<PodMetricsList>(`/apis/metrics.k8s.io/v1beta1/namespaces/${namespace}/pods`);
     return response.items || [];
   } catch {
@@ -135,6 +191,10 @@ export async function getNamespacePodMetrics(namespace: string): Promise<PodMetr
 
 export async function getPodMetricsBySelector(namespace: string, matchLabels: Record<string, string>): Promise<PodMetrics[]> {
   try {
+    // Check if metrics API is available before making request
+    if (!(await isMetricsAvailable())) {
+      return [];
+    }
     const labelSelector = Object.entries(matchLabels).map(([k, v]) => `${k}=${v}`).join(',');
     const response = await fetchApi<PodMetricsList>(
       `/apis/metrics.k8s.io/v1beta1/namespaces/${namespace}/pods?labelSelector=${encodeURIComponent(labelSelector)}`
@@ -147,6 +207,10 @@ export async function getPodMetricsBySelector(namespace: string, matchLabels: Re
 
 export async function getNodeMetrics(name: string): Promise<NodeMetrics | null> {
   try {
+    // Check if metrics API is available before making request
+    if (!(await isMetricsAvailable())) {
+      return null;
+    }
     return await fetchApi<NodeMetrics>(`/apis/metrics.k8s.io/v1beta1/nodes/${name}`);
   } catch {
     return null;
@@ -155,6 +219,10 @@ export async function getNodeMetrics(name: string): Promise<NodeMetrics | null> 
 
 export async function getAllNodeMetrics(): Promise<NodeMetrics[]> {
   try {
+    // Check if metrics API is available before making request
+    if (!(await isMetricsAvailable())) {
+      return [];
+    }
     const response = await fetchApi<NodeMetricsList>(`/apis/metrics.k8s.io/v1beta1/nodes`);
     return response.items || [];
   } catch {

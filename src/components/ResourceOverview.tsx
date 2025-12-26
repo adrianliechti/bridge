@@ -65,68 +65,84 @@ const kindIcons: Record<string, LucideIcon> = {
   Node: Server,
 };
 
-// Resource kind to color mapping (CSS colors for SVG)
-const kindColors: Record<string, { bg: string; border: string; text: string }> = {
-  Pod: { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
-  Deployment: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
-  DaemonSet: { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
-  StatefulSet: { bg: '#ede9fe', border: '#8b5cf6', text: '#5b21b6' },
-  Job: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-  CronJob: { bg: '#ffedd5', border: '#f97316', text: '#9a3412' },
-  Service: { bg: '#cffafe', border: '#06b6d4', text: '#155e75' },
-  Ingress: { bg: '#ccfbf1', border: '#14b8a6', text: '#115e59' },
-  Gateway: { bg: '#d1fae5', border: '#10b981', text: '#065f46' },
-  HTTPRoute: { bg: '#a7f3d0', border: '#34d399', text: '#047857' },
-  GRPCRoute: { bg: '#a7f3d0', border: '#34d399', text: '#047857' },
-  NetworkPolicy: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-  PersistentVolume: { bg: '#f1f5f9', border: '#64748b', text: '#334155' },
-  PersistentVolumeClaim: { bg: '#f8fafc', border: '#94a3b8', text: '#475569' },
-  ConfigMap: { bg: '#fef9c3', border: '#eab308', text: '#854d0e' },
-  Secret: { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
+// Resource kind to color mapping (Tailwind colors for light/dark theme support)
+const kindColors: Record<string, { bg: string; bgDark: string; border: string; borderDark: string; text: string; textDark: string }> = {
+  Pod: { bg: '#dcfce7', bgDark: '#14532d', border: '#22c55e', borderDark: '#4ade80', text: '#166534', textDark: '#86efac' },
+  Deployment: { bg: '#dbeafe', bgDark: '#1e3a8a', border: '#3b82f6', borderDark: '#60a5fa', text: '#1e40af', textDark: '#93c5fd' },
+  DaemonSet: { bg: '#f3e8ff', bgDark: '#581c87', border: '#a855f7', borderDark: '#c084fc', text: '#6b21a8', textDark: '#d8b4fe' },
+  StatefulSet: { bg: '#ede9fe', bgDark: '#5b21b6', border: '#8b5cf6', borderDark: '#a78bfa', text: '#5b21b6', textDark: '#c4b5fd' },
+  Job: { bg: '#fef3c7', bgDark: '#78350f', border: '#f59e0b', borderDark: '#fbbf24', text: '#92400e', textDark: '#fcd34d' },
+  CronJob: { bg: '#ffedd5', bgDark: '#7c2d12', border: '#f97316', borderDark: '#fb923c', text: '#9a3412', textDark: '#fdba74' },
+  Service: { bg: '#cffafe', bgDark: '#164e63', border: '#06b6d4', borderDark: '#22d3ee', text: '#155e75', textDark: '#67e8f9' },
+  Ingress: { bg: '#ccfbf1', bgDark: '#134e4a', border: '#14b8a6', borderDark: '#2dd4bf', text: '#115e59', textDark: '#5eead4' },
+  Gateway: { bg: '#d1fae5', bgDark: '#065f46', border: '#10b981', borderDark: '#34d399', text: '#065f46', textDark: '#6ee7b7' },
+  HTTPRoute: { bg: '#a7f3d0', bgDark: '#047857', border: '#34d399', borderDark: '#6ee7b7', text: '#047857', textDark: '#a7f3d0' },
+  GRPCRoute: { bg: '#a7f3d0', bgDark: '#047857', border: '#34d399', borderDark: '#6ee7b7', text: '#047857', textDark: '#a7f3d0' },
+  NetworkPolicy: { bg: '#fef3c7', bgDark: '#78350f', border: '#f59e0b', borderDark: '#fbbf24', text: '#92400e', textDark: '#fcd34d' },
+  PersistentVolume: { bg: '#f1f5f9', bgDark: '#334155', border: '#64748b', borderDark: '#94a3b8', text: '#334155', textDark: '#cbd5e1' },
+  PersistentVolumeClaim: { bg: '#f8fafc', bgDark: '#475569', border: '#94a3b8', borderDark: '#cbd5e1', text: '#475569', textDark: '#e2e8f0' },
+  ConfigMap: { bg: '#fef9c3', bgDark: '#713f12', border: '#eab308', borderDark: '#facc15', text: '#854d0e', textDark: '#fde047' },
+  Secret: { bg: '#fee2e2', bgDark: '#7f1d1d', border: '#ef4444', borderDark: '#f87171', text: '#991b1b', textDark: '#fca5a5' },
 };
 
-const defaultColors = { bg: '#f3f4f6', border: '#9ca3af', text: '#374151' };
+const defaultColors = { bg: '#f3f4f6', bgDark: '#374151', border: '#9ca3af', borderDark: '#6b7280', text: '#374151', textDark: '#d1d5db' };
 
-function getStatus(r: K8sResource): { status: string; color: string } {
+// Helper function to get the appropriate color based on dark mode
+function getThemedColors(kind: string, isDark: boolean) {
+  const colors = kindColors[kind] || defaultColors;
+  return {
+    bg: isDark ? colors.bgDark : colors.bg,
+    border: isDark ? colors.borderDark : colors.border,
+    text: isDark ? colors.textDark : colors.text,
+  };
+}
+
+function getStatus(r: K8sResource): { status: string; color: string; colorDark: string } {
   let status = 'Unknown';
   let color = '#9ca3af';
+  let colorDark = '#6b7280';
 
   if (r.kind === 'Pod') {
     const phase = (r.status as { phase?: string })?.phase || 'Unknown';
     status = phase;
-    if (phase === 'Running') color = '#22c55e';
-    else if (phase === 'Pending') color = '#eab308';
-    else if (phase === 'Failed') color = '#ef4444';
-    else if (phase === 'Succeeded') color = '#22c55e';
+    if (phase === 'Running') { color = '#22c55e'; colorDark = '#4ade80'; }
+    else if (phase === 'Pending') { color = '#eab308'; colorDark = '#facc15'; }
+    else if (phase === 'Failed') { color = '#ef4444'; colorDark = '#f87171'; }
+    else if (phase === 'Succeeded') { color = '#22c55e'; colorDark = '#4ade80'; }
   } else if (r.kind === 'DaemonSet') {
     // DaemonSets use different status fields than Deployments/StatefulSets
     const desired = (r.status as { desiredNumberScheduled?: number })?.desiredNumberScheduled || 0;
     const ready = (r.status as { numberReady?: number })?.numberReady || 0;
     status = `${ready}/${desired}`;
-    color = ready === desired && desired > 0 ? '#22c55e' : '#eab308';
+    if (ready === desired && desired > 0) { color = '#22c55e'; colorDark = '#4ade80'; }
+    else { color = '#eab308'; colorDark = '#facc15'; }
   } else if (['Deployment', 'StatefulSet'].includes(r.kind)) {
     const replicas = (r.status as { replicas?: number })?.replicas || 0;
     const ready = (r.status as { readyReplicas?: number })?.readyReplicas || 0;
     status = `${ready}/${replicas}`;
-    color = ready === replicas && replicas > 0 ? '#22c55e' : '#eab308';
+    if (ready === replicas && replicas > 0) { color = '#22c55e'; colorDark = '#4ade80'; }
+    else { color = '#eab308'; colorDark = '#facc15'; }
   } else if (r.kind === 'Service') {
     status = 'Active';
     color = '#22c55e';
+    colorDark = '#4ade80';
   } else if (r.kind === 'Job') {
     const succeeded = (r.status as { succeeded?: number })?.succeeded || 0;
     const failed = (r.status as { failed?: number })?.failed || 0;
-    if (succeeded > 0) { status = 'Succeeded'; color = '#22c55e'; }
-    else if (failed > 0) { status = 'Failed'; color = '#ef4444'; }
-    else { status = 'Running'; color = '#eab308'; }
+    if (succeeded > 0) { status = 'Succeeded'; color = '#22c55e'; colorDark = '#4ade80'; }
+    else if (failed > 0) { status = 'Failed'; color = '#ef4444'; colorDark = '#f87171'; }
+    else { status = 'Running'; color = '#eab308'; colorDark = '#facc15'; }
   } else if (r.kind === 'PersistentVolumeClaim') {
     status = (r.status as { phase?: string })?.phase || 'Unknown';
-    color = status === 'Bound' ? '#22c55e' : '#eab308';
+    if (status === 'Bound') { color = '#22c55e'; colorDark = '#4ade80'; }
+    else { color = '#eab308'; colorDark = '#facc15'; }
   } else if (['ConfigMap', 'Secret', 'Ingress', 'CronJob'].includes(r.kind)) {
     status = 'Active';
     color = '#22c55e';
+    colorDark = '#4ade80';
   }
 
-  return { status, color };
+  return { status, color, colorDark };
 }
 
 // Layout types
@@ -189,7 +205,38 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [selectedNode, setSelectedNode] = useState<LayoutNode | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Detect dark mode (supports both class and media query strategies)
+  useEffect(() => {
+    const checkDarkMode = () => {
+      // Check for class-based dark mode (Tailwind class strategy)
+      const hasClass = document.documentElement.classList.contains('dark');
+      // Check for media query-based dark mode (Tailwind media strategy)
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      setIsDarkMode(hasClass || mediaQuery.matches);
+    };
+    
+    checkDarkMode();
+    
+    // Watch for changes to the dark mode class
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    
+    // Watch for media query changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const mediaListener = () => checkDarkMode();
+    mediaQuery.addEventListener('change', mediaListener);
+    
+    return () => {
+      observer.disconnect();
+      mediaQuery.removeEventListener('change', mediaListener);
+    };
+  }, []);
 
   const loadResources = useCallback(async () => {
     setIsLoading(true);
@@ -456,6 +503,7 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
           }}
         >
           <defs>
+            {/* Light mode markers */}
             <marker id="arrow-owner" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
             </marker>
@@ -474,9 +522,28 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
             <marker id="arrow-network-policy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
             </marker>
+            {/* Dark mode markers */}
+            <marker id="arrow-owner-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+            </marker>
+            <marker id="arrow-selector-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#c084fc" />
+            </marker>
+            <marker id="arrow-service-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee" />
+            </marker>
+            <marker id="arrow-ingress-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4bf" />
+            </marker>
+            <marker id="arrow-gateway-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399" />
+            </marker>
+            <marker id="arrow-network-policy-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24" />
+            </marker>
           </defs>
           {applications.map((app) => (
-            <ApplicationGroup key={app.id} application={app} onNodeClick={handleNodeClick} onConfigClick={handleConfigClick} />
+            <ApplicationGroup key={app.id} application={app} onNodeClick={handleNodeClick} onConfigClick={handleConfigClick} isDarkMode={isDarkMode} />
           ))}
         </svg>
       </div>
@@ -491,10 +558,11 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
 }
 
 // Application component
-function ApplicationGroup({ application, onNodeClick, onConfigClick }: { 
+function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode }: { 
   application: Application; 
   onNodeClick: (node: LayoutNode) => void;
   onConfigClick: (kind: string, name: string, ns?: string) => void;
+  isDarkMode: boolean;
 }) {
   // Build node map including nested pods (with calculated absolute positions)
   const nodeMap = useMemo(() => {
@@ -535,10 +603,9 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick }: {
         width={application.width}
         height={application.height}
         rx={12}
-        fill="white"
-        stroke="#e5e7eb"
+        fill={isDarkMode ? '#262626' : 'white'}
+        stroke={isDarkMode ? '#404040' : '#e5e7eb'}
         strokeWidth={1}
-        className="dark:fill-neutral-800 dark:stroke-neutral-700"
       />
       
       {/* Application title */}
@@ -550,9 +617,8 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick }: {
             y={application.y + 13}
             fontSize={12}
             fontWeight={600}
-            fill="#374151"
+            fill={isDarkMode ? '#e5e5e5' : '#374151'}
             dominantBaseline="hanging"
-            className="dark:fill-neutral-200"
           >
             {application.name.length > Math.floor((application.width - 20) / 7) 
               ? application.name.slice(0, Math.floor((application.width - 20) / 7) - 1) + '…' 
@@ -564,9 +630,8 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick }: {
               x={application.x + 10}
               y={application.y + 26}
               fontSize={10}
-              fill="#6b7280"
+              fill={isDarkMode ? '#a3a3a3' : '#6b7280'}
               dominantBaseline="hanging"
-              className="dark:fill-neutral-400"
             >
               {application.namespace.length > Math.floor((application.width - 20) / 6) 
                 ? application.namespace.slice(0, Math.floor((application.width - 20) / 6) - 1) + '…' 
@@ -586,19 +651,19 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick }: {
           const isInternalEdge = from.childPods?.some(p => p.uid === to.uid) || to.childPods?.some(p => p.uid === from.uid);
           if (isInternalEdge) return null;
         }
-        return <EdgeLine key={i} from={from} to={to} type={edge.type} />;
+        return <EdgeLine key={i} from={from} to={to} type={edge.type} isDarkMode={isDarkMode} />;
       })}
 
       {/* Nodes */}
       {standaloneNodes.map((node) => (
-        <ResourceNodeSVG key={node.uid} node={node} onClick={() => onNodeClick(node)} onPodClick={onNodeClick} onConfigClick={onConfigClick} />
+        <ResourceNodeSVG key={node.uid} node={node} onClick={() => onNodeClick(node)} onPodClick={onNodeClick} onConfigClick={onConfigClick} isDarkMode={isDarkMode} />
       ))}
     </g>
   );
 }
 
 // Edge component
-function EdgeLine({ from, to, type }: { from: LayoutNode; to: LayoutNode; type: LayoutEdge['type'] }) {
+function EdgeLine({ from, to, type, isDarkMode }: { from: LayoutNode; to: LayoutNode; type: LayoutEdge['type']; isDarkMode: boolean }) {
   const startX = from.x + from.width;
   const startY = from.y + from.height / 2;
   const endX = to.x;
@@ -608,12 +673,12 @@ function EdgeLine({ from, to, type }: { from: LayoutNode; to: LayoutNode; type: 
   const path = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
   
   const colors: Record<string, string> = {
-    owner: '#64748b',
-    selector: '#8b5cf6',
-    service: '#06b6d4',
-    ingress: '#14b8a6',
-    gateway: '#10b981',
-    'network-policy': '#f59e0b',
+    owner: isDarkMode ? '#94a3b8' : '#64748b',
+    selector: isDarkMode ? '#c084fc' : '#8b5cf6',
+    service: isDarkMode ? '#22d3ee' : '#06b6d4',
+    ingress: isDarkMode ? '#2dd4bf' : '#14b8a6',
+    gateway: isDarkMode ? '#34d399' : '#10b981',
+    'network-policy': isDarkMode ? '#fbbf24' : '#f59e0b',
   };
   
   const dashArrays: Record<string, string | undefined> = {
@@ -632,42 +697,44 @@ function EdgeLine({ from, to, type }: { from: LayoutNode; to: LayoutNode; type: 
       stroke={colors[type]}
       strokeWidth={type === 'network-policy' ? 1.5 : 2}
       strokeDasharray={dashArrays[type]}
-      markerEnd={`url(#arrow-${type})`}
+      markerEnd={`url(#arrow-${type}${isDarkMode ? '-dark' : ''})`}
     />
   );
 }
 
 // Resource node component (SVG)
-function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick }: { 
+function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMode }: { 
   node: LayoutNode; 
   onClick: () => void; 
   onPodClick?: (node: LayoutNode) => void;
   onConfigClick?: (kind: string, name: string, ns?: string) => void;
+  isDarkMode: boolean;
 }) {
   const { resource, x, y, width, height } = node;
   
   // Route to specialized renderers
   if (resource.kind === 'NetworkPolicy') {
-    return <NetworkPolicyNodeSVG node={node} onClick={onClick} />;
+    return <NetworkPolicyNodeSVG node={node} onClick={onClick} isDarkMode={isDarkMode} />;
   }
   if (resource.kind === 'Service') {
-    return <CompactNodeSVG node={node} onClick={onClick} />;
+    return <CompactNodeSVG node={node} onClick={onClick} isDarkMode={isDarkMode} />;
   }
   if (['Gateway', 'HTTPRoute', 'GRPCRoute'].includes(resource.kind)) {
-    return <CompactNodeSVG node={node} onClick={onClick} />;
+    return <CompactNodeSVG node={node} onClick={onClick} isDarkMode={isDarkMode} />;
   }
   if (resource.kind === 'Ingress') {
-    return <IngressNodeSVG node={node} onClick={onClick} />;
+    return <IngressNodeSVG node={node} onClick={onClick} isDarkMode={isDarkMode} />;
   }
   
   // Controllers with pods
   if (['Deployment', 'StatefulSet', 'DaemonSet', 'Job'].includes(resource.kind) && node.childPods && node.childPods.length > 0) {
-    return <ControllerNodeSVG node={node} onClick={onClick} onPodClick={onPodClick} onConfigClick={onConfigClick} />;
+    return <ControllerNodeSVG node={node} onClick={onClick} onPodClick={onPodClick} onConfigClick={onConfigClick} isDarkMode={isDarkMode} />;
   }
   
-  const colors = kindColors[resource.kind] || defaultColors;
+  const colors = getThemedColors(resource.kind, isDarkMode);
   const Icon = kindIcons[resource.kind] || Hexagon;
-  const { color: statusColor } = getStatus(resource);
+  const statusInfo = getStatus(resource);
+  const statusColor = isDarkMode ? statusInfo.colorDark : statusInfo.color;
   
   // Truncate name based on width
   const maxNameChars = Math.floor((width - 20) / 6.5);
@@ -711,7 +778,7 @@ function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick }: {
         y={height - 12}
         fontSize={12}
         fontWeight={600}
-        fill="#1f2937"
+        fill={isDarkMode ? '#e5e7eb' : '#1f2937'}
       >
         {displayName}
       </text>
@@ -720,9 +787,9 @@ function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick }: {
 }
 
 // Compact node for services and gateways (square with icon only)
-function CompactNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => void }) {
+function CompactNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onClick: () => void; isDarkMode: boolean }) {
   const { resource, x, y, width, height } = node;
-  const colors = kindColors[resource.kind] || defaultColors;
+  const colors = getThemedColors(resource.kind, isDarkMode);
   const Icon = kindIcons[resource.kind] || Hexagon;
 
   return (
@@ -752,14 +819,15 @@ function CompactNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => vo
 }
 
 // Controller node that contains pods
-function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick }: { 
+function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMode }: { 
   node: LayoutNode; 
   onClick: () => void; 
   onPodClick?: (node: LayoutNode) => void;
   onConfigClick?: (kind: string, name: string, ns?: string) => void;
+  isDarkMode: boolean;
 }) {
   const { resource, x, y, width, height, childPods = [] } = node;
-  const colors = kindColors[resource.kind] || defaultColors;
+  const colors = getThemedColors(resource.kind, isDarkMode);
   const Icon = kindIcons[resource.kind] || Hexagon;
   
   const maxNameChars = Math.floor((width - 60) / 6);
@@ -802,8 +870,9 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick }: {
       
       {/* Nested pods */}
       {childPods.map((pod, i) => {
-        const podColors = kindColors['Pod'];
-        const { color: statusColor } = getStatus(pod.resource);
+        const podColors = getThemedColors('Pod', isDarkMode);
+        const statusInfo = getStatus(pod.resource);
+        const statusColor = isDarkMode ? statusInfo.colorDark : statusInfo.color;
         const podX = CONTROLLER_PADDING;
         const podY = CONTROLLER_HEADER + i * (POD_HEIGHT + POD_GAP);
         const podNameChars = Math.floor((POD_WIDTH - 30) / 5.5);
@@ -828,7 +897,7 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick }: {
               strokeWidth={1.5}
             />
             <circle cx={12} cy={POD_HEIGHT / 2} r={4} fill={statusColor} />
-            <text x={22} y={POD_HEIGHT / 2 + 4} fontSize={10} fill="#1f2937" fontWeight={500}>
+            <text x={22} y={POD_HEIGHT / 2 + 4} fontSize={10} fill={isDarkMode ? '#e5e7eb' : '#1f2937'} fontWeight={500}>
               {podName}
             </text>
           </g>
@@ -840,7 +909,7 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick }: {
         <g transform={`translate(${CONTROLLER_PADDING}, ${height - Math.ceil(configIcons.length / CONFIG_ICONS_PER_ROW) * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) - CONFIG_ICON_GAP})`}>
           {configIcons.map((config, i) => {
             const ConfigIcon = kindIcons[config.kind];
-            const configColors = kindColors[config.kind] || defaultColors;
+            const configColors = getThemedColors(config.kind, isDarkMode);
             const row = Math.floor(i / CONFIG_ICONS_PER_ROW);
             const col = i % CONFIG_ICONS_PER_ROW;
             const xOffset = col * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP);
@@ -883,9 +952,9 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick }: {
 }
 
 // Ingress node with hosts
-function IngressNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => void }) {
+function IngressNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onClick: () => void; isDarkMode: boolean }) {
   const { resource, x, y, width, height } = node;
-  const colors = kindColors['Ingress'];
+  const colors = getThemedColors('Ingress', isDarkMode);
   const Icon = kindIcons['Ingress'];
   
   const spec = resource.spec as { rules?: Array<{ host?: string }> };
@@ -915,13 +984,13 @@ function IngressNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => vo
       
       {/* Host badge */}
       {hosts.length > 0 && hosts[0] && (
-        <text x={width - 10} y={18} fontSize={9} fill="#115e59" textAnchor="end">
+        <text x={width - 10} y={18} fontSize={9} fill={isDarkMode ? '#5eead4' : '#115e59'} textAnchor="end">
           {hosts[0].length > 18 ? hosts[0].slice(0, 16) + '…' : hosts[0]}
         </text>
       )}
       
       {/* Resource name */}
-      <text x={10} y={height - 12} fontSize={12} fontWeight={600} fill="#1f2937">
+      <text x={10} y={height - 12} fontSize={12} fontWeight={600} fill={isDarkMode ? '#e5e7eb' : '#1f2937'}>
         {displayName}
       </text>
     </g>
@@ -929,9 +998,9 @@ function IngressNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => vo
 }
 
 // NetworkPolicy node with rules summary
-function NetworkPolicyNodeSVG({ node, onClick }: { node: LayoutNode; onClick: () => void }) {
+function NetworkPolicyNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onClick: () => void; isDarkMode: boolean }) {
   const { resource, x, y, width, height } = node;
-  const colors = kindColors['NetworkPolicy'];
+  const colors = getThemedColors('NetworkPolicy', isDarkMode);
   const Icon = kindIcons['NetworkPolicy'];
   
   const spec = resource.spec as {
@@ -993,28 +1062,28 @@ function NetworkPolicyNodeSVG({ node, onClick }: { node: LayoutNode; onClick: ()
         width={width} 
         height={height} 
         rx={8} 
-        fill={isDenyAll ? '#fef2f2' : colors.bg} 
-        stroke={isDenyAll ? '#ef4444' : colors.border} 
+        fill={isDenyAll ? (isDarkMode ? '#7f1d1d' : '#fef2f2') : colors.bg} 
+        stroke={isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.border} 
         strokeWidth={2} 
       />
       
       {/* Kind icon and label */}
       <g transform="translate(10, 10)">
         <foreignObject width={18} height={18}>
-          <div style={{ color: isDenyAll ? '#ef4444' : colors.text }}><Icon size={16} /></div>
+          <div style={{ color: isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.text }}><Icon size={16} /></div>
         </foreignObject>
-        <text x={22} y={13} fontSize={10} fill={isDenyAll ? '#ef4444' : colors.text} fontWeight={600}>
+        <text x={22} y={13} fontSize={10} fill={isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.text} fontWeight={600}>
           NetworkPolicy
         </text>
       </g>
       
       {/* Rule summary badge */}
-      <text x={width - 10} y={18} fontSize={9} fill={isDenyAll ? '#dc2626' : '#92400e'} textAnchor="end" fontWeight={500}>
+      <text x={width - 10} y={18} fontSize={9} fill={isDenyAll ? (isDarkMode ? '#fca5a5' : '#dc2626') : (isDarkMode ? '#fcd34d' : '#92400e')} textAnchor="end" fontWeight={500}>
         {getSummary()}
       </text>
       
       {/* Resource name */}
-      <text x={10} y={height - 12} fontSize={12} fontWeight={600} fill="#1f2937">
+      <text x={10} y={height - 12} fontSize={12} fontWeight={600} fill={isDarkMode ? '#e5e7eb' : '#1f2937'}>
         {displayName}
       </text>
     </g>

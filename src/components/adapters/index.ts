@@ -23,6 +23,10 @@ import { EventAdapter } from './EventAdapter';
 import { ServiceAdapter } from './ServiceAdapter';
 import { SecretAdapter } from './SecretAdapter';
 import { ConfigMapAdapter } from './ConfigMapAdapter';
+import { GatewayAdapter } from './GatewayAdapter';
+import { HTTPRouteAdapter } from './HTTPRouteAdapter';
+import { GRPCRouteAdapter } from './GRPCRouteAdapter';
+import { IngressAdapter } from './IngressAdapter';
 
 // All registered adapters (using generic type to allow specific implementations)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +49,10 @@ const adapters: ResourceAdapter<any>[] = [
   ServiceAdapter,
   SecretAdapter,
   ConfigMapAdapter,
+  GatewayAdapter,
+  HTTPRouteAdapter,
+  GRPCRouteAdapter,
+  IngressAdapter,
 ];
 
 // Build lookup map (kind -> adapter)
