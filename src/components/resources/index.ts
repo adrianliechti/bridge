@@ -19,6 +19,7 @@ import { ApplicationAdapter } from './ApplicationAdapter';
 import { ApplicationSetAdapter } from './ApplicationSetAdapter';
 import { CertificateAdapter } from './CertificateAdapter';
 import { CertificateRequestAdapter } from './CertificateRequestAdapter';
+import { EventAdapter } from './EventAdapter';
 
 // All registered adapters (using generic type to allow specific implementations)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,6 +38,7 @@ const adapters: ResourceAdapter<any>[] = [
   ApplicationSetAdapter,
   CertificateAdapter,
   CertificateRequestAdapter,
+  EventAdapter,
 ];
 
 // Build lookup map (kind -> adapter)
