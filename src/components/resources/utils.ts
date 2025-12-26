@@ -91,3 +91,91 @@ export function parseCronSchedule(schedule: string): string {
 
   return descriptions.length > 0 ? descriptions.join(', ') : 'Custom schedule';
 }
+
+// Common keys to filter out from labels
+const INTERNAL_LABEL_KEYS = [
+  'pod-template-hash',
+  'controller-revision-hash',
+];
+
+// Common keys to filter out from annotations
+const INTERNAL_ANNOTATION_KEYS = [
+  'kubectl.kubernetes.io/last-applied-configuration',
+  'deployment.kubernetes.io/revision',
+  'deprecated.daemonset.template.generation',
+  'kubernetes.io/description',
+];
+
+/**
+ * Filter out internal Kubernetes labels
+ */
+export function filterLabels(
+  labels: Record<string, string> | undefined,
+  additionalExcludes: string[] = []
+): Record<string, string> {
+  if (!labels) return {};
+  const excludes = [...INTERNAL_LABEL_KEYS, ...additionalExcludes];
+  return Object.fromEntries(
+    Object.entries(labels).filter(([key]) => 
+      !excludes.some(exclude => key.includes(exclude))
+    )
+  );
+}
+
+/**
+ * Filter out internal Kubernetes annotations
+ */
+export function filterAnnotations(
+  annotations: Record<string, string> | undefined,
+  additionalExcludes: string[] = []
+): Record<string, string> {
+  if (!annotations) return {};
+  const excludes = [...INTERNAL_ANNOTATION_KEYS, ...additionalExcludes];
+  return Object.fromEntries(
+    Object.entries(annotations).filter(([key]) => 
+      !excludes.some(exclude => key.includes(exclude) || key === exclude)
+    )
+  );
+}
+
+import type { Section } from './types';
+
+/**
+ * Create standard label and annotation sections for a resource
+ */
+export function getStandardMetadataSections(
+  metadata: { labels?: Record<string, string>; annotations?: Record<string, string> } | undefined,
+  options?: {
+    excludeLabels?: string[];
+    excludeAnnotations?: string[];
+  }
+): Section[] {
+  const sections: Section[] = [];
+  
+  const filteredLabels = filterLabels(metadata?.labels, options?.excludeLabels);
+  const filteredAnnotations = filterAnnotations(metadata?.annotations, options?.excludeAnnotations);
+  
+  if (Object.keys(filteredLabels).length > 0) {
+    sections.push({
+      id: 'labels',
+      data: {
+        type: 'labels' as const,
+        labels: filteredLabels,
+        title: 'Labels',
+      },
+    });
+  }
+  
+  if (Object.keys(filteredAnnotations).length > 0) {
+    sections.push({
+      id: 'annotations',
+      data: {
+        type: 'labels' as const,
+        labels: filteredAnnotations,
+        title: 'Annotations',
+      },
+    });
+  }
+  
+  return sections;
+}

@@ -3,7 +3,7 @@
 
 import { Server, Cpu, HardDrive, Box, CheckCircle2, XCircle } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
-import { formatMemory } from './utils';
+import { formatMemory, getStandardMetadataSections } from './utils';
 import type { V1Node, V1NodeCondition } from '@kubernetes/client-node';
 
 export const NodeAdapter: ResourceAdapter<V1Node> = {
@@ -57,6 +57,11 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
             ],
           },
         },
+
+        // Labels and Annotations
+        ...getStandardMetadataSections(metadata, {
+          excludeLabels: ['node-role.kubernetes.io/'],
+        }),
 
         // Addresses
         ...(addresses.length > 0 ? [{
@@ -152,16 +157,6 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
               value: t.value,
               effect: t.effect || '',
             })),
-          },
-        }] : []),
-
-        // Labels
-        ...(Object.keys(labels).length > 0 ? [{
-          id: 'labels',
-          data: {
-            type: 'labels' as const,
-            labels,
-            title: 'Labels',
           },
         }] : []),
       ],

@@ -4,6 +4,7 @@
 import { Play, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1Job, V1JobCondition } from '@kubernetes/client-node';
+import { getStandardMetadataSections } from './utils';
 
 export const JobAdapter: ResourceAdapter<V1Job> = {
   kinds: ['Job', 'Jobs'],
@@ -54,6 +55,9 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
             ],
           },
         },
+
+        // Labels and Annotations
+        ...getStandardMetadataSections(resource.metadata),
 
         // Progress
         {

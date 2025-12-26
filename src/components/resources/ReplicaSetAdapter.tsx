@@ -4,6 +4,7 @@
 import { Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1ReplicaSet } from '@kubernetes/client-node';
+import { getStandardMetadataSections } from './utils';
 
 export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
   kinds: ['ReplicaSet', 'ReplicaSets'],
@@ -25,23 +26,6 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
     // Get owner reference (usually a Deployment)
     const ownerRef = metadata?.ownerReferences?.[0];
     const revision = metadata?.annotations?.['deployment.kubernetes.io/revision'];
-    
-    // Filter labels (remove internal ones)
-    const labels = metadata?.labels ?? {};
-    const filteredLabels = Object.fromEntries(
-      Object.entries(labels).filter(([key]) => 
-        !key.includes('pod-template-hash')
-      )
-    );
-    
-    // Filter annotations (remove internal ones)
-    const annotations = metadata?.annotations ?? {};
-    const filteredAnnotations = Object.fromEntries(
-      Object.entries(annotations).filter(([key]) => 
-        !key.includes('kubectl.kubernetes.io/last-applied-configuration') &&
-        !key.includes('deployment.kubernetes.io/revision')
-      )
-    );
     
     // Filter conditions to only show problematic ones
     const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
@@ -93,25 +77,8 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
           },
         },
         
-        // Labels
-        ...(Object.keys(filteredLabels).length > 0 ? [{
-          id: 'labels',
-          data: {
-            type: 'labels' as const,
-            labels: filteredLabels,
-            title: 'Labels',
-          },
-        }] : []),
-        
-        // Annotations
-        ...(Object.keys(filteredAnnotations).length > 0 ? [{
-          id: 'annotations',
-          data: {
-            type: 'labels' as const,
-            labels: filteredAnnotations,
-            title: 'Annotations',
-          },
-        }] : []),
+        // Labels and Annotations
+        ...getStandardMetadataSections(metadata),
 
         // Selector
         ...(spec.selector?.matchLabels ? [{

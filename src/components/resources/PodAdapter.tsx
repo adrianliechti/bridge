@@ -3,6 +3,7 @@
 
 import type { ResourceAdapter, ResourceSections, ContainerData, VolumeData } from './types';
 import type { V1Pod, V1Container, V1ContainerStatus, V1Volume } from '@kubernetes/client-node';
+import { getStandardMetadataSections } from './utils';
 
 export const PodAdapter: ResourceAdapter<V1Pod> = {
   kinds: ['Pod', 'Pods'],
@@ -23,23 +24,6 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
 
     const totalRestarts = containerStatuses.reduce((sum, c) => sum + (c.restartCount ?? 0), 0);
     
-    // Filter labels (remove internal ones)
-    const labels = metadata?.labels ?? {};
-    const filteredLabels = Object.fromEntries(
-      Object.entries(labels).filter(([key]) => 
-        !key.includes('pod-template-hash') && 
-        !key.includes('controller-revision-hash')
-      )
-    );
-    
-    // Filter annotations (remove internal ones)
-    const annotations = metadata?.annotations ?? {};
-    const filteredAnnotations = Object.fromEntries(
-      Object.entries(annotations).filter(([key]) => 
-        !key.includes('kubectl.kubernetes.io/last-applied-configuration')
-      )
-    );
-    
     // Filter conditions to only show problematic ones
     const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
@@ -59,25 +43,8 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
           },
         },
         
-        // Labels
-        ...(Object.keys(filteredLabels).length > 0 ? [{
-          id: 'labels',
-          data: {
-            type: 'labels' as const,
-            labels: filteredLabels,
-            title: 'Labels',
-          },
-        }] : []),
-        
-        // Annotations
-        ...(Object.keys(filteredAnnotations).length > 0 ? [{
-          id: 'annotations',
-          data: {
-            type: 'labels' as const,
-            labels: filteredAnnotations,
-            title: 'Annotations',
-          },
-        }] : []),
+        // Labels and Annotations
+        ...getStandardMetadataSections(metadata),
 
         // Init containers
         ...(initContainers.length > 0 ? [{

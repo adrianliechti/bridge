@@ -4,6 +4,7 @@
 import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Pause, HelpCircle, Package, Play, RotateCcw } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel } from './types';
 import { syncApplication, refreshApplication } from '../../api/kubernetesArgoCD';
+import { getStandardMetadataSections } from './utils';
 
 // ArgoCD Application types
 interface ApplicationSource {
@@ -269,23 +270,6 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
     const healthStatus = status?.health?.status || 'Unknown';
     const operationPhase = status?.operationState?.phase;
 
-    // Filter labels (remove internal ones)
-    const labels = metadata?.labels ?? {};
-    const filteredLabels = Object.fromEntries(
-      Object.entries(labels).filter(([key]) => 
-        !key.includes('kubernetes.io/')
-      )
-    );
-    
-    // Filter annotations
-    const annotations = metadata?.annotations ?? {};
-    const filteredAnnotations = Object.fromEntries(
-      Object.entries(annotations).filter(([key]) => 
-        !key.includes('kubectl.kubernetes.io/last-applied-configuration') &&
-        !key.includes('argocd.argoproj.io/refresh')
-      )
-    );
-
     // Count resources by health status
     const resourceCounts = {
       healthy: 0,
@@ -342,6 +326,12 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
             ],
           },
         },
+
+        // Labels and Annotations
+        ...getStandardMetadataSections(metadata, {
+          excludeLabels: ['kubernetes.io/'],
+          excludeAnnotations: ['argocd.argoproj.io/refresh'],
+        }),
 
         // Resource health gauges
         ...(totalResources > 0 ? [{
@@ -566,26 +556,6 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
               name: `image-${i + 1}`,
               image,
             })),
-          },
-        }] : []),
-
-        // Labels
-        ...(Object.keys(filteredLabels).length > 0 ? [{
-          id: 'labels',
-          data: {
-            type: 'labels' as const,
-            labels: filteredLabels,
-            title: 'Labels',
-          },
-        }] : []),
-        
-        // Annotations
-        ...(Object.keys(filteredAnnotations).length > 0 ? [{
-          id: 'annotations',
-          data: {
-            type: 'labels' as const,
-            labels: filteredAnnotations,
-            title: 'Annotations',
           },
         }] : []),
       ],

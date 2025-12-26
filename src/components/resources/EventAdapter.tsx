@@ -3,6 +3,7 @@
 
 import { AlertTriangle, Info, Calendar, Hash, Target, Server, RefreshCw } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section } from './types';
+import { getStandardMetadataSections } from './utils';
 
 // Event types based on CoreV1Event
 interface EventSource {
@@ -132,6 +133,9 @@ export const EventAdapter: ResourceAdapter<Event> = {
         },
       },
     ];
+
+    // Labels and Annotations
+    sections.push(...getStandardMetadataSections(metadata));
 
     // Message
     if (resource.message) {

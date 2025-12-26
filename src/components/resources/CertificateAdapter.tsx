@@ -3,6 +3,7 @@
 
 import { Shield, Clock, Key, Lock, CheckCircle2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
+import { getStandardMetadataSections } from './utils';
 
 // cert-manager Certificate types
 interface IssuerRef {
@@ -238,6 +239,9 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
         },
       },
     ];
+
+    // Labels and Annotations
+    sections.push(...getStandardMetadataSections(resource.metadata));
 
     // Certificate Details
     sections.push({

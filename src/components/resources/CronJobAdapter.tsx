@@ -3,7 +3,7 @@
 
 import { Play, Pause, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, JobData } from './types';
-import { parseCronSchedule, formatTimeAgo } from './utils';
+import { parseCronSchedule, formatTimeAgo, getStandardMetadataSections } from './utils';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1CronJob } from '@kubernetes/client-node';
 
@@ -51,7 +51,8 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
             ],
           },
         },
-
+        // Labels and Annotations
+        ...getStandardMetadataSections(metadata),
         // Schedule
         {
           id: 'schedule',

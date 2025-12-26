@@ -4,6 +4,7 @@
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
+import { getStandardMetadataSections } from './utils';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
   kinds: ['Deployment', 'Deployments'],
@@ -21,23 +22,6 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
     const ready = status?.readyReplicas ?? 0;
     const updated = status?.updatedReplicas ?? 0;
     const available = status?.availableReplicas ?? 0;
-    
-    // Filter labels (remove internal ones)
-    const labels = metadata?.labels ?? {};
-    const filteredLabels = Object.fromEntries(
-      Object.entries(labels).filter(([key]) => 
-        !key.includes('pod-template-hash')
-      )
-    );
-    
-    // Filter annotations (remove internal ones)
-    const annotations = metadata?.annotations ?? {};
-    const filteredAnnotations = Object.fromEntries(
-      Object.entries(annotations).filter(([key]) => 
-        !key.includes('kubectl.kubernetes.io/last-applied-configuration') &&
-        !key.includes('deployment.kubernetes.io/revision')
-      )
-    );
     
     // Filter conditions to only show problematic ones
     const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
@@ -80,25 +64,8 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
           },
         },
         
-        // Labels
-        ...(Object.keys(filteredLabels).length > 0 ? [{
-          id: 'labels',
-          data: {
-            type: 'labels' as const,
-            labels: filteredLabels,
-            title: 'Labels',
-          },
-        }] : []),
-        
-        // Annotations
-        ...(Object.keys(filteredAnnotations).length > 0 ? [{
-          id: 'annotations',
-          data: {
-            type: 'labels' as const,
-            labels: filteredAnnotations,
-            title: 'Annotations',
-          },
-        }] : []),
+        // Labels and Annotations
+        ...getStandardMetadataSections(metadata),
 
         // Conditions (only problematic ones)
         ...(problematicConditions.length > 0 ? [{

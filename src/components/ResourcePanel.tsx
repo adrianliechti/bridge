@@ -720,6 +720,8 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
     'kubectl.kubernetes.io/last-applied-configuration',
     'deployment.kubernetes.io/revision',
     'control-plane.alpha.kubernetes.io/leader',
+    'deprecated.daemonset.template.generation',
+    'kubernetes.io/description',
   ]);
   
   const filteredLabels = labels 

@@ -3,6 +3,7 @@
 
 import { Globe, Network, Server, ExternalLink, Lock, Tag } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './types';
+import { getStandardMetadataSections } from './utils';
 
 // Service types
 interface ServicePort {
@@ -160,6 +161,9 @@ export const ServiceAdapter: ResourceAdapter<Service> = {
         },
       },
     ];
+
+    // Labels and Annotations
+    sections.push(...getStandardMetadataSections(resource.metadata));
 
     // Ports
     if (spec.ports && spec.ports.length > 0) {
