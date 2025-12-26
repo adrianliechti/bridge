@@ -107,11 +107,10 @@ export async function getResourceEvents(
   const response = await fetchApi<CoreV1EventList>(url);
 
   // Sort by last timestamp (most recent first)
+  // Note: timestamps from K8s API are strings, not Date objects
   return response.items.sort((a, b) => {
-    const timeA =
-      a.lastTimestamp?.toISOString() || a.eventTime || a.metadata?.creationTimestamp?.toISOString() || '';
-    const timeB =
-      b.lastTimestamp?.toISOString() || b.eventTime || b.metadata?.creationTimestamp?.toISOString() || '';
-    return new Date(timeB).getTime() - new Date(timeA).getTime();
+    const timeA = a.lastTimestamp || a.eventTime || a.metadata?.creationTimestamp || '';
+    const timeB = b.lastTimestamp || b.eventTime || b.metadata?.creationTimestamp || '';
+    return new Date(timeB as string).getTime() - new Date(timeA as string).getTime();
   });
 }

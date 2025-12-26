@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-import { AlertTriangle, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { AlertTriangle, ChevronUp, ChevronDown, ChevronsUpDown, RefreshCw } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
 import { getResourceTable, type V1APIResource } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
@@ -76,7 +76,7 @@ export function ResourceTable({
 }: ResourceTableProps) {
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
   
-  const { data, loading, error, refetch } = useKubernetesQuery(
+  const { data, loading, error, refetch, isRefetching } = useKubernetesQuery(
     () => getResourceTable(config, namespace),
     [config, namespace]
   );
@@ -192,7 +192,13 @@ export function ResourceTable({
   }
 
   return (
-    <div className="pl-2 h-full">
+    <div className="pl-2 h-full relative">
+      {/* Refetch indicator */}
+      {isRefetching && (
+        <div className="absolute top-2 right-4 z-20">
+          <RefreshCw size={14} className="text-neutral-400 dark:text-neutral-500 animate-spin" />
+        </div>
+      )}
       <div className="overflow-auto h-full">
         <table className="w-full text-[13px]">
           <thead className="sticky top-0 z-10 bg-neutral-100 dark:bg-neutral-950">

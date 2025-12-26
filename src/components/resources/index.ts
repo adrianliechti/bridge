@@ -16,6 +16,7 @@ import { ReplicaSetAdapter } from './ReplicaSetAdapter';
 import { PersistentVolumeAdapter } from './PersistentVolumeAdapter';
 import { PersistentVolumeClaimAdapter } from './PersistentVolumeClaimAdapter';
 import { ApplicationAdapter } from './ApplicationAdapter';
+import { ApplicationSetAdapter } from './ApplicationSetAdapter';
 
 // All registered adapters (using generic type to allow specific implementations)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,6 +32,7 @@ const adapters: ResourceAdapter<any>[] = [
   PersistentVolumeAdapter,
   PersistentVolumeClaimAdapter,
   ApplicationAdapter,
+  ApplicationSetAdapter,
 ];
 
 // Build lookup map (kind -> adapter)
@@ -102,3 +104,4 @@ export { ReplicaSetAdapter } from './ReplicaSetAdapter';
 export { PersistentVolumeAdapter } from './PersistentVolumeAdapter';
 export { PersistentVolumeClaimAdapter } from './PersistentVolumeClaimAdapter';
 export { ApplicationAdapter } from './ApplicationAdapter';
+export { ApplicationSetAdapter } from './ApplicationSetAdapter';
