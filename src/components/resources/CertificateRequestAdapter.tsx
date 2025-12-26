@@ -1,6 +1,8 @@
 // CertificateRequest Adapter (cert-manager.io/v1)
 // Extracts display data from cert-manager CertificateRequest resources
 
+/* eslint-disable react-refresh/only-export-components */
+
 import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';

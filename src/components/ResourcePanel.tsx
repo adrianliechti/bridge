@@ -1,5 +1,5 @@
 import { X, ChevronDown, ChevronRight, Loader2, Copy, Check, ChevronsDownUp } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
@@ -234,7 +234,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   // Auto-refresh interval (5 seconds)
   const REFRESH_INTERVAL = 5000;
 
-  const fetchResourceData = async () => {
+  const fetchResourceData = useCallback(async () => {
     if (!resourceId || !resourceId.name || !resourceId.kind) return;
     
     try {
@@ -249,7 +249,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     } catch {
       // Silent fail for background refreshes
     }
-  };
+  }, [resourceId]);
 
   // Auto-refresh polling
   useEffect(() => {
@@ -260,7 +260,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [isOpen, resourceId?.name, resourceId?.namespace, resourceId?.kind, resourceId?.apiVersion, fullObject]);
+  }, [isOpen, resourceId?.name, fullObject, fetchResourceData]);
 
   const handleCopyManifest = async () => {
     if (!fullObject) return;

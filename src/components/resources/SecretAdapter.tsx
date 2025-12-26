@@ -1,6 +1,8 @@
 // Secret Adapter (v1)
 // Extracts display data from Kubernetes Secret resources
 
+/* eslint-disable react-refresh/only-export-components */
+
 import { Key, Lock, Eye, EyeOff, Copy, Check, FileText, Shield, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './types';

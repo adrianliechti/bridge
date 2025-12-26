@@ -602,7 +602,7 @@ function ContainerCard({ container }: { container: ContainerData }) {
               <div className="text-xs space-y-1.5">
                 {container.mounts.map((mount, i) => (
                   <div key={i} className="bg-neutral-100 dark:bg-neutral-900/50 rounded p-2 flex items-center gap-2">
-                    <span className="text-purple-400 truncate max-w-[140px]" title={mount.name}>{mount.name}</span>
+                    <span className="text-purple-400 truncate max-w-35" title={mount.name}>{mount.name}</span>
                     <span className="text-neutral-600">→</span>
                     <span className="text-cyan-400 font-mono truncate flex-1" title={mount.mountPath}>{mount.mountPath}</span>
                     {mount.readOnly && <span className="text-amber-400 text-[10px] px-1 py-0.5 bg-amber-500/10 rounded">(ro)</span>}

@@ -1,6 +1,6 @@
 // ConfigMap Adapter (v1)
 // Extracts display data from Kubernetes ConfigMap resources
-
+/* eslint-disable react-refresh/only-export-components */
 import { FileText, Copy, Check, ChevronDown, ChevronRight, Lock } from 'lucide-react';
 import { useState } from 'react';
 import type { ResourceAdapter, ResourceSections, Section } from './types';

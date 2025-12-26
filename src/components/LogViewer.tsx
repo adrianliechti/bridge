@@ -309,7 +309,10 @@ export function LogViewer({
   // For Pods, use the workloadName directly as the pod name
   // For other workloads, we need to fetch the pods
   const isPod = workloadKind === 'Pod';
-  const directPodNames = isPod && workloadName ? [workloadName] : initialPodNames;
+  const directPodNames = useMemo(() => 
+    isPod && workloadName ? [workloadName] : initialPodNames,
+    [isPod, workloadName, initialPodNames]
+  );
 
   // Fetch pod names from workload if needed (not for Pods)
   const shouldFetchPods = !directPodNames?.length && !!workloadKind && !!workloadName && !isPod;
