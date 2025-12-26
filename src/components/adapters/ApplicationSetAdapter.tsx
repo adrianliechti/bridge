@@ -3,7 +3,7 @@
 
 import { CheckCircle2, XCircle, RefreshCw, HelpCircle, Layers, GitBranch, FolderTree, List, Server, Cloud, Package } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel } from './types';
-import { getStandardMetadataSections } from './utils';
+
 
 // ApplicationSet types
 interface ApplicationSetGenerator {
@@ -399,11 +399,6 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
             ],
           },
         },
-
-        // Labels and Annotations
-        ...getStandardMetadataSections(metadata, {
-          excludeLabels: ['kubernetes.io/'],
-        }),
 
         // Generators section
         ...(spec.generators?.length ? [{

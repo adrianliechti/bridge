@@ -6,7 +6,7 @@
 import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
-import { getStandardMetadataSections } from './utils';
+
 
 // cert-manager CertificateRequest types
 interface IssuerRef {
@@ -288,9 +288,6 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
         },
       },
     ];
-
-    // Labels and Annotations
-    sections.push(...getStandardMetadataSections(metadata));
 
     // Parent Certificate (if owned by a Certificate)
     if (certificateName) {

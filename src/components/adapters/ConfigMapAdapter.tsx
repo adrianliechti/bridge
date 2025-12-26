@@ -4,7 +4,7 @@
 import { FileText, Copy, Check, ChevronDown, ChevronRight, Lock } from 'lucide-react';
 import { useState } from 'react';
 import type { ResourceAdapter, ResourceSections, Section } from './types';
-import { getStandardMetadataSections } from './utils';
+
 
 // ConfigMap types
 interface ConfigMap {
@@ -165,7 +165,6 @@ export const ConfigMapAdapter: ResourceAdapter<ConfigMap> = {
   kinds: ['ConfigMap', 'ConfigMaps'],
 
   adapt(resource): ResourceSections {
-    const metadata = resource.metadata;
     const data = resource.data || {};
     const binaryData = resource.binaryData || {};
 
@@ -190,9 +189,6 @@ export const ConfigMapAdapter: ResourceAdapter<ConfigMap> = {
         },
       },
     ];
-
-    // Labels and Annotations
-    sections.push(...getStandardMetadataSections(metadata));
 
     // Separate single-line and multiline entries
     const singleLineEntries: [string, string][] = [];

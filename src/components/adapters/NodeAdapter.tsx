@@ -2,9 +2,16 @@
 // Extracts display data from Node resources
 
 import { Server, Cpu, HardDrive, Box, CheckCircle2, XCircle } from 'lucide-react';
-import type { ResourceAdapter, ResourceSections } from './types';
-import { formatMemory, getStandardMetadataSections } from './utils';
+import type { ResourceAdapter, ResourceSections, NodeMetricsData } from './types';
+import { formatMemory } from './utils';
 import type { V1Node, V1NodeCondition } from '@kubernetes/client-node';
+import { 
+  getNodeMetrics, 
+  parseCpuToNanoCores, 
+  parseMemoryToBytes,
+  formatCpu,
+  formatBytes,
+} from '../../api/kubernetesMetrics';
 
 export const NodeAdapter: ResourceAdapter<V1Node> = {
   kinds: ['Node', 'Nodes'],
@@ -58,10 +65,39 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
           },
         },
 
-        // Labels and Annotations
-        ...getStandardMetadataSections(metadata, {
-          excludeLabels: ['node-role.kubernetes.io/'],
-        }),
+        // Resource usage metrics (real-time from metrics-server)
+        {
+          id: 'metrics',
+          data: {
+            type: 'node-metrics',
+            title: 'Resource Usage',
+            loader: async (): Promise<NodeMetricsData | null> => {
+              const nodeName = metadata?.name;
+              if (!nodeName) return null;
+
+              const metrics = await getNodeMetrics(nodeName);
+              if (!metrics) return null;
+
+              const allocatableCpu = allocatable.cpu ?? '0';
+              const allocatableMem = allocatable.memory ?? '0';
+
+              return {
+                cpu: {
+                  usage: formatCpu(parseCpuToNanoCores(metrics.usage.cpu)),
+                  usageNanoCores: parseCpuToNanoCores(metrics.usage.cpu),
+                  allocatable: allocatableCpu,
+                  allocatableNanoCores: parseCpuToNanoCores(allocatableCpu),
+                },
+                memory: {
+                  usage: formatBytes(parseMemoryToBytes(metrics.usage.memory)),
+                  usageBytes: parseMemoryToBytes(metrics.usage.memory),
+                  allocatable: formatMemory(allocatableMem),
+                  allocatableBytes: parseMemoryToBytes(allocatableMem),
+                },
+              };
+            },
+          },
+        },
 
         // Addresses
         ...(addresses.length > 0 ? [{

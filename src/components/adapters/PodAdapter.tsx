@@ -3,12 +3,19 @@
 
 import type { ResourceAdapter, ResourceSections, ContainerData, VolumeData } from './types';
 import type { V1Pod, V1Container, V1ContainerStatus, V1Volume } from '@kubernetes/client-node';
-import { getStandardMetadataSections } from './utils';
+
+import { 
+  getPodMetrics, 
+  parseCpuToNanoCores, 
+  parseMemoryToBytes,
+  formatCpu,
+  formatBytes,
+} from '../../api/kubernetesMetrics';
 
 export const PodAdapter: ResourceAdapter<V1Pod> = {
   kinds: ['Pod', 'Pods'],
 
-  adapt(resource): ResourceSections {
+  adapt(resource, namespace): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
@@ -27,6 +34,33 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
     // Filter conditions to only show problematic ones
     const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
+    // Create metrics loader for container metrics
+    const metricsLoader = async () => {
+      const podName = metadata?.name;
+      const podNamespace = namespace || metadata?.namespace;
+      if (!podName || !podNamespace) return null;
+
+      const metrics = await getPodMetrics(podName, podNamespace);
+      if (!metrics) return null;
+
+      const result = new Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }>();
+      
+      for (const cm of metrics.containers) {
+        result.set(cm.name, {
+          cpu: { 
+            usage: formatCpu(parseCpuToNanoCores(cm.usage.cpu)), 
+            usageNanoCores: parseCpuToNanoCores(cm.usage.cpu) 
+          },
+          memory: { 
+            usage: formatBytes(parseMemoryToBytes(cm.usage.memory)), 
+            usageBytes: parseMemoryToBytes(cm.usage.memory) 
+          },
+        });
+      }
+      
+      return result;
+    };
+
     return {
       sections: [
         // Status overview
@@ -42,9 +76,6 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
             ],
           },
         },
-        
-        // Labels and Annotations
-        ...getStandardMetadataSections(metadata),
 
         // Init containers
         ...(initContainers.length > 0 ? [{
@@ -53,16 +84,18 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
           data: {
             type: 'containers' as const,
             items: initContainers.map(c => mapContainer(c, initContainerStatuses)),
+            // Init containers typically don't have live metrics
           },
         }] : []),
 
-        // Containers
+        // Containers with live metrics
         {
           id: 'containers',
           title: 'Containers',
           data: {
-            type: 'containers',
+            type: 'containers' as const,
             items: containers.map(c => mapContainer(c, containerStatuses)),
+            metricsLoader,
           },
         },
 

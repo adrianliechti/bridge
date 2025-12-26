@@ -3,7 +3,7 @@
 
 import { Play, Pause, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, JobData } from './types';
-import { parseCronSchedule, formatTimeAgo, getStandardMetadataSections } from './utils';
+import { parseCronSchedule, formatTimeAgo, getContainerSections } from './utils';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1CronJob } from '@kubernetes/client-node';
 
@@ -51,8 +51,6 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
             ],
           },
         },
-        // Labels and Annotations
-        ...getStandardMetadataSections(metadata),
         // Schedule
         {
           id: 'schedule',
@@ -107,9 +105,9 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
         // Recent Jobs (async loaded)
         {
           id: 'jobs',
-          title: 'Recent Jobs',
           data: {
             type: 'related-jobs',
+            title: 'Recent Jobs',
             loader: async (): Promise<JobData[]> => {
               if (!namespace || !metadata?.name) return [];
               
@@ -171,15 +169,11 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
           },
         },
 
-        // Container Images
-        ...(spec.jobTemplate?.spec?.template?.spec?.containers ? [{
-          id: 'images',
-          title: 'Container Images',
-          data: {
-            type: 'container-images' as const,
-            containers: spec.jobTemplate.spec.template.spec.containers,
-          },
-        }] : []),
+        // Containers
+        ...getContainerSections(
+          spec.jobTemplate?.spec?.template?.spec?.containers,
+          spec.jobTemplate?.spec?.template?.spec?.initContainers,
+        ),
       ],
     };
   },

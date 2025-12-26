@@ -3,7 +3,7 @@
 
 import { HardDrive, Database, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
-import { getAccessModeStyle, formatAccessMode, getStandardMetadataSections } from './utils';
+import { getAccessModeStyle, formatAccessMode } from './utils';
 import type { V1PersistentVolume } from '@kubernetes/client-node';
 
 export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
@@ -35,9 +35,6 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             ],
           },
         },
-
-        // Labels and Annotations
-        ...getStandardMetadataSections(resource.metadata),
 
         // Access Modes
         ...(spec.accessModes?.length ? [{

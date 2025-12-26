@@ -3,15 +3,15 @@
 
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1DaemonSet } from '@kubernetes/client-node';
-import { getStandardMetadataSections } from './utils';
+import { getContainerSections } from './utils';
+import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
   kinds: ['DaemonSet', 'DaemonSets'],
 
-  adapt(resource): ResourceSections {
+  adapt(resource, namespace): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
-    const metadata = resource.metadata;
 
     if (!spec) {
       return { sections: [] };
@@ -26,6 +26,17 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
     
     // Filter conditions to only show problematic ones
     const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
+
+    // Create metrics loader for container metrics
+    const metricsLoader = async () => {
+      const matchLabels = spec.selector?.matchLabels;
+      if (!namespace || !matchLabels || Object.keys(matchLabels).length === 0) return null;
+
+      const podMetrics = await getPodMetricsBySelector(namespace, matchLabels);
+      if (podMetrics.length === 0) return null;
+
+      return aggregateContainerMetrics(podMetrics);
+    };
 
     return {
       sections: [
@@ -64,9 +75,6 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
             columns: 2 as const,
           },
         },
-        
-        // Labels and Annotations
-        ...getStandardMetadataSections(metadata),
 
         // Rolling update config
         ...(spec.updateStrategy?.rollingUpdate ? [{
@@ -110,15 +118,12 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
           },
         }] : []),
 
-        // Container Images
-        ...(spec.template?.spec?.containers ? [{
-          id: 'images',
-          title: 'Container Images',
-          data: {
-            type: 'container-images' as const,
-            containers: spec.template.spec.containers,
-          },
-        }] : []),
+        // Containers with live metrics
+        ...getContainerSections(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+          metricsLoader,
+        ),
       ],
     };
   },

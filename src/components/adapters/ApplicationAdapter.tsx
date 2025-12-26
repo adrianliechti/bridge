@@ -4,7 +4,7 @@
 import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Pause, HelpCircle, Package, Play, RotateCcw } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel } from './types';
 import { syncApplication, refreshApplication } from '../../api/kubernetesArgoCD';
-import { getStandardMetadataSections } from './utils';
+
 
 // ArgoCD Application types
 interface ApplicationSource {
@@ -259,7 +259,6 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
   adapt(resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
-    const metadata = resource.metadata;
 
     if (!spec) {
       return { sections: [] };
@@ -326,12 +325,6 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
             ],
           },
         },
-
-        // Labels and Annotations
-        ...getStandardMetadataSections(metadata, {
-          excludeLabels: ['kubernetes.io/'],
-          excludeAnnotations: ['argocd.argoproj.io/refresh'],
-        }),
 
         // Resource health gauges
         ...(totalResources > 0 ? [{

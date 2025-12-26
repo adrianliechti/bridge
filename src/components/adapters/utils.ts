@@ -1,5 +1,8 @@
 // Utility functions for visualizers
 
+import type { Section, ContainerData } from './types';
+import type { V1Container } from '@kubernetes/client-node';
+
 export function formatDuration(ms: number): string {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -138,7 +141,75 @@ export function filterAnnotations(
   );
 }
 
-import type { Section } from './types';
+/**
+ * Map a V1Container spec to ContainerData for display
+ * Used for workload templates (Deployment, DaemonSet, StatefulSet, etc.)
+ * that have container specs but no runtime status
+ */
+export function mapContainerSpec(container: V1Container): ContainerData {
+  return {
+    name: container.name,
+    image: container.image || '',
+    // No state/status info for template specs
+    resources: container.resources ? {
+      requests: container.resources.requests as Record<string, string> | undefined,
+      limits: container.resources.limits as Record<string, string> | undefined,
+    } : undefined,
+    ports: container.ports?.map(p => ({
+      name: p.name,
+      containerPort: p.containerPort,
+      protocol: p.protocol,
+    })),
+    command: container.command,
+    args: container.args,
+    mounts: container.volumeMounts?.map(m => ({
+      name: m.name,
+      mountPath: m.mountPath,
+      readOnly: m.readOnly,
+      subPath: m.subPath,
+    })),
+  };
+}
+
+type ContainerMetricsMap = Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }>;
+
+/**
+ * Create container sections from a pod template spec
+ * Returns sections for init containers and regular containers
+ */
+export function getContainerSections(
+  containers?: V1Container[],
+  initContainers?: V1Container[],
+  metricsLoader?: () => Promise<ContainerMetricsMap | null>,
+): Section[] {
+  const sections: Section[] = [];
+  
+  if (initContainers && initContainers.length > 0) {
+    sections.push({
+      id: 'init-containers',
+      title: 'Init Containers',
+      data: {
+        type: 'containers' as const,
+        items: initContainers.map(mapContainerSpec),
+        // Init containers typically don't have live metrics
+      },
+    });
+  }
+  
+  if (containers && containers.length > 0) {
+    sections.push({
+      id: 'containers',
+      title: 'Containers',
+      data: {
+        type: 'containers' as const,
+        items: containers.map(mapContainerSpec),
+        metricsLoader,
+      },
+    });
+  }
+  
+  return sections;
+}
 
 /**
  * Create standard label and annotation sections for a resource

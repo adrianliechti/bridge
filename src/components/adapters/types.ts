@@ -85,6 +85,11 @@ export interface ContainerData {
   command?: string[];
   args?: string[];
   mounts?: Array<{ name: string; mountPath: string; readOnly?: boolean; subPath?: string }>;
+  /** Live metrics (populated by metricsLoader) */
+  metrics?: {
+    cpu: { usage: string; usageNanoCores: number };
+    memory: { usage: string; usageBytes: number };
+  };
 }
 
 /** Volume information */
@@ -162,6 +167,56 @@ export interface VolumeClaimTemplateData {
   accessModes?: string[];
 }
 
+/** Container metrics data (for pods) */
+export interface ContainerMetricsData {
+  name: string;
+  cpu: {
+    usage: string;
+    usageNanoCores: number;
+    request?: string;
+    requestNanoCores?: number;
+    limit?: string;
+    limitNanoCores?: number;
+  };
+  memory: {
+    usage: string;
+    usageBytes: number;
+    request?: string;
+    requestBytes?: number;
+    limit?: string;
+    limitBytes?: number;
+  };
+}
+
+/** Workload aggregated metrics data (for deployments, statefulsets, daemonsets) */
+export interface WorkloadMetricsData {
+  totalCpu: string;
+  totalCpuNanoCores: number;
+  totalMemory: string;
+  totalMemoryBytes: number;
+  podMetrics: Array<{
+    name: string;
+    cpu: string;
+    memory: string;
+  }>;
+}
+
+/** Node metrics data */
+export interface NodeMetricsData {
+  cpu: {
+    usage: string;
+    usageNanoCores: number;
+    allocatable: string;
+    allocatableNanoCores: number;
+  };
+  memory: {
+    usage: string;
+    usageBytes: number;
+    allocatable: string;
+    allocatableBytes: number;
+  };
+}
+
 // ============================================
 // SECTION DEFINITIONS
 // ============================================
@@ -176,21 +231,24 @@ export type SectionData =
   | { type: 'pod-grid'; data: PodGridData }
   | { type: 'conditions'; items: ConditionData[] }
   | { type: 'info-grid'; items: InfoRowData[]; columns?: 1 | 2 }
-  | { type: 'containers'; items: ContainerData[]; title?: string }
+  | { type: 'containers'; items: ContainerData[]; metricsLoader?: () => Promise<Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }> | null>; title?: string }
   | { type: 'volumes'; items: VolumeData[] }
   | { type: 'labels'; labels: Record<string, string>; title?: string }
   | { type: 'capacity-bars'; items: CapacityBarData[] }
   | { type: 'taints'; items: TaintData[] }
   | { type: 'container-images'; containers: Array<{ name: string; image?: string }> }
   | { type: 'node-selector'; selector: Record<string, string> }
-  | { type: 'related-replicasets'; loader: () => Promise<ReplicaSetData[]> }
-  | { type: 'related-pvcs'; loader: () => Promise<PVCData[]> }
-  | { type: 'related-jobs'; loader: () => Promise<JobData[]> }
+  | { type: 'related-replicasets'; loader: () => Promise<ReplicaSetData[]>; title?: string }
+  | { type: 'related-pvcs'; loader: () => Promise<PVCData[]>; title?: string }
+  | { type: 'related-jobs'; loader: () => Promise<JobData[]>; title?: string }
   | { type: 'volume-claim-templates'; items: VolumeClaimTemplateData[] }
   | { type: 'schedule'; schedule: string; description: string }
   | { type: 'job-progress'; completions: number; succeeded: number; failed: number; active: number }
   | { type: 'timeline'; startTime?: Date; completionTime?: Date }
   | { type: 'addresses'; addresses: Array<{ type: string; address: string }> }
+  | { type: 'container-metrics'; loader: () => Promise<ContainerMetricsData[] | null>; title?: string }
+  | { type: 'workload-metrics'; loader: () => Promise<WorkloadMetricsData | null>; title?: string }
+  | { type: 'node-metrics'; loader: () => Promise<NodeMetricsData | null>; title?: string }
   | { type: 'custom'; render: () => ReactNode };
 
 export interface Section {

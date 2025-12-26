@@ -4,7 +4,8 @@
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
-import { getStandardMetadataSections } from './utils';
+import { getContainerSections } from './utils';
+import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
   kinds: ['Deployment', 'Deployments'],
@@ -25,6 +26,17 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
     
     // Filter conditions to only show problematic ones
     const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
+
+    // Create metrics loader for container metrics
+    const metricsLoader = async () => {
+      const matchLabels = spec.selector?.matchLabels;
+      if (!namespace || !matchLabels || Object.keys(matchLabels).length === 0) return null;
+
+      const podMetrics = await getPodMetricsBySelector(namespace, matchLabels);
+      if (podMetrics.length === 0) return null;
+
+      return aggregateContainerMetrics(podMetrics);
+    };
 
     return {
       sections: [
@@ -63,9 +75,6 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
             columns: 2,
           },
         },
-        
-        // Labels and Annotations
-        ...getStandardMetadataSections(metadata),
 
         // Conditions (only problematic ones)
         ...(problematicConditions.length > 0 ? [{
@@ -86,9 +95,9 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
         // Related ReplicaSets (async loaded)
         {
           id: 'replicasets',
-          title: 'ReplicaSets',
           data: {
             type: 'related-replicasets',
+            title: 'ReplicaSets',
             loader: async (): Promise<ReplicaSetData[]> => {
               if (!namespace || !metadata?.name) return [];
               
@@ -147,15 +156,12 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
           },
         },
 
-        // Container Images
-        ...(spec.template?.spec?.containers ? [{
-          id: 'images',
-          title: 'Container Images',
-          data: {
-            type: 'container-images' as const,
-            containers: spec.template.spec.containers,
-          },
-        }] : []),
+        // Containers with live metrics
+        ...getContainerSections(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+          metricsLoader,
+        ),
       ],
     };
   },

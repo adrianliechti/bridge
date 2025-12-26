@@ -6,7 +6,7 @@
 import { Key, Lock, Eye, EyeOff, Copy, Check, FileText, Shield, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './types';
-import { getStandardMetadataSections } from './utils';
+
 
 // Secret types
 interface Secret {
@@ -239,7 +239,6 @@ export const SecretAdapter: ResourceAdapter<Secret> = {
   kinds: ['Secret', 'Secrets'],
 
   adapt(resource): ResourceSections {
-    const metadata = resource.metadata;
     const data = resource.data || {};
     const stringData = resource.stringData || {};
 
@@ -269,9 +268,6 @@ export const SecretAdapter: ResourceAdapter<Secret> = {
         },
       },
     ];
-
-    // Labels and Annotations
-    sections.push(...getStandardMetadataSections(metadata));
 
     // Separate entries by type
     const singleLineEntries: { key: string; decoded: string; isSensitive: boolean }[] = [];

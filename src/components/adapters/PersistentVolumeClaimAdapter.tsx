@@ -3,7 +3,7 @@
 
 import { HardDrive, Database, ExternalLink, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section } from './types';
-import { getAccessModeStyle, formatAccessMode, getStandardMetadataSections } from './utils';
+import { getAccessModeStyle, formatAccessMode } from './utils';
 import type { V1PersistentVolumeClaim } from '@kubernetes/client-node';
 
 export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeClaim> = {
@@ -45,9 +45,6 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
         },
       },
     ];
-
-    // Labels and Annotations
-    sections.push(...getStandardMetadataSections(resource.metadata));
 
     // Access Modes
     if (spec.accessModes?.length) {

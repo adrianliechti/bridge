@@ -4,7 +4,8 @@
 import type { ResourceAdapter, ResourceSections, PVCData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1StatefulSet } from '@kubernetes/client-node';
-import { getStandardMetadataSections } from './utils';
+import { getContainerSections } from './utils';
+import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
   kinds: ['StatefulSet', 'StatefulSets'],
@@ -29,6 +30,17 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
     
     // Filter conditions to only show problematic ones
     const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
+
+    // Create metrics loader for container metrics
+    const metricsLoader = async () => {
+      const matchLabels = spec.selector?.matchLabels;
+      if (!namespace || !matchLabels || Object.keys(matchLabels).length === 0) return null;
+
+      const podMetrics = await getPodMetricsBySelector(namespace, matchLabels);
+      if (podMetrics.length === 0) return null;
+
+      return aggregateContainerMetrics(podMetrics);
+    };
 
     return {
       sections: [
@@ -70,9 +82,6 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
             columns: 2,
           },
         },
-        
-        // Labels and Annotations
-        ...getStandardMetadataSections(metadata),
 
         // Revision info
         ...(status?.currentRevision ? [{
@@ -124,9 +133,9 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
         // Associated PVCs (async loaded)
         {
           id: 'pvcs',
-          title: 'Persistent Volume Claims',
           data: {
             type: 'related-pvcs',
+            title: 'Persistent Volume Claims',
             loader: async (): Promise<PVCData[]> => {
               if (!namespace || !metadata?.name) return [];
               
@@ -168,15 +177,12 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
           },
         },
 
-        // Container Images
-        ...(spec.template?.spec?.containers ? [{
-          id: 'images',
-          title: 'Container Images',
-          data: {
-            type: 'container-images' as const,
-            containers: spec.template.spec.containers,
-          },
-        }] : []),
+        // Containers with live metrics
+        ...getContainerSections(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+          metricsLoader,
+        ),
       ],
     };
   },
