@@ -399,16 +399,18 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         >
           Manifest
         </button>
-        <button
-          onClick={() => setActiveTab('events')}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === 'events'
-              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-              : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
-          }`}
-        >
-          Events{events.length > 0 ? ` (${events.length})` : ''}
-        </button>
+        {events.length > 0 && (
+          <button
+            onClick={() => setActiveTab('events')}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === 'events'
+                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
+                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
+            }`}
+          >
+            Events
+          </button>
+        )}
         {supportsLogs && (
           <button
             onClick={() => setActiveTab('logs')}
