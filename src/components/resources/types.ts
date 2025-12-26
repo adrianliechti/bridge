@@ -206,6 +206,53 @@ export interface ResourceSections {
 }
 
 // ============================================
+// ACTION TYPES
+// ============================================
+
+/** Visual style for action buttons */
+export type ActionVariant = 'primary' | 'secondary' | 'danger' | 'warning';
+
+/**
+ * An action that can be performed on a resource.
+ * Actions are displayed as buttons in the resource visualizer.
+ */
+export interface ResourceAction {
+  /** Unique identifier for the action */
+  id: string;
+  /** Display label for the button */
+  label: string;
+  /** Optional icon component */
+  icon?: ReactNode;
+  /** Button style variant */
+  variant?: ActionVariant;
+  /** Whether the action requires confirmation */
+  confirm?: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+  };
+  /** 
+   * Execute the action. 
+   * @param resource - The resource to act upon
+   * @param namespace - The namespace of the resource
+   * @returns A promise that resolves when the action completes
+   */
+  execute: (resource: KubernetesResource, namespace?: string) => Promise<void>;
+  /** 
+   * Optional function to determine if action should be shown.
+   * @param resource - The resource to check
+   * @returns true if the action should be displayed
+   */
+  isVisible?: (resource: KubernetesResource) => boolean;
+  /**
+   * Optional function to determine if action should be disabled.
+   * @param resource - The resource to check
+   * @returns true if the action should be disabled, or a string with the reason
+   */
+  isDisabled?: (resource: KubernetesResource) => boolean | string;
+}
+
+// ============================================
 // ADAPTER INTERFACE
 // ============================================
 
@@ -226,4 +273,7 @@ export interface ResourceAdapter<T = KubernetesResource> {
   
   /** Extract all display sections from the resource */
   adapt(resource: T, namespace?: string): ResourceSections;
+  
+  /** Optional actions that can be performed on this resource type */
+  readonly actions?: ResourceAction[];
 }

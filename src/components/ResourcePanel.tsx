@@ -1,4 +1,4 @@
-import { X, ChevronDown, ChevronRight, Loader2, Copy, Check, ChevronsDownUp } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Loader2, Copy, Check, ChevronsDownUp, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
@@ -230,6 +230,27 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [copied, setCopied] = useState(false);
   const [manifestExpandAll, setManifestExpandAll] = useState<boolean | null>(null);
   const getLogsRef = useRef<(() => LogEntry[]) | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (!resourceId || !resourceId.name || !resourceId.kind || refreshing) return;
+    
+    setRefreshing(true);
+    try {
+      const config = await getResourceConfigByKind(resourceId.kind, resourceId.apiVersion);
+      if (config) {
+        const resource = await getResource(config, resourceId.name, resourceId.namespace);
+        setFullObject(resource);
+      }
+      // Also refresh events
+      const resourceEvents = await getResourceEvents(resourceId.name, resourceId.namespace);
+      setEvents(resourceEvents);
+    } catch (err) {
+      console.error('Failed to refresh resource:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleCopyManifest = async () => {
     if (!fullObject) return;
@@ -336,13 +357,23 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             <p className="text-xs text-neutral-500 dark:text-neutral-500">{resourceId.namespace || 'cluster-scoped'}</p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
-          title="Close"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
+            title="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </header>
 
       {/* Tab Bar */}

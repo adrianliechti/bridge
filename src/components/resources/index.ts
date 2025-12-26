@@ -1,7 +1,7 @@
 // Adapter Registry
 // Maps resource kinds to their adapters for data extraction
 
-import type { ResourceAdapter, ResourceSections } from './types';
+import type { ResourceAdapter, ResourceSections, ResourceAction } from './types';
 import type { KubernetesResource } from '../../api/kubernetes';
 
 // Import all adapters
@@ -15,6 +15,7 @@ import { JobAdapter } from './JobAdapter';
 import { ReplicaSetAdapter } from './ReplicaSetAdapter';
 import { PersistentVolumeAdapter } from './PersistentVolumeAdapter';
 import { PersistentVolumeClaimAdapter } from './PersistentVolumeClaimAdapter';
+import { ApplicationAdapter } from './ApplicationAdapter';
 
 // All registered adapters (using generic type to allow specific implementations)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,6 +30,7 @@ const adapters: ResourceAdapter<any>[] = [
   ReplicaSetAdapter,
   PersistentVolumeAdapter,
   PersistentVolumeClaimAdapter,
+  ApplicationAdapter,
 ];
 
 // Build lookup map (kind -> adapter)
@@ -66,6 +68,22 @@ export function adaptResource(resource: KubernetesResource, namespace?: string):
 }
 
 /**
+ * Get actions available for a resource
+ */
+export function getResourceActions(resource: KubernetesResource): ResourceAction[] {
+  const kind = resource.kind;
+  if (!kind) return [];
+  
+  const adapter = getAdapter(kind);
+  if (!adapter?.actions) return [];
+  
+  // Filter actions based on visibility
+  return adapter.actions.filter(action => 
+    !action.isVisible || action.isVisible(resource)
+  );
+}
+
+/**
  * Get all supported kinds
  */
 export function getSupportedKinds(): string[] {
@@ -83,3 +101,4 @@ export { JobAdapter } from './JobAdapter';
 export { ReplicaSetAdapter } from './ReplicaSetAdapter';
 export { PersistentVolumeAdapter } from './PersistentVolumeAdapter';
 export { PersistentVolumeClaimAdapter } from './PersistentVolumeClaimAdapter';
+export { ApplicationAdapter } from './ApplicationAdapter';
