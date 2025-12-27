@@ -15,8 +15,7 @@ export { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSectio
 export { MetricsProgressBar, ContainerMetricsSection, WorkloadMetricsSection, NodeMetricsSection } from './MetricsSection';
 export { SectionRenderer } from './SectionRenderer';
 
-// Tree/Manifest components
-export { ValueDisplay, ObjectTree, ArrayTree } from './TreeViewer';
+// Manifest components
 export { MetadataView } from './MetadataView';
 export { EventsView } from './EventsView';
 export { HelmReleaseView } from './HelmReleaseView';

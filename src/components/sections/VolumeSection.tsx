@@ -68,23 +68,23 @@ export function VolumeCard({ volume }: { volume: VolumeData }) {
   };
 
   return (
-    <div className={`border rounded-lg overflow-hidden ${typeStyles[volume.type] || 'border-neutral-700 bg-neutral-900/50'}`}>
+    <div className={`border rounded-lg overflow-hidden ${typeStyles[volume.type] || 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50'}`}>
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
       >
         {expanded ? (
-          <ChevronDown size={14} className="text-neutral-500" />
+          <ChevronDown size={14} className="text-neutral-600 dark:text-neutral-500" />
         ) : (
-          <ChevronRight size={14} className="text-neutral-500" />
+          <ChevronRight size={14} className="text-neutral-600 dark:text-neutral-500" />
         )}
-        {typeIcons[volume.type] || <HardDrive size={14} className="text-neutral-400" />}
+        {typeIcons[volume.type] || <HardDrive size={14} className="text-neutral-600 dark:text-neutral-400" />}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{volume.name}</span>
           </div>
-          <div className="text-xs text-neutral-500 truncate">
-            {volume.source && <span className="text-cyan-400/70">{volume.source}</span>}
+          <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">
+            {volume.source && <span className="text-cyan-600 dark:text-cyan-400/70">{volume.source}</span>}
             {volume.mounts.length > 0 && (
               <span className="ml-2">→ {volume.mounts.map(m => m.mountPath).join(', ')}</span>
             )}
@@ -93,16 +93,16 @@ export function VolumeCard({ volume }: { volume: VolumeData }) {
       </button>
 
       {expanded && (
-        <div className="border-t border-neutral-800 p-3 space-y-3">
+        <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
           {/* Source Info */}
           <div>
-            <div className="text-xs text-neutral-500 mb-1">Source</div>
+            <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Source</div>
             <div className="text-xs">
-              <span className={`px-1.5 py-0.5 rounded ${typeBadgeStyles[volume.type] || 'bg-neutral-700 text-neutral-400'}`}>
+              <span className={`px-1.5 py-0.5 rounded ${typeBadgeStyles[volume.type] || 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400'}`}>
                 {volume.type}
               </span>
               {volume.source && (
-                <span className="ml-2 text-cyan-400">{volume.source}</span>
+                <span className="ml-2 text-cyan-600 dark:text-cyan-400">{volume.source}</span>
               )}
             </div>
             {/* Extra source details */}
@@ -120,22 +120,22 @@ export function VolumeCard({ volume }: { volume: VolumeData }) {
           {/* Mount Points */}
           {volume.mounts.length > 0 && (
             <div>
-              <div className="text-xs text-neutral-500 mb-1">Mount Points</div>
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Mount Points</div>
               <div className="space-y-2">
                 {volume.mounts.map((mount, i) => (
                   <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
                     <div className="flex items-center gap-2">
                       <Box size={10} className="text-blue-400" />
                       <span className="text-neutral-900 dark:text-neutral-300">{mount.container}</span>
-                      <span className="text-neutral-600">→</span>
-                      <span className="text-cyan-400 font-mono">{mount.mountPath}</span>
+                      <span className="text-neutral-600 dark:text-neutral-500">→</span>
+                      <span className="text-cyan-600 dark:text-cyan-400 font-mono">{mount.mountPath}</span>
                       {mount.readOnly && (
                         <span className="px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px]">read-only</span>
                       )}
                     </div>
                     {mount.subPath && (
-                      <div className="ml-4 mt-1 text-neutral-500">
-                        <span className="text-neutral-600">subPath:</span> <span className="text-purple-400">{mount.subPath}</span>
+                      <div className="ml-4 mt-1 text-neutral-600 dark:text-neutral-500">
+                        <span className="text-neutral-600 dark:text-neutral-500">subPath:</span> <span className="text-purple-600 dark:text-purple-400">{mount.subPath}</span>
                       </div>
                     )}
                   </div>

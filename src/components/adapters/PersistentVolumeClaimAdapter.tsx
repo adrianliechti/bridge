@@ -76,9 +76,9 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
         data: {
           type: 'custom',
           render: () => (
-            <div className="bg-neutral-900/50 rounded-lg p-3">
-              <div className="text-xs text-neutral-500 mb-1">Storage Class</div>
-              <div className="text-sm text-purple-400 flex items-center gap-2">
+            <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Storage Class</div>
+              <div className="text-sm text-purple-600 dark:text-purple-400 flex items-center gap-2">
                 <Database size={14} />
                 {spec.storageClassName}
               </div>
@@ -92,15 +92,17 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
     if (volumeName) {
       sections.push({
         id: 'bound-volume',
-        title: 'Bound Volume',
         data: {
           type: 'custom',
           render: () => (
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-              <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
                 <Link size={10} /> Bound To
               </div>
-              <div className="text-sm text-cyan-400">{volumeName}</div>
+              <div className="text-sm">
+                <span className="text-neutral-700 dark:text-neutral-400">platform/</span>
+                <span className="text-cyan-600 dark:text-cyan-400">{volumeName}</span>
+              </div>
             </div>
           ),
         },

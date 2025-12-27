@@ -16,9 +16,10 @@ interface ResourceVisualizerProps {
   resource: KubernetesResource;
   namespace?: string;
   onActionComplete?: () => void;
+  hideActions?: boolean;
 }
 
-export function ResourceVisualizer({ resource, namespace, onActionComplete }: ResourceVisualizerProps) {
+export function ResourceVisualizer({ resource, namespace, onActionComplete, hideActions = false }: ResourceVisualizerProps) {
   const sections = adaptResource(resource, namespace);
   const actions = getResourceActions(resource);
 
@@ -35,12 +36,14 @@ export function ResourceVisualizer({ resource, namespace, onActionComplete }: Re
 
   return (
     <div className="space-y-4">
-      <ActionBar 
-        actions={actions} 
-        resource={resource} 
-        namespace={namespace}
-        onActionComplete={onActionComplete}
-      />
+      {!hideActions && (
+        <ActionBar 
+          actions={actions} 
+          resource={resource} 
+          namespace={namespace}
+          onActionComplete={onActionComplete}
+        />
+      )}
       {description && (
         <p className="text-xs text-neutral-600 dark:text-neutral-400">{description}</p>
       )}

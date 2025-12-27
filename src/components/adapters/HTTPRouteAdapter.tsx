@@ -67,7 +67,7 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                   type: 'custom' as const,
                   render: () => (
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                      <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
+                      <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
                         <Link size={10} /> Parent Gateway{spec.parentRefs!.length > 1 ? 's' : ''}
                       </div>
                       <div className="space-y-1">
@@ -78,16 +78,16 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                           
                           return (
                             <div key={idx} className="text-sm flex items-center gap-2">
-                              <span className="text-neutral-500">Gateway:</span>
-                              <span className="text-cyan-400">{parent.name}</span>
+                              <span className="text-neutral-600 dark:text-neutral-500">Gateway:</span>
+                              <span className="text-cyan-600 dark:text-cyan-400">{parent.name}</span>
                               {parent.namespace && (
-                                <span className="text-xs text-neutral-500">({parent.namespace})</span>
+                                <span className="text-xs text-neutral-600 dark:text-neutral-500">({parent.namespace})</span>
                               )}
                               <span
                                 className={`text-xs px-1.5 py-0.5 rounded ${
                                   isAccepted
-                                    ? 'bg-emerald-500/20 text-emerald-400'
-                                    : 'bg-amber-500/20 text-amber-400'
+                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                    : 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
                                 }`}
                               >
                                 {isAccepted ? 'Accepted' : acceptedCond?.reason || 'Unknown'}
@@ -111,12 +111,12 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                   type: 'custom' as const,
                   render: () => (
                     <div className="bg-neutral-100 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3">
-                      <div className="text-xs text-neutral-500 mb-2">Hostnames</div>
+                      <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-2">Hostnames</div>
                       <div className="flex flex-wrap gap-2">
                         {spec.hostnames!.map((hostname, idx) => (
                           <div
                             key={idx}
-                            className="bg-cyan-500/10 border border-cyan-500/30 rounded px-2.5 py-1 text-sm text-cyan-400 font-mono"
+                            className="bg-cyan-500/10 border border-cyan-500/30 rounded px-2.5 py-1 text-sm text-cyan-600 dark:text-cyan-400 font-mono"
                           >
                             {hostname}
                           </div>
@@ -186,9 +186,9 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
       >
         {expanded ? (
-          <ChevronDown size={14} className="text-neutral-500" />
+          <ChevronDown size={14} className="text-neutral-600 dark:text-neutral-500" />
         ) : (
-          <ChevronRight size={14} className="text-neutral-500" />
+          <ChevronRight size={14} className="text-neutral-600 dark:text-neutral-500" />
         )}
         <Route size={14} className="text-purple-400" />
         <div className="flex-1 min-w-0">
@@ -197,7 +197,7 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
               Rule {index + 1}
             </span>
           </div>
-          <div className="text-xs text-neutral-500">
+          <div className="text-xs text-neutral-600 dark:text-neutral-500">
             {matchCount > 0 ? `${matchCount} match${matchCount !== 1 ? 'es' : ''}` : 'All requests'} • {backendCount} backend{backendCount !== 1 ? 's' : ''}
           </div>
         </div>
@@ -207,15 +207,15 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
         <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
           {rule.matches && rule.matches.length > 0 && (
             <div>
-              <div className="text-xs text-neutral-500 mb-1">Matches</div>
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Matches</div>
               <div className="space-y-2">
                 {rule.matches.map((match, i) => (
                   <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
                     {match.path?.value && (
                       <div className="flex items-center gap-2 mb-1">
-                        <Route size={10} className="text-cyan-400" />
-                        <span className="text-neutral-500 dark:text-neutral-400">Path:</span>
-                        <span className="text-cyan-400 font-mono">{match.path.value}</span>
+                        <Route size={10} className="text-cyan-600 dark:text-cyan-400" />
+                        <span className="text-neutral-600 dark:text-neutral-400">Path:</span>
+                        <span className="text-cyan-600 dark:text-cyan-400 font-mono">{match.path.value}</span>
                       </div>
                     )}
                     {match.method && (
@@ -234,17 +234,17 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
 
           {rule.backendRefs && rule.backendRefs.length > 0 && (
             <div>
-              <div className="text-xs text-neutral-500 mb-1">Backend Services</div>
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Backend Services</div>
               <div className="space-y-2">
                 {rule.backendRefs.map((backend, i) => (
                   <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
                     <div className="flex items-center gap-2">
-                      <GitBranch size={10} className="text-emerald-400" />
-                      <span className="text-emerald-400">{backend.name}</span>
+                      <GitBranch size={10} className="text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-emerald-600 dark:text-emerald-400">{backend.name}</span>
                       {backend.port && (
                         <>
-                          <span className="text-neutral-600">:</span>
-                          <span className="text-blue-400">{backend.port}</span>
+                          <span className="text-neutral-600 dark:text-neutral-500">:</span>
+                          <span className="text-blue-600 dark:text-blue-400">{backend.port}</span>
                         </>
                       )}
                       {backend.weight !== undefined && (

@@ -88,9 +88,9 @@ export function AddressesSection({ addresses }: { addresses: Array<{ type: strin
   return (
     <div className="grid grid-cols-2 gap-2">
       {addresses.map((addr, i) => (
-        <div key={i} className="bg-neutral-900/50 rounded-lg p-2">
-          <div className="text-xs text-neutral-500">{addr.type}</div>
-          <div className="text-sm text-cyan-400 font-mono">{addr.address}</div>
+        <div key={i} className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-2">
+          <div className="text-xs text-neutral-600 dark:text-neutral-500">{addr.type}</div>
+          <div className="text-sm text-cyan-600 dark:text-cyan-400 font-mono">{addr.address}</div>
         </div>
       ))}
     </div>

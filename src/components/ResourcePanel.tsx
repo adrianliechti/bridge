@@ -1,10 +1,11 @@
-import { X, Loader2, Copy, Check, Save, RotateCcw } from 'lucide-react';
+import { X, Loader2, Copy, Check, Save, RotateCcw, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, updateResource, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
 import { ResourceVisualizer } from './ResourceVisualizer';
-import { hasAdapter } from './adapters';
+import { hasAdapter, getResourceActions } from './adapters';
+import type { ResourceAction } from './adapters/types';
 import { LogViewer } from './LogViewer';
 import type { LogEntry } from '../api/kubernetesLogs';
 import { MetadataView, EventsView, ManifestEditor, type ManifestEditorState } from './sections';
@@ -45,6 +46,9 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs'>('yaml');
   const [copied, setCopied] = useState(false);
   const [manifestEditorState, setManifestEditorState] = useState<ManifestEditorState | null>(null);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
   const getLogsRef = useRef<(() => LogEntry[]) | null>(null);
   const resourceConfigRef = useRef<Awaited<ReturnType<typeof getResourceConfigByKind>> | null>(null);
 
@@ -86,6 +90,31 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Get actions for the current resource
+  const resourceActions = fullObject ? getResourceActions(fullObject) : [];
+
+  const executeAction = async (action: ResourceAction) => {
+    setActionError(null);
+    setLoadingAction(action.id);
+    try {
+      await action.execute(fullObject!, resourceId?.namespace);
+      fetchResourceData(); // Refresh after action
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setLoadingAction(null);
+      setConfirmAction(null);
+    }
+  };
+
+  const handleActionClick = (action: ResourceAction) => {
+    if (action.confirm) {
+      setConfirmAction(action);
+    } else {
+      executeAction(action);
+    }
   };
 
   const handleSaveResource = useCallback(async (updatedResource: KubernetesResource) => {
@@ -296,17 +325,9 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           {activeTab === 'yaml' && manifestEditorState && (
             <>
               <button
-                onClick={() => manifestEditorState?.reset()}
-                disabled={!manifestEditorState.isDirty || manifestEditorState.isSaving}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Reset changes"
-              >
-                <RotateCcw size={12} />
-              </button>
-              <button
                 onClick={() => manifestEditorState?.save()}
                 disabled={!manifestEditorState.isDirty || manifestEditorState.hasError || manifestEditorState.isSaving}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Save changes"
               >
                 {manifestEditorState.isSaving ? (
@@ -314,6 +335,14 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
                 ) : (
                   <Save size={12} />
                 )}
+              </button>
+              <button
+                onClick={() => manifestEditorState?.reset()}
+                disabled={!manifestEditorState.isDirty || manifestEditorState.isSaving}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Reset changes"
+              >
+                <RotateCcw size={12} />
               </button>
             </>
           )}
@@ -330,8 +359,93 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
               )}
             </button>
           )}
+          {activeTab === 'overview' && resourceActions.length > 0 && (
+            <>
+              {resourceActions.map(action => {
+                const disabled = action.isDisabled?.(fullObject!);
+                const isDisabled = disabled === true || typeof disabled === 'string';
+                const disabledReason = typeof disabled === 'string' ? disabled : undefined;
+                const isLoading = loadingAction === action.id;
+
+                return (
+                  <button
+                    key={action.id}
+                    onClick={() => handleActionClick(action)}
+                    disabled={isDisabled || isLoading}
+                    title={disabledReason || action.label}
+                    className={`
+                      flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors
+                      ${isDisabled || isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+                      ${action.variant === 'primary' 
+                        ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800' 
+                        : action.variant === 'warning'
+                        ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                        : action.variant === 'danger'
+                        ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                        : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                      }
+                    `}
+                  >
+                    {isLoading ? (
+                      <RefreshCw size={12} className="animate-spin" />
+                    ) : (
+                      action.icon
+                    )}
+                  </button>
+                );
+              })}
+            </>
+          )}
         </div>
       </div>
+
+      {/* Action Error */}
+      {actionError && (
+        <div className="shrink-0 mx-4 mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-red-600 dark:text-red-400 text-xs">
+          {actionError}
+        </div>
+      )}
+
+      {/* Action Confirmation Dialog */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 max-w-md mx-4 shadow-xl">
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-200 mb-2">
+              {confirmAction.confirm?.title}
+            </h3>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-4">
+              {confirmAction.confirm?.message}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeAction(confirmAction)}
+                disabled={loadingAction === confirmAction.id}
+                className={`
+                  px-3 py-1.5 text-xs font-medium text-white rounded transition-colors
+                  ${confirmAction.variant === 'danger' 
+                    ? 'bg-red-600 hover:bg-red-700' 
+                    : confirmAction.variant === 'warning'
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                  }
+                  ${loadingAction === confirmAction.id ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+              >
+                {loadingAction === confirmAction.id ? (
+                  <RefreshCw size={12} className="animate-spin inline mr-1" />
+                ) : null}
+                {confirmAction.confirm?.confirmLabel || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       {activeTab === 'overview' && hasCustomAdapter && (
@@ -347,7 +461,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           )}
 
           {fullObject && !loading && (
-            <ResourceVisualizer resource={fullObject} namespace={resourceId.namespace} />
+            <ResourceVisualizer resource={fullObject} namespace={resourceId.namespace} hideActions />
           )}
         </div>
       )}

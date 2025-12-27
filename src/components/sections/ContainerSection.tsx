@@ -111,9 +111,9 @@ export function ContainerCard({
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
       >
         {expanded ? (
-          <ChevronDown size={14} className="text-neutral-500" />
+          <ChevronDown size={14} className="text-neutral-600 dark:text-neutral-500" />
         ) : (
-          <ChevronRight size={14} className="text-neutral-500" />
+          <ChevronRight size={14} className="text-neutral-600 dark:text-neutral-500" />
         )}
         <Box size={16} className={stateInfo.iconClass} />
         <div className="flex-1 min-w-0">
@@ -125,7 +125,7 @@ export function ContainerCard({
               </span>
             )}
           </div>
-          <div className="text-xs text-neutral-500 truncate">{container.image}</div>
+          <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">{container.image}</div>
         </div>
         {/* Compact metrics display in header */}
         {metrics && (
@@ -145,14 +145,14 @@ export function ContainerCard({
         <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
           {/* Image */}
           <div>
-            <div className="text-xs text-neutral-500 mb-1">Image</div>
-            <div className="text-xs text-cyan-400 break-all">{container.image}</div>
+            <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Image</div>
+            <div className="text-xs text-cyan-600 dark:text-cyan-400 break-all">{container.image}</div>
           </div>
 
           {/* Command & Args */}
           {(container.command || container.args) && (
             <div>
-              <div className="text-xs text-neutral-500 mb-1">Command</div>
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Command</div>
               <code className="text-xs text-neutral-900 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded block">
                 {[...(container.command || []), ...(container.args || [])].join(' ')}
               </code>
@@ -162,12 +162,12 @@ export function ContainerCard({
           {/* Ports */}
           {container.ports && container.ports.length > 0 && (
             <div>
-              <div className="text-xs text-neutral-500 mb-1">Ports</div>
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Ports</div>
               <div className="flex flex-wrap gap-1">
                 {container.ports.map((port, i) => (
                   <span key={i} className="text-xs text-neutral-900 dark:text-neutral-100 bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded">
                     {port.containerPort}/{port.protocol || 'TCP'}
-                    {port.name && <span className="text-neutral-500 ml-1">({port.name})</span>}
+                    {port.name && <span className="text-neutral-600 dark:text-neutral-500 ml-1">({port.name})</span>}
                   </span>
                 ))}
               </div>
@@ -179,13 +179,13 @@ export function ContainerCard({
             <div className="grid grid-cols-2 gap-2">
               {container.resources.requests && (
                 <div>
-                  <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
+                  <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
                     <Cpu size={10} /> Requests
                   </div>
                   <div className="text-xs space-y-0.5">
                     {Object.entries(container.resources.requests).map(([k, v]) => (
-                      <div key={k} className="text-neutral-400">
-                        <span className="text-neutral-500">{k}:</span> {v}
+                      <div key={k} className="text-neutral-700 dark:text-neutral-400">
+                        <span className="text-neutral-600 dark:text-neutral-500">{k}:</span> {v}
                       </div>
                     ))}
                   </div>
@@ -193,13 +193,13 @@ export function ContainerCard({
               )}
               {container.resources.limits && (
                 <div>
-                  <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
+                  <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
                     <HardDrive size={10} /> Limits
                   </div>
                   <div className="text-xs space-y-0.5">
                     {Object.entries(container.resources.limits).map(([k, v]) => (
-                      <div key={k} className="text-neutral-400">
-                        <span className="text-neutral-500">{k}:</span> {v}
+                      <div key={k} className="text-neutral-700 dark:text-neutral-400">
+                        <span className="text-neutral-600 dark:text-neutral-500">{k}:</span> {v}
                       </div>
                     ))}
                   </div>

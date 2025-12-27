@@ -34,14 +34,14 @@ export function MetricsProgressBar({
   
   return (
     <div className="flex-1">
-      <div className="h-2 bg-neutral-700 rounded-full overflow-hidden">
+      <div className="h-2 bg-neutral-300 dark:bg-neutral-700 rounded-full overflow-hidden">
         <div 
           className={`h-full ${barColor} transition-all duration-300`}
           style={{ width: `${percentage}%` }}
         />
       </div>
       {label && (
-        <div className="text-xs text-neutral-500 mt-0.5">{label}</div>
+        <div className="text-xs text-neutral-600 dark:text-neutral-500 mt-0.5">{label}</div>
       )}
     </div>
   );
@@ -97,20 +97,20 @@ export function ContainerMetricsSection({ loader, title }: { loader: () => Promi
       {title && <h5 className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
       <div className="space-y-3">
       {items.map((container) => (
-        <div key={container.name} className="bg-neutral-900/50 rounded-lg p-3 space-y-3">
+        <div key={container.name} className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3 space-y-3">
           <div className="flex items-center gap-2">
             <Box size={14} className="text-blue-400" />
-            <span className="text-sm font-medium text-neutral-100">{container.name}</span>
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{container.name}</span>
           </div>
           
           {/* CPU */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-neutral-400 flex items-center gap-1.5">
+              <span className="text-neutral-600 dark:text-neutral-400 flex items-center gap-1.5">
                 <Cpu size={12} />
                 CPU
               </span>
-              <span className="text-neutral-100 font-mono">{container.cpu.usage}</span>
+              <span className="text-neutral-900 dark:text-neutral-100 font-mono">{container.cpu.usage}</span>
             </div>
             {(container.cpu.requestNanoCores || container.cpu.limitNanoCores) && (
               <div className="flex items-center gap-2">
@@ -137,11 +137,11 @@ export function ContainerMetricsSection({ loader, title }: { loader: () => Promi
           {/* Memory */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-neutral-400 flex items-center gap-1.5">
+              <span className="text-neutral-600 dark:text-neutral-400 flex items-center gap-1.5">
                 <HardDrive size={12} />
                 Memory
               </span>
-              <span className="text-neutral-100 font-mono">{container.memory.usage}</span>
+              <span className="text-neutral-900 dark:text-neutral-100 font-mono">{container.memory.usage}</span>
             </div>
             {(container.memory.requestBytes || container.memory.limitBytes) && (
               <div className="flex items-center gap-2">
@@ -223,30 +223,30 @@ export function WorkloadMetricsSection({ loader, title }: { loader: () => Promis
       <div className="space-y-3">
         {/* Totals */}
         <div className="grid grid-cols-2 gap-3">
-        <div className="bg-neutral-900/50 rounded-lg p-3">
-          <div className="text-xs text-neutral-500 flex items-center gap-1.5 mb-1">
+        <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
+          <div className="text-xs text-neutral-600 dark:text-neutral-500 flex items-center gap-1.5 mb-1">
             <Cpu size={12} />
             Total CPU
           </div>
-          <div className="text-lg font-mono text-blue-400">{data.totalCpu}</div>
+          <div className="text-lg font-mono text-blue-600 dark:text-blue-400">{data.totalCpu}</div>
         </div>
-        <div className="bg-neutral-900/50 rounded-lg p-3">
-          <div className="text-xs text-neutral-500 flex items-center gap-1.5 mb-1">
+        <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
+          <div className="text-xs text-neutral-600 dark:text-neutral-500 flex items-center gap-1.5 mb-1">
             <HardDrive size={12} />
             Total Memory
           </div>
-          <div className="text-lg font-mono text-purple-400">{data.totalMemory}</div>
+          <div className="text-lg font-mono text-purple-600 dark:text-purple-400">{data.totalMemory}</div>
         </div>
       </div>
       
       {/* Per-pod breakdown (collapsible) */}
       {data.podMetrics.length > 0 && (
-        <div className="border border-neutral-700 rounded-lg overflow-hidden">
+        <div className="border border-neutral-300 dark:border-neutral-700 rounded-lg overflow-hidden">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full flex items-center justify-between p-2 bg-neutral-800/50 hover:bg-neutral-800 transition-colors"
+            className="w-full flex items-center justify-between p-2 bg-neutral-200/50 dark:bg-neutral-800/50 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
           >
-            <span className="text-xs text-neutral-400">
+            <span className="text-xs text-neutral-700 dark:text-neutral-400">
               {data.podMetrics.length} pod{data.podMetrics.length !== 1 ? 's' : ''}
             </span>
             {expanded ? (

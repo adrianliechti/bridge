@@ -64,8 +64,8 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             type: 'custom' as const,
             render: () => (
               <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
-                <div className="text-xs text-neutral-500 mb-1">Storage Class</div>
-                <div className="text-sm text-purple-400 flex items-center gap-2">
+                <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Storage Class</div>
+                <div className="text-sm text-purple-600 dark:text-purple-400 flex items-center gap-2">
                   <Database size={14} />
                   {spec.storageClassName}
                 </div>
@@ -81,12 +81,12 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             type: 'custom' as const,
             render: () => (
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
+                <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
                   <Link size={10} /> Bound To
                 </div>
                 <div className="text-sm">
-                  <span className="text-neutral-500">{spec.claimRef!.namespace}/</span>
-                  <span className="text-cyan-400">{spec.claimRef!.name}</span>
+                  <span className="text-neutral-600 dark:text-neutral-500">{spec.claimRef!.namespace}/</span>
+                  <span className="text-cyan-600 dark:text-cyan-400">{spec.claimRef!.name}</span>
                 </div>
               </div>
             ),
@@ -98,9 +98,35 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
           id: 'source',
           title: 'Volume Source',
           data: {
-            type: 'info-grid',
-            items: getVolumeSourceInfo(spec),
-            columns: 2 as const,
+            type: 'custom' as const,
+            render: () => {
+              const sourceInfo = getVolumeSourceInfo(spec);
+              const type = sourceInfo.find(i => i.label === 'Type')?.value || 'Unknown';
+              const otherInfo = sourceInfo.filter(i => i.label !== 'Type');
+              
+              return (
+                <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-600 dark:text-neutral-500">Type:</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-purple-400">
+                      {type}
+                    </span>
+                  </div>
+                  {otherInfo.length > 0 && (
+                    <div className="space-y-1 pl-1">
+                      {otherInfo.map((item, i) => (
+                        <div key={i} className="text-xs">
+                          <span className="text-neutral-600 dark:text-neutral-500">{item.label}:</span>{' '}
+                          <span className={item.color ? `${item.color.replace('text-cyan-400', 'text-cyan-600 dark:text-cyan-400').replace('text-purple-400', 'text-purple-600 dark:text-purple-400')}` : 'text-neutral-900 dark:text-neutral-300'}>
+                            {item.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            },
           },
         },
 
@@ -139,7 +165,7 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             render: () => (
               <div className="flex flex-wrap gap-1">
                 {spec.mountOptions!.map((opt, i) => (
-                  <span key={i} className="text-xs bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded text-neutral-700 dark:text-neutral-300">
+                  <span key={i} className="text-xs bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded text-neutral-800 dark:text-neutral-300">
                     {opt}
                   </span>
                 ))}

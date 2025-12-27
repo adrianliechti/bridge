@@ -36,7 +36,7 @@ export function MetadataView({ metadata }: { metadata: Record<string, unknown> }
       {/* Labels */}
       {filteredLabels && Object.keys(filteredLabels).length > 0 && (
         <section className="mb-4">
-          <h4 className="text-xs font-medium uppercase tracking-wider text-neutral-400 mb-2">
+          <h4 className="text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400 mb-2">
             Labels
           </h4>
           <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
@@ -61,7 +61,7 @@ export function MetadataView({ metadata }: { metadata: Record<string, unknown> }
       {/* Annotations */}
       {filteredAnnotations && Object.keys(filteredAnnotations).length > 0 && (
         <section className="mb-4">
-          <h4 className="text-xs font-medium uppercase tracking-wider text-neutral-400 mb-2">
+          <h4 className="text-xs font-medium uppercase tracking-wider text-neutral-600 dark:text-neutral-400 mb-2">
             Annotations
           </h4>
           <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">

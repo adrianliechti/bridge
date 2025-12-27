@@ -1,7 +1,7 @@
 // ArgoCD Application Adapter
 // Extracts display data from ArgoCD Application resources (argoproj.io/v1alpha1)
 
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Pause, HelpCircle, Package, Play, RotateCcw } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Pause, HelpCircle, Package, Play, Diamond, GitCompare } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel } from './types';
 import { syncApplication, refreshApplication } from '../../api/kubernetesArgoCD';
 
@@ -585,7 +585,7 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
     {
       id: 'sync-prune',
       label: 'Sync (Prune)',
-      icon: <Play size={14} />,
+      icon: <Diamond size={14} />,
       variant: 'warning',
       confirm: {
         title: 'Sync with Prune',
@@ -609,7 +609,7 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
     {
       id: 'refresh',
       label: 'Refresh',
-      icon: <RotateCcw size={14} />,
+      icon: <RefreshCw size={14} />,
       variant: 'secondary',
       execute: async (resource) => {
         const name = resource.metadata?.name;
@@ -621,13 +621,8 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
     {
       id: 'hard-refresh',
       label: 'Hard Refresh',
-      icon: <RotateCcw size={14} />,
+      icon: <GitCompare size={14} />,
       variant: 'secondary',
-      confirm: {
-        title: 'Hard Refresh',
-        message: 'This will invalidate the manifest cache and re-fetch all manifests from Git. Continue?',
-        confirmLabel: 'Hard Refresh',
-      },
       execute: async (resource) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace || 'argocd';

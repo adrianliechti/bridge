@@ -356,13 +356,13 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
           render: () => (
             <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
-                <User size={14} className="text-neutral-400" />
+                <User size={14} className="text-neutral-600 dark:text-neutral-400" />
                 <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Identity</span>
               </div>
               {spec.username && (
-                <div className="text-xs text-neutral-400 mb-1">
-                  <span className="text-neutral-500">User:</span>{' '}
-                  <span className="text-cyan-400 font-mono">{spec.username}</span>
+                <div className="text-xs text-neutral-700 dark:text-neutral-400 mb-1">
+                  <span className="text-neutral-600 dark:text-neutral-500">User:</span>{' '}
+                  <span className="text-cyan-600 dark:text-cyan-400 font-mono">{spec.username}</span>
                 </div>
               )}
               {spec.groups && spec.groups.length > 0 && (
@@ -370,7 +370,7 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
                   {spec.groups.map((group, i) => (
                     <span
                       key={i}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-700 text-neutral-400"
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-400"
                     >
                       {group}
                     </span>
