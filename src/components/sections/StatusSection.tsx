@@ -59,10 +59,10 @@ export function GaugesSection({ items, podGrid }: { items: GaugeData[]; podGrid?
           return (
             <div key={i} className="flex-1">
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-neutral-500">{item.label}</span>
+                <span className="text-neutral-600 dark:text-neutral-500">{item.label}</span>
                 <span className={colorClasses[item.color]}>{item.current}/{item.total}</span>
               </div>
-              <div className="h-1 bg-neutral-700 rounded-full overflow-hidden">
+              <div className="h-1 bg-neutral-300 dark:bg-neutral-700 rounded-full overflow-hidden">
                 <div className={`h-full ${bgClasses[item.color]}`} style={{ width: `${percentage}%` }} />
               </div>
             </div>
@@ -92,22 +92,22 @@ export function PodGridSection({ data }: { data: PodGridData }) {
               isReady ? 'bg-emerald-500/20 border border-emerald-500/50' :
               isAvailable ? 'bg-cyan-500/20 border border-cyan-500/50' :
               isCurrent ? 'bg-amber-500/20 border border-amber-500/50' :
-              'bg-neutral-700/50 border border-neutral-600'
+              'bg-neutral-300/50 dark:bg-neutral-700/50 border border-neutral-400 dark:border-neutral-600'
             }`}
             title={`${title}: ${isReady ? 'Ready' : isAvailable ? 'Available' : isCurrent ? 'Current' : 'Pending'}`}
           >
             <IconComponent size={data.showOrdinal ? 10 : 12} className={
-              isReady ? 'text-emerald-400' :
-              isAvailable ? 'text-cyan-400' :
-              isCurrent ? 'text-amber-400' :
-              'text-neutral-500'
+              isReady ? 'text-emerald-600 dark:text-emerald-400' :
+              isAvailable ? 'text-cyan-600 dark:text-cyan-400' :
+              isCurrent ? 'text-amber-600 dark:text-amber-400' :
+              'text-neutral-600 dark:text-neutral-500'
             } />
             {data.showOrdinal && (
               <span className={`text-[9px] ${
-                isReady ? 'text-emerald-400' :
-                isAvailable ? 'text-cyan-400' :
-                isCurrent ? 'text-amber-400' :
-                'text-neutral-500'
+                isReady ? 'text-emerald-600 dark:text-emerald-400' :
+                isAvailable ? 'text-cyan-600 dark:text-cyan-400' :
+                isCurrent ? 'text-amber-600 dark:text-amber-400' :
+                'text-neutral-600 dark:text-neutral-500'
               }`}>{i}</span>
             )}
           </div>

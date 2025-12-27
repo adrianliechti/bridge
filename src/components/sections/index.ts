@@ -17,9 +17,9 @@ export { SectionRenderer } from './SectionRenderer';
 
 // Tree/Manifest components
 export { ValueDisplay, ObjectTree, ArrayTree } from './TreeViewer';
-export { ManifestView } from './ManifestView';
 export { MetadataView } from './MetadataView';
 export { EventsView } from './EventsView';
 export { HelmReleaseView } from './HelmReleaseView';
 export { DockerConfigView } from './DockerConfigView';
 export { CertificateView, PrivateKeyView, PublicKeyView, CsrView, detectPemType } from './CertificateView';
+export { ManifestEditor, type ManifestEditorState } from './ManifestEditor';

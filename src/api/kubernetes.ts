@@ -76,6 +76,44 @@ export async function getResource(
   return fetchApi<KubernetesResource>(url);
 }
 
+// Update a resource (PUT)
+export async function updateResource(
+  config: V1APIResource,
+  resourceName: string,
+  resource: KubernetesResource,
+  namespace?: string
+): Promise<KubernetesResource> {
+  const apiBase = getApiBase(config);
+  const url =
+    config.namespaced && namespace
+      ? `${apiBase}/namespaces/${namespace}/${config.name}/${resourceName}`
+      : `${apiBase}/${config.name}/${resourceName}`;
+
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(resource),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    let message = `API request failed: ${response.status} ${response.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorBody);
+      if (errorJson.message) {
+        message = errorJson.message;
+      }
+    } catch {
+      // Use default message
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
 // Fetch a list of resources (full objects, not Table API)
 export async function getResourceList(
   config: V1APIResource,

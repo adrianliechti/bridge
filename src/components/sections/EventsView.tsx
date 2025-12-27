@@ -5,7 +5,7 @@ import type { CoreV1Event } from '../../api/kubernetes';
 export function EventsView({ events, loading }: { events: CoreV1Event[]; loading: boolean }) {
   if (loading && events.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-neutral-500 text-sm">
+      <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-500 text-sm">
         <Loader2 size={14} className="animate-spin" />
         Loading events...
       </div>
@@ -14,41 +14,15 @@ export function EventsView({ events, loading }: { events: CoreV1Event[]; loading
   
   if (events.length === 0) {
     return (
-      <div className="text-neutral-500 text-sm italic">No events found for this resource</div>
+      <div className="text-neutral-600 dark:text-neutral-500 text-sm italic">No events found for this resource</div>
     );
   }
 
-  // Group events by type
-  const warnings = events.filter(e => e.type === 'Warning');
-  const normal = events.filter(e => e.type !== 'Warning');
-
   return (
-    <div className="space-y-4">
-      {warnings.length > 0 && (
-        <div>
-          <h5 className="text-xs font-medium text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-            Warnings ({warnings.length})
-          </h5>
-          <div className="space-y-2">
-            {warnings.map((event) => (
-              <EventItem key={event.metadata?.uid || `${event.reason}-${event.lastTimestamp}`} event={event} />
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {normal.length > 0 && (
-        <div>
-          <h5 className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
-            Normal Events ({normal.length})
-          </h5>
-          <div className="space-y-2">
-            {normal.map((event) => (
-              <EventItem key={event.metadata?.uid || `${event.reason}-${event.lastTimestamp}`} event={event} />
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="space-y-2">
+      {events.map((event) => (
+        <EventItem key={event.metadata?.uid || `${event.reason}-${event.lastTimestamp}`} event={event} />
+      ))}
     </div>
   );
 }
@@ -80,26 +54,26 @@ function EventItem({ event }: { event: CoreV1Event }) {
     <div className={`p-3 rounded-lg border ${
       isWarning 
         ? 'bg-amber-500/5 border-amber-500/20' 
-        : 'bg-neutral-900/50 border-neutral-700/50'
+        : 'bg-neutral-100 dark:bg-neutral-900/50 border-neutral-300 dark:border-neutral-700/50'
     }`}>
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="flex items-center gap-2">
           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
             isWarning 
-              ? 'bg-amber-500/20 text-amber-400' 
-              : 'bg-emerald-500/20 text-emerald-400'
+              ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' 
+              : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
           }`}>
             {event.type}
           </span>
-          <span className="text-sm font-medium text-neutral-200">{event.reason}</span>
+          <span className="text-sm font-medium text-neutral-900 dark:text-neutral-200">{event.reason}</span>
         </div>
-        <span className="text-xs text-neutral-500 whitespace-nowrap">
+        <span className="text-xs text-neutral-600 dark:text-neutral-500 whitespace-nowrap">
           {formatEventTime(timestamp)}
         </span>
       </div>
-      <p className="text-sm text-neutral-400">{event.message}</p>
+      <p className="text-sm text-neutral-700 dark:text-neutral-400">{event.message}</p>
       {event.count && event.count > 1 && (
-        <p className="text-xs text-neutral-500 mt-1">
+        <p className="text-xs text-neutral-600 dark:text-neutral-500 mt-1">
           Occurred {event.count} times
         </p>
       )}

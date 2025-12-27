@@ -1,14 +1,13 @@
-import { X, Loader2, Copy, Check, ChevronsDownUp } from 'lucide-react';
+import { X, Loader2, Copy, Check, Save, RotateCcw } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
-import { getResource, getResourceEvents, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
+import { getResource, getResourceEvents, updateResource, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter } from './adapters';
 import { LogViewer } from './LogViewer';
 import type { LogEntry } from '../api/kubernetesLogs';
-import { ManifestView, MetadataView, EventsView } from './sections';
-import { stringify as toYaml } from 'yaml';
+import { MetadataView, EventsView, ManifestEditor, type ManifestEditorState } from './sections';
 
 interface ResourcePanelProps {
   isOpen: boolean;
@@ -43,10 +42,11 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<CoreV1Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'manifest' | 'events' | 'logs'>('manifest');
+  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs'>('yaml');
   const [copied, setCopied] = useState(false);
-  const [manifestExpandAll, setManifestExpandAll] = useState<boolean | null>(null);
+  const [manifestEditorState, setManifestEditorState] = useState<ManifestEditorState | null>(null);
   const getLogsRef = useRef<(() => LogEntry[]) | null>(null);
+  const resourceConfigRef = useRef<Awaited<ReturnType<typeof getResourceConfigByKind>> | null>(null);
 
   // Auto-refresh interval (5 seconds)
   const REFRESH_INTERVAL = 5000;
@@ -79,14 +79,6 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     return () => clearInterval(interval);
   }, [isOpen, resourceId?.name, fullObject, fetchResourceData]);
 
-  const handleCopyManifest = async () => {
-    if (!fullObject) return;
-    const yaml = toYaml(fullObject);
-    await navigator.clipboard.writeText(yaml);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleCopyLogs = async () => {
     if (!getLogsRef.current) return;
     const logs = getLogsRef.current();
@@ -96,11 +88,27 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSaveResource = useCallback(async (updatedResource: KubernetesResource) => {
+    if (!resourceId || !resourceId.name || !resourceConfigRef.current) {
+      throw new Error('Resource configuration not available');
+    }
+
+    const updated = await updateResource(
+      resourceConfigRef.current,
+      resourceId.name,
+      updatedResource,
+      resourceId.namespace
+    );
+    
+    // Update the local state with the response from the server
+    setFullObject(updated);
+  }, [resourceId]);
+
   // Fetch the resource config and full resource when resourceId changes
   useEffect(() => {
-    // Reset tab when resource changes - use overview if adapter exists, otherwise manifest
+    // Reset tab when resource changes - use overview if adapter exists, otherwise yaml
     const kind = resourceId?.kind || '';
-    setActiveTab(hasAdapter(kind) ? 'overview' : 'manifest');
+    setActiveTab(hasAdapter(kind) ? 'overview' : 'yaml');
     
     if (!resourceId || !resourceId.name || !resourceId.kind) {
       setFullObject(null);
@@ -125,6 +133,9 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           setLoading(false);
           return;
         }
+
+        // Store the config for later use (e.g., updates)
+        resourceConfigRef.current = config;
 
         // Then fetch the full resource
         const resource = await getResource(config, name, ns);
@@ -246,9 +257,9 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             </button>
           )}
           <button
-            onClick={() => setActiveTab('manifest')}
+            onClick={() => setActiveTab('yaml')}
             className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === 'manifest'
+              activeTab === 'yaml'
                 ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
                 : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
             }`}
@@ -282,24 +293,26 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         </div>
         {/* Tab-specific action buttons */}
         <div className="ml-auto pr-4 flex items-center gap-1">
-          {activeTab === 'manifest' && (
+          {activeTab === 'yaml' && manifestEditorState && (
             <>
               <button
-                onClick={() => setManifestExpandAll(prev => prev === false ? true : false)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
-                title={manifestExpandAll === false ? "Expand all" : "Collapse all"}
+                onClick={() => manifestEditorState?.reset()}
+                disabled={!manifestEditorState.isDirty || manifestEditorState.isSaving}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Reset changes"
               >
-                <ChevronsDownUp size={12} />
+                <RotateCcw size={12} />
               </button>
               <button
-                onClick={handleCopyManifest}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
-                title="Copy as YAML"
+                onClick={() => manifestEditorState?.save()}
+                disabled={!manifestEditorState.isDirty || manifestEditorState.hasError || manifestEditorState.isSaving}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                title="Save changes"
               >
-                {copied ? (
-                  <Check size={12} className="text-emerald-500" />
+                {manifestEditorState.isSaving ? (
+                  <Loader2 size={12} className="animate-spin" />
                 ) : (
-                  <Copy size={12} />
+                  <Save size={12} />
                 )}
               </button>
             </>
@@ -339,14 +352,14 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         </div>
       )}
 
-      {activeTab === 'manifest' && (
+      {activeTab === 'yaml' && (
         <div className="flex-1 overflow-hidden flex flex-col">
-          <ManifestView 
-            key={`manifest-${manifestExpandAll}`}
-            resource={fullObject} 
-            loading={loading} 
+          <ManifestEditor
+            resource={fullObject}
+            loading={loading}
             error={error}
-            expandAll={manifestExpandAll}
+            onSave={handleSaveResource}
+            onStateRef={setManifestEditorState}
           />
         </div>
       )}
