@@ -3,51 +3,12 @@
 
 /* eslint-disable react-refresh/only-export-components */
 
-import { Key, Lock, Eye, EyeOff, Copy, Check, FileText, Shield, ChevronDown, ChevronRight } from 'lucide-react';
+import { Key, Lock, Eye, EyeOff, Copy, Check, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './types';
-
-
-// Secret types
-interface Secret {
-  apiVersion?: string;
-  kind?: string;
-  metadata?: {
-    name?: string;
-    namespace?: string;
-    uid?: string;
-    creationTimestamp?: string;
-    labels?: Record<string, string>;
-    annotations?: Record<string, string>;
-  };
-  type?: string;
-  data?: Record<string, string>;
-  stringData?: Record<string, string>;
-  immutable?: boolean;
-}
-
-// Get secret type display info
-function getSecretTypeInfo(type?: string): { label: string; status: StatusLevel } {
-  switch (type) {
-    case 'kubernetes.io/service-account-token':
-      return { label: 'Service Account Token', status: 'neutral' };
-    case 'kubernetes.io/dockercfg':
-      return { label: 'Docker Config', status: 'neutral' };
-    case 'kubernetes.io/dockerconfigjson':
-      return { label: 'Docker Config JSON', status: 'neutral' };
-    case 'kubernetes.io/basic-auth':
-      return { label: 'Basic Auth', status: 'neutral' };
-    case 'kubernetes.io/ssh-auth':
-      return { label: 'SSH Auth', status: 'neutral' };
-    case 'kubernetes.io/tls':
-      return { label: 'TLS', status: 'success' };
-    case 'bootstrap.kubernetes.io/token':
-      return { label: 'Bootstrap Token', status: 'warning' };
-    case 'Opaque':
-    default:
-      return { label: type || 'Opaque', status: 'neutral' };
-  }
-}
+import type { ResourceAdapter, ResourceSections, Section } from './types';
+import type { V1Secret } from '@kubernetes/client-node';
+import { HelmReleaseView } from '../sections/HelmReleaseView';
+import { DockerConfigView } from '../sections/DockerConfigView';
 
 // Decode base64 safely
 function decodeBase64(encoded: string): string | null {
@@ -109,44 +70,44 @@ function SingleLineSecretTable({ entries }: { entries: { key: string; decoded: s
   };
 
   return (
-    <div className="bg-neutral-900/50 border border-neutral-700 rounded-lg overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
+      <table className="w-full text-xs">
         <tbody>
           {entries.map(({ key, decoded, isSensitive }) => (
-            <tr key={key} className="border-b border-neutral-700/50 last:border-b-0">
-              <td className="px-3 py-2 text-neutral-400 font-medium whitespace-nowrap w-1">
+            <tr key={key} className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
+              <td className="py-1.5 pr-3 text-neutral-500 whitespace-nowrap">
                 {key}
               </td>
-              <td className="px-3 py-2 text-neutral-300 font-mono text-xs break-all">
+              <td className="py-1.5 font-mono break-all">
                 {isSensitive && !revealedKeys.has(key) ? (
-                  <span className="text-neutral-500">••••••••••••••••</span>
+                  <span className="text-neutral-400">••••••••••••••••</span>
                 ) : (
-                  decoded
+                  <span className="text-neutral-900 dark:text-neutral-300">{decoded}</span>
                 )}
               </td>
-              <td className="px-2 py-2 w-1">
+              <td className="py-1.5 w-1">
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleCopy(key, decoded)}
-                    className="p-1 rounded hover:bg-neutral-700 transition-colors"
+                    className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
                     title="Copy value"
                   >
                     {copiedKey === key ? (
-                      <Check size={14} className="text-emerald-400" />
+                      <Check size={12} className="text-emerald-500" />
                     ) : (
-                      <Copy size={14} className="text-neutral-500" />
+                      <Copy size={12} className="text-neutral-400" />
                     )}
                   </button>
                   {isSensitive && (
                     <button
                       onClick={() => toggleReveal(key)}
-                      className="p-1 rounded hover:bg-neutral-700 transition-colors"
+                      className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
                       title={revealedKeys.has(key) ? 'Hide value' : 'Reveal value'}
                     >
                       {revealedKeys.has(key) ? (
-                        <EyeOff size={14} className="text-neutral-500" />
+                        <EyeOff size={12} className="text-neutral-400" />
                       ) : (
-                        <Eye size={14} className="text-neutral-500" />
+                        <Eye size={12} className="text-neutral-400" />
                       )}
                     </button>
                   )}
@@ -173,14 +134,14 @@ function MultilineSecretValue({ name, decoded, isSensitive }: { name: string; de
   };
 
   return (
-    <div className="bg-neutral-900/50 border border-neutral-700 rounded-lg overflow-hidden">
+    <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 transition-colors text-left"
+        className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
       >
         <div className="flex items-center gap-2">
-          <Key size={14} className="text-amber-400" />
-          <span className="text-sm font-medium text-neutral-300">{name}</span>
+          <Key size={14} className="text-amber-500 dark:text-amber-400" />
+          <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{name}</span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -188,11 +149,11 @@ function MultilineSecretValue({ name, decoded, isSensitive }: { name: string; de
               e.stopPropagation();
               handleCopy();
             }}
-            className="p-1 rounded hover:bg-neutral-700 transition-colors"
+            className="p-1 rounded hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
             title="Copy value"
           >
             {copied ? (
-              <Check size={14} className="text-emerald-400" />
+              <Check size={14} className="text-emerald-500" />
             ) : (
               <Copy size={14} className="text-neutral-400" />
             )}
@@ -203,7 +164,7 @@ function MultilineSecretValue({ name, decoded, isSensitive }: { name: string; de
                 e.stopPropagation();
                 setRevealed(!revealed);
               }}
-              className="p-1 rounded hover:bg-neutral-700 transition-colors"
+              className="p-1 rounded hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
               title={revealed ? 'Hide value' : 'Reveal value'}
             >
               {revealed ? (
@@ -221,11 +182,11 @@ function MultilineSecretValue({ name, decoded, isSensitive }: { name: string; de
         </div>
       </button>
       {expanded && (
-        <div className="border-t border-neutral-700 p-3">
+        <div className="border-t border-neutral-200 dark:border-neutral-700 p-3">
           {isSensitive && !revealed ? (
-            <span className="text-xs text-neutral-500 font-mono">••••••••••••••••</span>
+            <span className="text-xs text-neutral-400 font-mono">••••••••••••••••</span>
           ) : (
-            <pre className="text-xs text-neutral-400 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
+            <pre className="text-xs text-neutral-600 dark:text-neutral-400 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
               {decoded}
             </pre>
           )}
@@ -235,39 +196,58 @@ function MultilineSecretValue({ name, decoded, isSensitive }: { name: string; de
   );
 }
 
-export const SecretAdapter: ResourceAdapter<Secret> = {
+export const SecretAdapter: ResourceAdapter<V1Secret> = {
   kinds: ['Secret', 'Secrets'],
 
   adapt(resource): ResourceSections {
     const data = resource.data || {};
     const stringData = resource.stringData || {};
 
-    const typeInfo = getSecretTypeInfo(resource.type);
     const keys = [...new Set([...Object.keys(data), ...Object.keys(stringData)])];
 
-    const sections: Section[] = [
-      // Secret type and info
-      {
+    // Special handling for Helm release secrets
+    if (resource.type === 'helm.sh/release.v1' && data.release) {
+      return {
+        sections: [{
+          id: 'helm-release',
+          data: {
+            type: 'custom',
+            render: () => <HelmReleaseView encoded={data.release} />,
+          },
+        }],
+      };
+    }
+
+    // Special handling for Docker config secrets
+    if (resource.type === 'kubernetes.io/dockerconfigjson' && data['.dockerconfigjson']) {
+      return {
+        sections: [{
+          id: 'docker-config',
+          data: {
+            type: 'custom',
+            render: () => <DockerConfigView encoded={data['.dockerconfigjson']} />,
+          },
+        }],
+      };
+    }
+
+    const sections: Section[] = [];
+
+    // Only show status if immutable
+    if (resource.immutable) {
+      sections.push({
         id: 'status',
         data: {
           type: 'status-cards',
-          items: [
-            {
-              label: 'Type',
-              value: typeInfo.label,
-              status: typeInfo.status,
-              icon: <Shield size={14} className="text-amber-400" />,
-            },
-            ...(resource.immutable ? [{
-              label: 'Immutable',
-              value: 'Yes',
-              status: 'warning' as const,
-              icon: <Lock size={14} className="text-amber-400" />,
-            }] : []),
-          ],
+          items: [{
+            label: 'Immutable',
+            value: 'Yes',
+            status: 'warning' as const,
+            icon: <Lock size={14} className="text-amber-400" />,
+          }],
         },
-      },
-    ];
+      });
+    }
 
     // Separate entries by type
     const singleLineEntries: { key: string; decoded: string; isSensitive: boolean }[] = [];
@@ -330,11 +310,11 @@ export const SecretAdapter: ResourceAdapter<Secret> = {
           render: () => (
             <div className="space-y-2">
               {binaryEntries.map(key => (
-                <div key={key} className="bg-neutral-900/50 border border-neutral-700 rounded-lg p-3">
+                <div key={key} className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-3">
                   <div className="flex items-center gap-2">
-                    <FileText size={14} className="text-purple-400" />
-                    <span className="text-sm font-medium text-neutral-300">{key}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
+                    <FileText size={14} className="text-purple-500 dark:text-purple-400" />
+                    <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{key}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400">
                       Binary
                     </span>
                   </div>

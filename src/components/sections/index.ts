@@ -19,3 +19,5 @@ export { ValueDisplay, ObjectTree, ArrayTree } from './TreeViewer';
 export { ManifestView } from './ManifestView';
 export { MetadataView } from './MetadataView';
 export { EventsView } from './EventsView';
+export { HelmReleaseView } from './HelmReleaseView';
+export { DockerConfigView } from './DockerConfigView';
