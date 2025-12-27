@@ -30,9 +30,6 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
     const initContainerStatuses = status?.initContainerStatuses ?? [];
 
     const totalRestarts = containerStatuses.reduce((sum, c) => sum + (c.restartCount ?? 0), 0);
-    
-    // Filter conditions to only show problematic ones
-    const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
     // Create metrics loader for container metrics
     const metricsLoader = async () => {
@@ -109,18 +106,17 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
           },
         }] : []),
 
-        // Conditions (only problematic ones)
-        ...(problematicConditions.length > 0 ? [{
+        // Conditions
+        ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
           title: 'Conditions',
           data: {
             type: 'conditions' as const,
-            items: problematicConditions.map(c => ({
+            items: (status?.conditions ?? []).map(c => ({
               type: c.type || '',
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: false,
             })),
           },
         }] : []),

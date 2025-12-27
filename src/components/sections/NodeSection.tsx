@@ -60,17 +60,3 @@ export function TaintsSection({ items }: { items: TaintData[] }) {
     </div>
   );
 }
-
-export function NodeSelectorSection({ selector }: { selector: Record<string, string> }) {
-  return (
-    <div className="space-y-1">
-      {Object.entries(selector).map(([key, value]) => (
-        <div key={key} className="text-xs bg-neutral-900/50 px-2 py-1.5 rounded">
-          <span className="text-purple-400">{key}</span>
-          <span className="text-neutral-600 mx-1">=</span>
-          <span className="text-cyan-400">{value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}

@@ -56,8 +56,6 @@ export const GatewayAdapter: ResourceAdapter<Gateway> = {
     const totalAttachedRoutes =
       status?.listeners?.reduce((sum, l) => sum + (l.attachedRoutes || 0), 0) || 0;
 
-    const problematicConditions = (status?.conditions ?? []).filter((c) => c.status !== 'True');
-
     return {
       sections: [
         {
@@ -123,19 +121,18 @@ export const GatewayAdapter: ResourceAdapter<Gateway> = {
           },
         },
 
-        ...(problematicConditions.length > 0
+        ...((status?.conditions ?? []).length > 0
           ? [
               {
                 id: 'conditions',
                 title: 'Conditions',
                 data: {
                   type: 'conditions' as const,
-                  items: problematicConditions.map((c) => ({
+                  items: (status?.conditions ?? []).map((c) => ({
                     type: c.type || '',
                     status: c.status || '',
                     reason: c.reason,
                     message: c.message,
-                    isPositive: false,
                   })),
                 },
               },

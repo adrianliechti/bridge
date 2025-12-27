@@ -365,9 +365,6 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
       status: c.status || 'Unknown',
       reason: c.reason,
       message: c.message,
-      isPositive: c.type !== 'ErrorOccurred' 
-        ? c.status === 'True' 
-        : c.status === 'False',
     })) || [];
 
     return {

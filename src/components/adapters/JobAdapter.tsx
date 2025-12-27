@@ -3,7 +3,7 @@
 
 import { Play, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
-import type { V1Job, V1JobCondition } from '@kubernetes/client-node';
+import type { V1Job } from '@kubernetes/client-node';
 import { getContainerSections } from './utils';
 
 export const JobAdapter: ResourceAdapter<V1Job> = {
@@ -102,7 +102,6 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: isJobConditionPositive(c),
             })),
           },
         }] : []),
@@ -127,14 +126,6 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
     };
   },
 };
-
-// Helper function to determine if a job condition is positive
-function isJobConditionPositive(condition: V1JobCondition): boolean {
-  // Complete + True is good, Failed + True is bad
-  if (condition.type === 'Complete') return condition.status === 'True';
-  if (condition.type === 'Failed') return condition.status !== 'True';
-  return condition.status === 'True';
-}
 
 // Helper function to format duration
 function getDuration(start: Date, end?: Date): string {

@@ -4,7 +4,7 @@
 import { Server, Cpu, HardDrive, Box, CheckCircle2, XCircle } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, NodeMetricsData } from './types';
 import { formatMemory } from './utils';
-import type { V1Node, V1NodeCondition } from '@kubernetes/client-node';
+import type { V1Node } from '@kubernetes/client-node';
 import { 
   getNodeMetrics, 
   parseCpuToNanoCores, 
@@ -163,24 +163,20 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
           },
         }] : []),
 
-        // Conditions (only problematic ones)
-        ...(() => {
-          const problematicConditions = conditions.filter(c => !isNodeConditionPositive(c));
-          return problematicConditions.length > 0 ? [{
-            id: 'conditions',
-            title: 'Conditions',
-            data: {
-              type: 'conditions' as const,
-              items: problematicConditions.map(c => ({
-                type: c.type || '',
-                status: c.status || '',
-                reason: c.reason,
-                message: c.message,
-                isPositive: false,
-              })),
-            },
-          }] : [];
-        })(),
+        // Conditions
+        ...(conditions.length > 0 ? [{
+          id: 'conditions',
+          title: 'Conditions',
+          data: {
+            type: 'conditions' as const,
+            items: conditions.map(c => ({
+              type: c.type || '',
+              status: c.status || '',
+              reason: c.reason,
+              message: c.message,
+            })),
+          },
+        }] : []),
 
         // Taints
         ...(taints.length > 0 ? [{
@@ -199,12 +195,3 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
     };
   },
 };
-
-// Helper function to determine if a node condition is positive
-function isNodeConditionPositive(condition: V1NodeCondition): boolean {
-  // For Ready condition, True is good
-  // For all other conditions (MemoryPressure, DiskPressure, etc.), False is good
-  return condition.type === 'Ready' 
-    ? condition.status === 'True'
-    : condition.status === 'False';
-}

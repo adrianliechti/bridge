@@ -47,7 +47,6 @@ export interface ConditionData {
   status: string;
   reason?: string;
   message?: string;
-  isPositive: boolean;
 }
 
 /** Visual pod/replica grid */
@@ -237,7 +236,6 @@ export type SectionData =
   | { type: 'capacity-bars'; items: CapacityBarData[] }
   | { type: 'taints'; items: TaintData[] }
   | { type: 'container-images'; containers: Array<{ name: string; image?: string }> }
-  | { type: 'node-selector'; selector: Record<string, string> }
   | { type: 'related-replicasets'; loader: () => Promise<ReplicaSetData[]>; title?: string }
   | { type: 'related-pvcs'; loader: () => Promise<PVCData[]>; title?: string }
   | { type: 'related-jobs'; loader: () => Promise<JobData[]>; title?: string }

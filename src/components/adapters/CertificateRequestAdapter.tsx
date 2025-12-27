@@ -459,20 +459,18 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
       }
     }
 
-    // Conditions - only show problematic conditions
-    const problematicConditions = status?.conditions?.filter(c => c.status !== 'True') ?? [];
-    if (problematicConditions.length > 0) {
+    // Conditions
+    if (status?.conditions && status.conditions.length > 0) {
       sections.push({
         id: 'conditions',
         title: 'Conditions',
         data: {
           type: 'conditions' as const,
-          items: problematicConditions.map(c => ({
+          items: status.conditions.map(c => ({
             type: c.type ?? '',
             status: c.status ?? 'Unknown',
             reason: c.reason,
             message: c.message,
-            isPositive: false,
           })),
         },
       });

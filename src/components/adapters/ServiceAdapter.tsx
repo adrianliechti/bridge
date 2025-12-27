@@ -1,7 +1,7 @@
 // Service Adapter (v1)
 // Extracts display data from Kubernetes Service resources
 
-import { Globe, Network, Server, ExternalLink, Lock, Tag } from 'lucide-react';
+import { Globe, Network, Server, ExternalLink, Lock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './types';
 import type { V1Service } from '@kubernetes/client-node';
 
@@ -96,50 +96,41 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className="space-y-2">
-              {spec.ports!.map((port, i) => (
-                <div
-                  key={i}
-                  className="bg-neutral-100 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {port.name && (
-                        <span className="text-sm font-medium text-cyan-400">{port.name}</span>
-                      )}
-                      {!port.name && (
-                        <span className="text-sm text-neutral-500">unnamed</span>
-                      )}
-                      {port.appProtocol && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
-                          {port.appProtocol}
+            <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-neutral-200 dark:border-neutral-700">
+                    <th className="pb-2 text-left text-neutral-500 font-medium">Name</th>
+                    <th className="pb-2 text-left text-neutral-500 font-medium">Protocol</th>
+                    <th className="pb-2 text-right text-neutral-500 font-medium">Port</th>
+                    <th className="pb-2 text-right text-neutral-500 font-medium">Target</th>
+                    <th className="pb-2 text-right text-neutral-500 font-medium">NodePort</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {spec.ports!.map((port, i) => (
+                    <tr key={i} className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
+                      <td className="py-2 text-neutral-900 dark:text-neutral-300">
+                        {port.name || <span className="text-neutral-400 italic">unnamed</span>}
+                      </td>
+                      <td className="py-2">
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400">
+                          {port.protocol || 'TCP'}
                         </span>
-                      )}
-                    </div>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400">
-                      {port.protocol || 'TCP'}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center gap-4 text-sm">
-                    <div>
-                      <span className="text-neutral-500">Port: </span>
-                      <span className="text-neutral-700 dark:text-neutral-300 font-mono">{port.port}</span>
-                    </div>
-                    {port.targetPort && (
-                      <div>
-                        <span className="text-neutral-500">Target: </span>
-                        <span className="text-neutral-700 dark:text-neutral-300 font-mono">{port.targetPort}</span>
-                      </div>
-                    )}
-                    {port.nodePort && (
-                      <div>
-                        <span className="text-neutral-500">NodePort: </span>
-                        <span className="text-amber-400 font-mono">{port.nodePort}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                      </td>
+                      <td className="py-2 text-right font-mono text-neutral-700 dark:text-neutral-300">
+                        {port.port}
+                      </td>
+                      <td className="py-2 text-right font-mono text-neutral-700 dark:text-neutral-300">
+                        {port.targetPort || <span className="text-neutral-400">—</span>}
+                      </td>
+                      <td className="py-2 text-right font-mono text-amber-500 dark:text-amber-400">
+                        {port.nodePort || <span className="text-neutral-400">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ),
         },
@@ -209,27 +200,10 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
     if (spec.selector && Object.keys(spec.selector).length > 0) {
       sections.push({
         id: 'selector',
-        title: 'Selector',
         data: {
-          type: 'custom',
-          render: () => (
-            <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Tag size={14} className="text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Pod Selector</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(spec.selector!).map(([key, value]) => (
-                  <span
-                    key={key}
-                    className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-300"
-                  >
-                    {key}={value}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ),
+          type: 'labels' as const,
+          labels: spec.selector,
+          title: 'Selector',
         },
       });
     }
@@ -268,60 +242,6 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
               value: spec.healthCheckNodePort,
             }] : []),
           ],
-        },
-      });
-    }
-
-    // IP Configuration
-    const hasIPConfig = (spec.ipFamilies && spec.ipFamilies.length > 0) || 
-                        spec.ipFamilyPolicy ||
-                        (spec.clusterIPs && spec.clusterIPs.length > 1);
-    if (hasIPConfig) {
-      sections.push({
-        id: 'ip-config',
-        title: 'IP Configuration',
-        data: {
-          type: 'custom',
-          render: () => (
-            <div className="space-y-2">
-              {spec.ipFamilies && spec.ipFamilies.length > 0 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-neutral-500">IP Families:</span>
-                  <div className="flex gap-1">
-                    {spec.ipFamilies.map((family, i) => (
-                      <span
-                        key={i}
-                        className="text-xs px-1.5 py-0.5 rounded bg-neutral-700 text-neutral-300"
-                      >
-                        {family}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {spec.ipFamilyPolicy && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-neutral-500">Policy:</span>
-                  <span className="text-neutral-300">{spec.ipFamilyPolicy}</span>
-                </div>
-              )}
-              {spec.clusterIPs && spec.clusterIPs.length > 1 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-neutral-500">Cluster IPs:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {spec.clusterIPs.map((ip, i) => (
-                      <span
-                        key={i}
-                        className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono"
-                      >
-                        {ip}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ),
         },
       });
     }
@@ -388,7 +308,6 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
             status: c.status,
             reason: c.reason,
             message: c.message,
-            isPositive: c.status === 'True',
           })),
         },
       });

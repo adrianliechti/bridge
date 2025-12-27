@@ -23,9 +23,6 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
     const numberAvailable = status?.numberAvailable ?? 0;
     const numberMisscheduled = status?.numberMisscheduled ?? 0;
     const updatedNumberScheduled = status?.updatedNumberScheduled ?? 0;
-    
-    // Filter conditions to only show problematic ones
-    const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
     // Create metrics loader for container metrics
     const metricsLoader = async () => {
@@ -92,18 +89,17 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
           },
         }] : []),
 
-        // Conditions (only problematic ones)
-        ...(problematicConditions.length > 0 ? [{
+        // Conditions
+        ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
           title: 'Conditions',
           data: {
             type: 'conditions' as const,
-            items: problematicConditions.map(c => ({
+            items: (status?.conditions ?? []).map(c => ({
               type: c.type || '',
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: false,
             })),
           },
         }] : []),
@@ -111,10 +107,10 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
         // Node selector
         ...(spec.template?.spec?.nodeSelector && Object.keys(spec.template.spec.nodeSelector).length > 0 ? [{
           id: 'node-selector',
-          title: 'Node Selector',
           data: {
-            type: 'node-selector' as const,
-            selector: spec.template.spec.nodeSelector,
+            type: 'labels' as const,
+            labels: spec.template.spec.nodeSelector,
+            title: 'Node Selector',
           },
         }] : []),
 

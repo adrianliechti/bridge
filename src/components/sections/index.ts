@@ -4,10 +4,11 @@
 export { ActionBar } from './ActionBar';
 
 // Section components
-export { StatusCardsSection, GaugesSection, PodGridSection, ConditionsSection } from './StatusSection';
+export { StatusCardsSection, GaugesSection, PodGridSection } from './StatusSection';
+export { ConditionsView } from './ConditionsView';
 export { ContainersSection, ContainerCard } from './ContainerSection';
 export { VolumesSection, VolumeCard } from './VolumeSection';
-export { CapacityBarsSection, TaintsSection, NodeSelectorSection } from './NodeSection';
+export { CapacityBarsSection, TaintsSection } from './NodeSection';
 export { RelatedReplicaSetsSection, RelatedPVCsSection, RelatedJobsSection } from './RelatedSection';
 export { VolumeClaimTemplatesSection, ScheduleSection, JobProgressSection, TimelineSection } from './JobSection';
 export { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSection } from './InfoSection';

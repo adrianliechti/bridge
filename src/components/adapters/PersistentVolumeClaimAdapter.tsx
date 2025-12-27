@@ -146,7 +146,6 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
             status: c.status ?? 'Unknown',
             reason: c.reason,
             message: c.message,
-            isPositive: c.status === 'True',
           })),
         },
       });

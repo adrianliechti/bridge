@@ -1,8 +1,9 @@
 import type { Section, SectionData } from '../adapters/types';
-import { StatusCardsSection, GaugesSection, PodGridSection, ConditionsSection } from './StatusSection';
+import { StatusCardsSection, GaugesSection, PodGridSection } from './StatusSection';
+import { ConditionsView } from './ConditionsView';
 import { ContainersSection } from './ContainerSection';
 import { VolumesSection } from './VolumeSection';
-import { CapacityBarsSection, TaintsSection, NodeSelectorSection } from './NodeSection';
+import { CapacityBarsSection, TaintsSection } from './NodeSection';
 import { RelatedReplicaSetsSection, RelatedPVCsSection, RelatedJobsSection } from './RelatedSection';
 import { VolumeClaimTemplatesSection, ScheduleSection, JobProgressSection, TimelineSection } from './JobSection';
 import { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSection } from './InfoSection';
@@ -39,7 +40,7 @@ function renderSectionData(data: SectionData): React.ReactNode {
       return <PodGridSection data={data.data} />;
 
     case 'conditions':
-      return <ConditionsSection items={data.items} />;
+      return <ConditionsView conditions={data.items} />;
 
     case 'info-grid':
       return <InfoGridSection items={data.items} columns={data.columns} />;
@@ -61,9 +62,6 @@ function renderSectionData(data: SectionData): React.ReactNode {
 
     case 'container-images':
       return <ContainerImagesSection containers={data.containers} />;
-
-    case 'node-selector':
-      return <NodeSelectorSection selector={data.selector} />;
 
     case 'related-replicasets':
       return <RelatedReplicaSetsSection loader={data.loader} title={data.title} />;

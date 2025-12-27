@@ -23,9 +23,6 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
     const ready = status?.readyReplicas ?? 0;
     const updated = status?.updatedReplicas ?? 0;
     const available = status?.availableReplicas ?? 0;
-    
-    // Filter conditions to only show problematic ones
-    const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
     // Create metrics loader for container metrics
     const metricsLoader = async () => {
@@ -76,18 +73,17 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
           },
         },
 
-        // Conditions (only problematic ones)
-        ...(problematicConditions.length > 0 ? [{
+        // Conditions
+        ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
           title: 'Conditions',
           data: {
             type: 'conditions' as const,
-            items: problematicConditions.map(c => ({
+            items: (status?.conditions ?? []).map(c => ({
               type: c.type || '',
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: false,
             })),
           },
         }] : []),

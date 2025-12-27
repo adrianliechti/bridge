@@ -26,9 +26,6 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
     // Get owner reference (usually a Deployment)
     const ownerRef = metadata?.ownerReferences?.[0];
     const revision = metadata?.annotations?.['deployment.kubernetes.io/revision'];
-    
-    // Filter conditions to only show problematic ones
-    const problematicConditions = (status?.conditions ?? []).filter(c => c.status !== 'True');
 
     return {
       sections: [
@@ -87,18 +84,17 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
           },
         }] : []),
 
-        // Conditions (only problematic ones)
-        ...(problematicConditions.length > 0 ? [{
+        // Conditions
+        ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
           title: 'Conditions',
           data: {
             type: 'conditions' as const,
-            items: problematicConditions.map(c => ({
+            items: (status?.conditions ?? []).map(c => ({
               type: c.type || '',
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-              isPositive: false,
             })),
           },
         }] : []),

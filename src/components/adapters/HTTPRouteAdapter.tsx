@@ -148,23 +148,20 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
             ]
           : []),
 
-        ...(status?.parents?.some((p) => p.conditions?.some((c) => c.status !== 'True'))
+        ...(status?.parents?.some((p) => p.conditions && p.conditions.length > 0)
           ? [
               {
                 id: 'parent-conditions',
-                title: 'Parent Status Issues',
+                title: 'Parent Status',
                 data: {
                   type: 'conditions' as const,
                   items: status.parents.flatMap((parent) =>
-                    (parent.conditions || [])
-                      .filter((c) => c.status !== 'True')
-                      .map((condition) => ({
-                        type: `${parent.parentRef.name}: ${condition.type}`,
-                        status: condition.status,
-                        reason: condition.reason,
-                        message: condition.message,
-                        isPositive: false,
-                      }))
+                    (parent.conditions || []).map((condition) => ({
+                      type: `${parent.parentRef.name}: ${condition.type}`,
+                      status: condition.status,
+                      reason: condition.reason,
+                      message: condition.message,
+                    }))
                   ),
                 },
               },

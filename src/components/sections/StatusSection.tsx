@@ -2,12 +2,10 @@ import {
   Box, 
   Database, 
   Server,
-  AlertTriangle,
 } from 'lucide-react';
 import type { 
   StatusCardData,
   GaugeData,
-  ConditionData,
   PodGridData,
 } from '../adapters/types';
 
@@ -119,33 +117,3 @@ export function PodGridSection({ data }: { data: PodGridData }) {
   );
 }
 
-export function ConditionsSection({ items }: { items: ConditionData[] }) {
-  // Only show problematic conditions (not positive)
-  const problematicConditions = items.filter(c => !c.isPositive);
-  
-  if (problematicConditions.length === 0) {
-    return null;
-  }
-  
-  return (
-    <div className="space-y-1">
-      {problematicConditions.map((condition, i) => (
-        <div 
-          key={i} 
-          className="flex items-start gap-2 text-xs px-2 py-1.5 rounded bg-amber-500/10 border border-amber-500/20"
-        >
-          <AlertTriangle size={12} className="text-amber-400 mt-0.5 shrink-0" />
-          <div className="min-w-0">
-            <div className="text-amber-300 font-medium">{condition.type}</div>
-            {condition.reason && (
-              <div className="text-amber-400/70">{condition.reason}</div>
-            )}
-            {condition.message && (
-              <div className="text-neutral-400 text-[10px] mt-0.5 wrap-break-word">{condition.message}</div>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
