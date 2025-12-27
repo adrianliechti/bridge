@@ -138,7 +138,7 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
   if (loading) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-        <span className="text-xs text-neutral-400">Decoding Helm release...</span>
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">Decoding Helm release...</span>
       </div>
     );
   }
@@ -146,7 +146,7 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
   if (error || !release) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-        <span className="text-xs text-red-400">{error || 'Failed to decode release'}</span>
+        <span className="text-xs text-red-600 dark:text-red-400">{error || 'Failed to decode release'}</span>
       </div>
     );
   }

@@ -42,9 +42,7 @@ export function ResourceVisualizer({ resource, namespace, onActionComplete }: Re
         onActionComplete={onActionComplete}
       />
       {description && (
-        <div className="text-sm text-neutral-400 bg-neutral-800/50 rounded-lg px-3 py-2 border border-neutral-700/50">
-          {description}
-        </div>
+        <p className="text-xs text-neutral-600 dark:text-neutral-400">{description}</p>
       )}
       {sections.sections.map(section => (
         <SectionRenderer key={section.id} section={section} />

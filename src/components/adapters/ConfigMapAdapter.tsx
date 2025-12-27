@@ -4,24 +4,7 @@
 import { FileText, Copy, Check, ChevronDown, ChevronRight, Lock } from 'lucide-react';
 import { useState } from 'react';
 import type { ResourceAdapter, ResourceSections, Section } from './types';
-
-
-// ConfigMap types
-interface ConfigMap {
-  apiVersion?: string;
-  kind?: string;
-  metadata?: {
-    name?: string;
-    namespace?: string;
-    uid?: string;
-    creationTimestamp?: string;
-    labels?: Record<string, string>;
-    annotations?: Record<string, string>;
-  };
-  data?: Record<string, string>;
-  binaryData?: Record<string, string>;
-  immutable?: boolean;
-}
+import type { V1ConfigMap } from '@kubernetes/client-node';
 
 // Check if content is multiline
 function isMultiline(content: string): boolean {
@@ -40,26 +23,26 @@ function MultilineConfigValue({ name, value }: { name: string; value: string }) 
   };
 
   return (
-    <div className="bg-neutral-900/50 border border-neutral-700 rounded-lg overflow-hidden">
+    <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 transition-colors text-left"
+        className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
       >
         <div className="flex items-center gap-2">
-          <FileText size={14} className="text-blue-400" />
-          <span className="text-sm font-medium text-neutral-300">{name}</span>
+          <FileText size={14} className="text-blue-500 dark:text-blue-400" />
+          <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{name}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={(e) => {
               e.stopPropagation();
               handleCopy();
             }}
-            className="p-1 rounded hover:bg-neutral-700 transition-colors"
+            className="p-1 rounded hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
             title="Copy value"
           >
             {copied ? (
-              <Check size={14} className="text-emerald-400" />
+              <Check size={14} className="text-emerald-500" />
             ) : (
               <Copy size={14} className="text-neutral-400" />
             )}
@@ -72,8 +55,8 @@ function MultilineConfigValue({ name, value }: { name: string; value: string }) 
         </div>
       </button>
       {expanded && (
-        <div className="border-t border-neutral-700 p-3">
-          <pre className="text-xs text-neutral-400 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
+        <div className="border-t border-neutral-200 dark:border-neutral-700 p-3">
+          <pre className="text-xs text-neutral-700 dark:text-neutral-400 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
             {value}
           </pre>
         </div>
@@ -93,27 +76,27 @@ function SingleLineTable({ entries }: { entries: [string, string][] }) {
   };
 
   return (
-    <div className="bg-neutral-900/50 border border-neutral-700 rounded-lg overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
+      <table className="w-full text-xs">
         <tbody>
           {entries.map(([key, value]) => (
-            <tr key={key} className="border-b border-neutral-700/50 last:border-b-0">
-              <td className="px-3 py-2 text-neutral-400 font-medium whitespace-nowrap w-1">
+            <tr key={key} className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
+              <td className="py-1.5 pr-3 text-neutral-500 whitespace-nowrap">
                 {key}
               </td>
-              <td className="px-3 py-2 text-neutral-300 font-mono text-xs break-all">
+              <td className="py-1.5 font-mono break-all text-neutral-900 dark:text-neutral-300">
                 {value}
               </td>
-              <td className="px-2 py-2 w-1">
+              <td className="py-1.5 w-1">
                 <button
                   onClick={() => handleCopy(key, value)}
-                  className="p-1 rounded hover:bg-neutral-700 transition-colors"
+                  className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
                   title="Copy value"
                 >
                   {copiedKey === key ? (
-                    <Check size={14} className="text-emerald-400" />
+                    <Check size={12} className="text-emerald-500" />
                   ) : (
-                    <Copy size={14} className="text-neutral-500" />
+                    <Copy size={12} className="text-neutral-400" />
                   )}
                 </button>
               </td>
@@ -136,24 +119,24 @@ function BinaryValue({ name, value }: { name: string; value: string }) {
   };
 
   return (
-    <div className="bg-neutral-900/50 border border-neutral-700 rounded-lg p-3">
+    <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText size={14} className="text-purple-400" />
-          <span className="text-sm font-medium text-neutral-300">{name}</span>
-          <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
+          <FileText size={14} className="text-purple-500 dark:text-purple-400" />
+          <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{name}</span>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400">
             Binary
           </span>
         </div>
         <button
           onClick={handleCopy}
-          className="p-1 rounded hover:bg-neutral-700 transition-colors"
+          className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
           title="Copy base64 value"
         >
           {copied ? (
-            <Check size={14} className="text-emerald-400" />
+            <Check size={12} className="text-emerald-500" />
           ) : (
-            <Copy size={14} className="text-neutral-400" />
+            <Copy size={12} className="text-neutral-400" />
           )}
         </button>
       </div>
@@ -161,7 +144,7 @@ function BinaryValue({ name, value }: { name: string; value: string }) {
   );
 }
 
-export const ConfigMapAdapter: ResourceAdapter<ConfigMap> = {
+export const ConfigMapAdapter: ResourceAdapter<V1ConfigMap> = {
   kinds: ['ConfigMap', 'ConfigMaps'],
 
   adapt(resource): ResourceSections {
@@ -257,7 +240,7 @@ export const ConfigMapAdapter: ResourceAdapter<ConfigMap> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className="text-center py-8 text-neutral-500">
+            <div className="text-center py-8 text-neutral-400 dark:text-neutral-500">
               <FileText size={32} className="mx-auto mb-2 opacity-50" />
               <p className="text-sm">This ConfigMap is empty</p>
             </div>

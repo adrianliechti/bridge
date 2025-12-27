@@ -67,7 +67,7 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
   if (!config || !config.auths) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-        <span className="text-xs text-red-400">Failed to decode Docker config</span>
+        <span className="text-xs text-red-600 dark:text-red-400">Failed to decode Docker config</span>
       </div>
     );
   }
@@ -77,7 +77,7 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
   if (registries.length === 0) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-        <span className="text-xs text-neutral-400">No registries configured</span>
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">No registries configured</span>
       </div>
     );
   }
@@ -150,7 +150,7 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
                       {isRevealed ? (
                         <span className="text-neutral-900 dark:text-neutral-300 break-all">{password}</span>
                       ) : (
-                        <span className="text-neutral-400">••••••••••••••••</span>
+                        <span className="text-neutral-500 dark:text-neutral-400">••••••••••••••••</span>
                       )}
                     </td>
                     <td className="py-1.5 w-1">

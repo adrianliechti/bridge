@@ -3,81 +3,7 @@
 
 import { Globe, Network, Server, ExternalLink, Lock, Tag } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './types';
-
-
-// Service types
-interface ServicePort {
-  name?: string;
-  protocol?: string;
-  port: number;
-  targetPort?: number | string;
-  nodePort?: number;
-  appProtocol?: string;
-}
-
-interface ServiceSpec {
-  type?: string;
-  clusterIP?: string;
-  clusterIPs?: string[];
-  externalIPs?: string[];
-  externalName?: string;
-  externalTrafficPolicy?: string;
-  internalTrafficPolicy?: string;
-  healthCheckNodePort?: number;
-  ipFamilies?: string[];
-  ipFamilyPolicy?: string;
-  loadBalancerIP?: string;
-  loadBalancerSourceRanges?: string[];
-  loadBalancerClass?: string;
-  ports?: ServicePort[];
-  publishNotReadyAddresses?: boolean;
-  selector?: Record<string, string>;
-  sessionAffinity?: string;
-  sessionAffinityConfig?: {
-    clientIP?: {
-      timeoutSeconds?: number;
-    };
-  };
-  allocateLoadBalancerNodePorts?: boolean;
-}
-
-interface LoadBalancerIngress {
-  ip?: string;
-  hostname?: string;
-  ports?: Array<{
-    port: number;
-    protocol?: string;
-    error?: string;
-  }>;
-}
-
-interface ServiceStatus {
-  loadBalancer?: {
-    ingress?: LoadBalancerIngress[];
-  };
-  conditions?: Array<{
-    type: string;
-    status: string;
-    reason?: string;
-    message?: string;
-    lastTransitionTime?: string;
-  }>;
-}
-
-interface Service {
-  apiVersion?: string;
-  kind?: string;
-  metadata?: {
-    name?: string;
-    namespace?: string;
-    uid?: string;
-    creationTimestamp?: string;
-    labels?: Record<string, string>;
-    annotations?: Record<string, string>;
-  };
-  spec?: ServiceSpec;
-  status?: ServiceStatus;
-}
+import type { V1Service } from '@kubernetes/client-node';
 
 // Get service type display info
 function getServiceTypeInfo(type?: string): { label: string; status: StatusLevel; icon: React.ReactNode } {
@@ -110,7 +36,7 @@ function getServiceTypeInfo(type?: string): { label: string; status: StatusLevel
   }
 }
 
-export const ServiceAdapter: ResourceAdapter<Service> = {
+export const ServiceAdapter: ResourceAdapter<V1Service> = {
   kinds: ['Service', 'Services'],
 
   adapt(resource): ResourceSections {

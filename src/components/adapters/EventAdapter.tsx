@@ -3,49 +3,7 @@
 
 import { AlertTriangle, Info, Calendar, Hash, Target, Server, RefreshCw } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section } from './types';
-
-
-// Event types based on CoreV1Event
-interface EventSource {
-  component?: string;
-  host?: string;
-}
-
-interface ObjectReference {
-  kind?: string;
-  namespace?: string;
-  name?: string;
-  uid?: string;
-  apiVersion?: string;
-  resourceVersion?: string;
-  fieldPath?: string;
-}
-
-interface Event {
-  apiVersion?: string;
-  kind?: string;
-  metadata?: {
-    name?: string;
-    namespace?: string;
-    uid?: string;
-    creationTimestamp?: string | Date;
-    labels?: Record<string, string>;
-    annotations?: Record<string, string>;
-  };
-  involvedObject?: ObjectReference;
-  reason?: string;
-  message?: string;
-  source?: EventSource;
-  firstTimestamp?: string | Date;
-  lastTimestamp?: string | Date;
-  count?: number;
-  type?: string;
-  eventTime?: string | Date;
-  reportingComponent?: string;
-  reportingInstance?: string;
-  action?: string;
-  related?: ObjectReference;
-}
+import type { CoreV1Event } from '@kubernetes/client-node';
 
 // Helper to safely get timestamp string
 function getTimestampString(timestamp?: string | Date): string | undefined {
@@ -90,7 +48,7 @@ function formatRelativeTime(timestamp?: string | Date): string {
   return 'just now';
 }
 
-export const EventAdapter: ResourceAdapter<Event> = {
+export const EventAdapter: ResourceAdapter<CoreV1Event> = {
   kinds: ['Event', 'Events'],
 
   adapt(resource): ResourceSections {
