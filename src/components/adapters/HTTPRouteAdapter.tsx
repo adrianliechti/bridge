@@ -110,7 +110,7 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                 data: {
                   type: 'custom' as const,
                   render: () => (
-                    <div className="bg-neutral-800/50 border border-neutral-700 rounded-lg p-3">
+                    <div className="bg-neutral-100 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3">
                       <div className="text-xs text-neutral-500 mb-2">Hostnames</div>
                       <div className="flex flex-wrap gap-2">
                         {spec.hostnames!.map((hostname, idx) => (
@@ -186,7 +186,7 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
     <div className="border border-purple-500/30 bg-purple-500/5 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
       >
         {expanded ? (
           <ChevronDown size={14} className="text-neutral-500" />
@@ -196,7 +196,7 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
         <Route size={14} className="text-purple-400" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-neutral-100">
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
               Rule {index + 1}
             </span>
           </div>
@@ -207,23 +207,23 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
       </button>
 
       {expanded && (
-        <div className="border-t border-neutral-800 p-3 space-y-3">
+        <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
           {rule.matches && rule.matches.length > 0 && (
             <div>
               <div className="text-xs text-neutral-500 mb-1">Matches</div>
               <div className="space-y-2">
                 {rule.matches.map((match, i) => (
-                  <div key={i} className="text-xs bg-neutral-900/50 rounded p-2">
+                  <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
                     {match.path?.value && (
                       <div className="flex items-center gap-2 mb-1">
                         <Route size={10} className="text-cyan-400" />
-                        <span className="text-neutral-400">Path:</span>
+                        <span className="text-neutral-500 dark:text-neutral-400">Path:</span>
                         <span className="text-cyan-400 font-mono">{match.path.value}</span>
                       </div>
                     )}
                     {match.method && (
                       <div className="flex items-center gap-2">
-                        <span className="text-neutral-400 ml-4">Method:</span>
+                          <span className="text-neutral-500 dark:text-neutral-400 ml-4">Method:</span>
                         <span className="px-1 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-mono">
                           {match.method}
                         </span>
@@ -240,7 +240,7 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
               <div className="text-xs text-neutral-500 mb-1">Backend Services</div>
               <div className="space-y-2">
                 {rule.backendRefs.map((backend, i) => (
-                  <div key={i} className="text-xs bg-neutral-900/50 rounded p-2">
+                  <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
                     <div className="flex items-center gap-2">
                       <GitBranch size={10} className="text-emerald-400" />
                       <span className="text-emerald-400">{backend.name}</span>

@@ -100,7 +100,7 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
               {spec.ports!.map((port, i) => (
                 <div
                   key={i}
-                  className="bg-neutral-900/50 border border-neutral-700 rounded-lg p-3"
+                  className="bg-neutral-100 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -116,19 +116,19 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-700 text-neutral-400">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-400">
                       {port.protocol || 'TCP'}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center gap-4 text-sm">
                     <div>
                       <span className="text-neutral-500">Port: </span>
-                      <span className="text-neutral-300 font-mono">{port.port}</span>
+                      <span className="text-neutral-700 dark:text-neutral-300 font-mono">{port.port}</span>
                     </div>
                     {port.targetPort && (
                       <div>
                         <span className="text-neutral-500">Target: </span>
-                        <span className="text-neutral-300 font-mono">{port.targetPort}</span>
+                        <span className="text-neutral-700 dark:text-neutral-300 font-mono">{port.targetPort}</span>
                       </div>
                     )}
                     {port.nodePort && (
@@ -213,10 +213,10 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className="bg-neutral-900/50 rounded-lg p-3">
+            <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Tag size={14} className="text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-300">Pod Selector</span>
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Pod Selector</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(spec.selector!).map(([key, value]) => (

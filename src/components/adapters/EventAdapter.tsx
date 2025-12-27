@@ -103,9 +103,9 @@ export const EventAdapter: ResourceAdapter<CoreV1Event> = {
             <div className={`p-3 rounded-lg border ${
               isWarning 
                 ? 'bg-amber-500/10 border-amber-500/30' 
-                : 'bg-neutral-900/50 border-neutral-700'
+                : 'bg-neutral-100 dark:bg-neutral-900/50 border-neutral-200 dark:border-neutral-700'
             }`}>
-              <p className="text-sm text-neutral-300 whitespace-pre-wrap">{resource.message}</p>
+              <p className="text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{resource.message}</p>
             </div>
           ),
         },
@@ -194,20 +194,20 @@ export const EventAdapter: ResourceAdapter<CoreV1Event> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className="bg-neutral-900/50 rounded-lg p-3">
+            <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Server size={14} className="text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-300">Event Source</span>
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Event Source</span>
               </div>
               <div className="space-y-1 text-xs">
                 {source.component && (
-                  <div className="text-neutral-300">
+                  <div className="text-neutral-700 dark:text-neutral-300">
                     <span className="text-neutral-500">Component: </span>
                     <span className="text-cyan-400">{source.component}</span>
                   </div>
                 )}
                 {source.host && (
-                  <div className="text-neutral-300">
+                  <div className="text-neutral-700 dark:text-neutral-300">
                     <span className="text-neutral-500">Host: </span>
                     <span className="text-neutral-400 font-mono">{source.host}</span>
                   </div>

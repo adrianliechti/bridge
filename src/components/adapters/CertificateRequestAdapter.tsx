@@ -193,19 +193,19 @@ function PemDataBlock({ title, data, icon }: { title: string; data: string; icon
   };
 
   return (
-    <div className="bg-neutral-900/50 border border-neutral-700 rounded-lg overflow-hidden">
+    <div className="bg-neutral-100 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-neutral-800/50 transition-colors"
+        className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 transition-colors"
       >
         <div className="flex items-center gap-2">
           {icon}
-          <span className="text-sm font-medium text-neutral-300">{title}</span>
+          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{title}</span>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
-            className="p-1 rounded hover:bg-neutral-700 transition-colors"
+            className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
             title="Copy to clipboard"
           >
             {copied ? (
@@ -222,7 +222,7 @@ function PemDataBlock({ title, data, icon }: { title: string; data: string; icon
         </div>
       </button>
       {expanded && (
-        <div className="border-t border-neutral-700 p-3">
+        <div className="border-t border-neutral-200 dark:border-neutral-700 p-3">
           <pre className="text-xs text-neutral-400 font-mono whitespace-pre-wrap break-all overflow-x-auto max-h-64 overflow-y-auto">
             {data}
           </pre>
@@ -337,7 +337,7 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
                 {spec.issuerRef.kind ?? 'Issuer'}
               </span>
             </div>
-            <div className="text-sm text-neutral-300">{spec.issuerRef.name}</div>
+            <div className="text-sm text-neutral-700 dark:text-neutral-300">{spec.issuerRef.name}</div>
             {spec.issuerRef.group && (
               <div className="text-xs text-neutral-500 mt-1">{spec.issuerRef.group}</div>
             )}
@@ -354,10 +354,10 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className="bg-neutral-900/50 rounded-lg p-3">
+            <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <User size={14} className="text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-300">Identity</span>
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Identity</span>
               </div>
               {spec.username && (
                 <div className="text-xs text-neutral-400 mb-1">
@@ -395,7 +395,7 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
               {spec.usages!.map((usage, i) => (
                 <span
                   key={i}
-                  className="text-xs px-2 py-1 rounded bg-neutral-700 text-neutral-300"
+                  className="text-xs px-2 py-1 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300"
                 >
                   {usage}
                 </span>

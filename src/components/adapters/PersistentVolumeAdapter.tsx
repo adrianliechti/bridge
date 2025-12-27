@@ -63,7 +63,7 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
           data: {
             type: 'custom' as const,
             render: () => (
-              <div className="bg-neutral-900/50 rounded-lg p-3">
+              <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
                 <div className="text-xs text-neutral-500 mb-1">Storage Class</div>
                 <div className="text-sm text-purple-400 flex items-center gap-2">
                   <Database size={14} />
@@ -113,7 +113,7 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             render: () => (
               <div className="space-y-2">
                 {spec.nodeAffinity!.required!.nodeSelectorTerms.map((term, i) => (
-                  <div key={i} className="bg-neutral-900/50 rounded-lg p-2">
+                  <div key={i} className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-2">
                     {term.matchExpressions?.map((expr, j) => (
                       <div key={j} className="text-xs">
                         <span className="text-purple-400">{expr.key}</span>
@@ -139,7 +139,7 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             render: () => (
               <div className="flex flex-wrap gap-1">
                 {spec.mountOptions!.map((opt, i) => (
-                  <span key={i} className="text-xs bg-neutral-800 px-2 py-1 rounded text-neutral-300">
+                  <span key={i} className="text-xs bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded text-neutral-700 dark:text-neutral-300">
                     {opt}
                   </span>
                 ))}

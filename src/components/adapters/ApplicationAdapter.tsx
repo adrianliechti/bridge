@@ -382,11 +382,11 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
                     });
 
                     return (
-                      <div key={kind} className="bg-neutral-800/50 rounded-lg p-2">
+                      <div key={kind} className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-2">
                         <div className="flex items-center gap-2 mb-1.5">
                           <Package size={12} className="text-neutral-500" />
-                          <span className="text-xs font-medium text-neutral-400">{kind}</span>
-                          <span className="text-[10px] text-neutral-600">({resources.length})</span>
+                          <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">{kind}</span>
+                          <span className="text-[10px] text-neutral-500 dark:text-neutral-600">({resources.length})</span>
                         </div>
                         <div className="space-y-1">
                           {sortedResources.map((r, idx) => (
@@ -395,11 +395,11 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
                               className="flex items-center gap-2 text-xs pl-4"
                             >
                               {getResourceHealthIcon(r.health?.status)}
-                              <span className="text-neutral-300 truncate flex-1" title={r.name}>
+                              <span className="text-neutral-700 dark:text-neutral-300 truncate flex-1" title={r.name}>
                                 {r.name}
                               </span>
                               {r.namespace && (
-                                <span className="text-neutral-600 text-[10px]">{r.namespace}</span>
+                                <span className="text-neutral-500 dark:text-neutral-600 text-[10px]">{r.namespace}</span>
                               )}
                               {getSyncBadge(r.status)}
                               {r.requiresPruning && (

@@ -273,7 +273,7 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
                 {spec.issuerRef.kind ?? 'Issuer'}
               </span>
             </div>
-            <div className="text-sm text-neutral-300">{spec.issuerRef.name}</div>
+            <div className="text-sm text-neutral-700 dark:text-neutral-300">{spec.issuerRef.name}</div>
             {spec.issuerRef.group && (
               <div className="text-xs text-neutral-500 mt-1">{spec.issuerRef.group}</div>
             )}
@@ -338,7 +338,7 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
           render: () => (
             <div className="space-y-1">
               {spec.uris!.map((uri, i) => (
-                <div key={i} className="text-xs text-neutral-300 font-mono">{uri}</div>
+                <div key={i} className="text-xs text-neutral-700 dark:text-neutral-300 font-mono">{uri}</div>
               ))}
             </div>
           ),
@@ -379,9 +379,9 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
           render: () => (
             <div className="flex flex-wrap gap-2">
               {spec.usages!.map((usage, i) => (
-                <span 
-                  key={i} 
-                  className="text-xs px-2 py-1 rounded bg-neutral-700 text-neutral-300"
+                <span
+                  key={i}
+                  className="text-xs px-2 py-1 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300"
                 >
                   {usage}
                 </span>
@@ -400,30 +400,30 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className="bg-neutral-900/50 rounded-lg p-3">
+            <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Lock size={14} className="text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-300">Configuration</span>
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Configuration</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-neutral-500">Algorithm:</span>
-                  <span className="ml-1 text-neutral-300">{spec.privateKey!.algorithm ?? 'RSA'}</span>
+                  <span className="ml-1 text-neutral-700 dark:text-neutral-300">{spec.privateKey!.algorithm ?? 'RSA'}</span>
                 </div>
                 <div>
                   <span className="text-neutral-500">Size:</span>
-                  <span className="ml-1 text-neutral-300">{spec.privateKey!.size ?? 2048}</span>
+                  <span className="ml-1 text-neutral-700 dark:text-neutral-300">{spec.privateKey!.size ?? 2048}</span>
                 </div>
                 {spec.privateKey!.encoding && (
                   <div>
                     <span className="text-neutral-500">Encoding:</span>
-                    <span className="ml-1 text-neutral-300">{spec.privateKey!.encoding}</span>
+                    <span className="ml-1 text-neutral-700 dark:text-neutral-300">{spec.privateKey!.encoding}</span>
                   </div>
                 )}
                 {spec.privateKey!.rotationPolicy && (
                   <div>
                     <span className="text-neutral-500">Rotation:</span>
-                    <span className="ml-1 text-neutral-300">{spec.privateKey!.rotationPolicy}</span>
+                    <span className="ml-1 text-neutral-700 dark:text-neutral-300">{spec.privateKey!.rotationPolicy}</span>
                   </div>
                 )}
               </div>
@@ -461,7 +461,7 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className="text-xs text-neutral-300 font-mono bg-neutral-900/50 rounded p-2">
+            <div className="text-xs text-neutral-700 dark:text-neutral-300 font-mono bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
               {subjectParts.join(', ')}
             </div>
           ),

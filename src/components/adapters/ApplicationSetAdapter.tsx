@@ -414,13 +414,13 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
                     return (
                       <div 
                         key={idx}
-                        className="bg-neutral-800/50 rounded-lg p-2.5 flex items-center gap-3"
+                        className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-2.5 flex items-center gap-3"
                       >
-                        <div className="p-1.5 bg-neutral-700/50 rounded">
+                        <div className="p-1.5 bg-neutral-200 dark:bg-neutral-700/50 rounded">
                           {info.icon}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium text-neutral-200">
+                          <div className="text-xs font-medium text-neutral-900 dark:text-neutral-200">
                             {info.name}
                           </div>
                           {info.details && (
@@ -459,13 +459,13 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
                     return (
                       <div 
                         key={appStatus.application || idx}
-                        className="flex items-center gap-2 text-xs bg-neutral-800/30 rounded px-2 py-1.5"
+                        className="flex items-center gap-2 text-xs bg-neutral-100 dark:bg-neutral-800/30 rounded px-2 py-1.5"
                       >
                         {statusLevel === 'success' && <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />}
                         {statusLevel === 'warning' && <RefreshCw size={12} className="text-amber-400 shrink-0" />}
                         {statusLevel === 'error' && <XCircle size={12} className="text-red-400 shrink-0" />}
                         {statusLevel === 'neutral' && <HelpCircle size={12} className="text-gray-400 shrink-0" />}
-                        <span className="text-neutral-300 truncate flex-1" title={appStatus.application}>
+                        <span className="text-neutral-700 dark:text-neutral-300 truncate flex-1" title={appStatus.application}>
                           {appStatus.application || 'Unknown'}
                         </span>
                         {appStatus.status && (
