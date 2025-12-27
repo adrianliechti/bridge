@@ -9,6 +9,7 @@ import type { ResourceAdapter, ResourceSections, Section } from './types';
 import type { V1Secret } from '@kubernetes/client-node';
 import { HelmReleaseView } from '../sections/HelmReleaseView';
 import { DockerConfigView } from '../sections/DockerConfigView';
+import { CertificateView, PrivateKeyView, CsrView, PublicKeyView, detectPemType } from '../sections/CertificateView';
 
 // Decode base64 safely
 function decodeBase64(encoded: string): string | null {
@@ -34,7 +35,8 @@ function isBinaryContent(decoded: string): boolean {
 
 // Check if content is multiline
 function isMultiline(content: string): boolean {
-  return content.includes('\n');
+  const trimmed = content.replace(/^[\r\n]+|[\r\n]+$/g, '');
+  return trimmed.includes('\n');
 }
 
 // Check if a key name indicates sensitive data
@@ -253,6 +255,10 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
     const singleLineEntries: { key: string; decoded: string; isSensitive: boolean }[] = [];
     const multilineEntries: { key: string; decoded: string; isSensitive: boolean }[] = [];
     const binaryEntries: string[] = [];
+    const certificateEntries: { key: string; pem: string }[] = [];
+    const privateKeyEntries: { key: string; pem: string }[] = [];
+    const publicKeyEntries: string[] = [];
+    const csrEntries: string[] = [];
 
     keys.forEach(key => {
       const rawValue = data[key] || btoa(stringData[key] || '');
@@ -263,12 +269,109 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
         binaryEntries.push(key);
       } else if (isBinaryContent(decoded)) {
         binaryEntries.push(key);
-      } else if (isMultiline(decoded)) {
-        multilineEntries.push({ key, decoded, isSensitive });
       } else {
-        singleLineEntries.push({ key, decoded, isSensitive });
+        // Check for PEM content
+        const pemResult = detectPemType(decoded);
+        if (pemResult) {
+          switch (pemResult.type) {
+            case 'certificate':
+              certificateEntries.push({ key, pem: pemResult.content });
+              break;
+            case 'private-key':
+              privateKeyEntries.push({ key, pem: pemResult.content });
+              break;
+            case 'public-key':
+              publicKeyEntries.push(key);
+              break;
+            case 'csr':
+              csrEntries.push(key);
+              break;
+            default:
+              if (isMultiline(decoded)) {
+                multilineEntries.push({ key, decoded, isSensitive });
+              } else {
+                singleLineEntries.push({ key, decoded, isSensitive });
+              }
+          }
+        } else if (isMultiline(decoded)) {
+          multilineEntries.push({ key, decoded, isSensitive });
+        } else {
+          singleLineEntries.push({ key, decoded, isSensitive });
+        }
       }
     });
+
+    // Certificate entries
+    if (certificateEntries.length > 0) {
+      sections.push({
+        id: 'certificates',
+        title: 'Certificates',
+        data: {
+          type: 'custom',
+          render: () => (
+            <div className="space-y-2">
+              {certificateEntries.map(({ key, pem }) => (
+                <CertificateView key={key} name={key} pem={pem} />
+              ))}
+            </div>
+          ),
+        },
+      });
+    }
+
+    // Private key entries
+    if (privateKeyEntries.length > 0) {
+      sections.push({
+        id: 'private-keys',
+        title: 'Private Keys',
+        data: {
+          type: 'custom',
+          render: () => (
+            <div className="space-y-2">
+              {privateKeyEntries.map(({ key, pem }) => (
+                <PrivateKeyView key={key} name={key} pem={pem} />
+              ))}
+            </div>
+          ),
+        },
+      });
+    }
+
+    // Public key entries
+    if (publicKeyEntries.length > 0) {
+      sections.push({
+        id: 'public-keys',
+        title: 'Public Keys',
+        data: {
+          type: 'custom',
+          render: () => (
+            <div className="space-y-2">
+              {publicKeyEntries.map(key => (
+                <PublicKeyView key={key} name={key} />
+              ))}
+            </div>
+          ),
+        },
+      });
+    }
+
+    // CSR entries
+    if (csrEntries.length > 0) {
+      sections.push({
+        id: 'csrs',
+        title: 'Certificate Requests',
+        data: {
+          type: 'custom',
+          render: () => (
+            <div className="space-y-2">
+              {csrEntries.map(key => (
+                <CsrView key={key} name={key} />
+              ))}
+            </div>
+          ),
+        },
+      });
+    }
 
     // Single-line data entries (as table)
     if (singleLineEntries.length > 0) {

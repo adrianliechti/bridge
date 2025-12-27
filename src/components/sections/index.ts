@@ -22,3 +22,4 @@ export { MetadataView } from './MetadataView';
 export { EventsView } from './EventsView';
 export { HelmReleaseView } from './HelmReleaseView';
 export { DockerConfigView } from './DockerConfigView';
+export { CertificateView, PrivateKeyView, PublicKeyView, CsrView, detectPemType } from './CertificateView';
