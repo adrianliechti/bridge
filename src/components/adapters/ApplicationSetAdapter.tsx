@@ -578,16 +578,6 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
           },
         }] : []),
 
-        // Conditions
-        ...(conditions.length > 0 ? [{
-          id: 'conditions',
-          title: 'Conditions',
-          data: {
-            type: 'conditions' as const,
-            items: conditions,
-          },
-        }] : []),
-
         // Created timestamp
         ...(metadata?.creationTimestamp ? [{
           id: 'timing',
@@ -600,6 +590,16 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
               },
             ],
             columns: 1 as const,
+          },
+        }] : []),
+
+        // Conditions
+        ...(conditions.length > 0 ? [{
+          id: 'conditions',
+          title: 'Conditions',
+          data: {
+            type: 'conditions' as const,
+            items: conditions,
           },
         }] : []),
       ],

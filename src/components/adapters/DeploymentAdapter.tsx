@@ -73,21 +73,6 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
           },
         },
 
-        // Conditions
-        ...((status?.conditions ?? []).length > 0 ? [{
-          id: 'conditions',
-          title: 'Conditions',
-          data: {
-            type: 'conditions' as const,
-            items: (status?.conditions ?? []).map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-            })),
-          },
-        }] : []),
-
         // Related ReplicaSets (async loaded)
         {
           id: 'replicasets',
@@ -158,6 +143,21 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
           spec.template?.spec?.initContainers,
           metricsLoader,
         ),
+
+        // Conditions
+        ...((status?.conditions ?? []).length > 0 ? [{
+          id: 'conditions',
+          title: 'Conditions',
+          data: {
+            type: 'conditions' as const,
+            items: (status?.conditions ?? []).map(c => ({
+              type: c.type || '',
+              status: c.status || '',
+              reason: c.reason,
+              message: c.message,
+            })),
+          },
+        }] : []),
       ],
     };
   },

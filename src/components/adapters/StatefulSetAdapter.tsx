@@ -96,21 +96,6 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
           },
         }] : []),
 
-        // Conditions
-        ...((status?.conditions ?? []).length > 0 ? [{
-          id: 'conditions',
-          title: 'Conditions',
-          data: {
-            type: 'conditions' as const,
-            items: (status?.conditions ?? []).map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-            })),
-          },
-        }] : []),
-
         // Volume Claim Templates
         ...(spec.volumeClaimTemplates?.length ? [{
           id: 'volume-templates',
@@ -179,6 +164,21 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
           spec.template?.spec?.initContainers,
           metricsLoader,
         ),
+
+        // Conditions
+        ...((status?.conditions ?? []).length > 0 ? [{
+          id: 'conditions',
+          title: 'Conditions',
+          data: {
+            type: 'conditions' as const,
+            items: (status?.conditions ?? []).map(c => ({
+              type: c.type || '',
+              status: c.status || '',
+              reason: c.reason,
+              message: c.message,
+            })),
+          },
+        }] : []),
       ],
     };
   },

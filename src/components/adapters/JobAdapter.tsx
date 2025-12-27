@@ -91,21 +91,6 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
           },
         },
 
-        // Conditions
-        ...(status?.conditions?.length ? [{
-          id: 'conditions',
-          title: 'Conditions',
-          data: {
-            type: 'conditions' as const,
-            items: status.conditions.map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-            })),
-          },
-        }] : []),
-
         // Timeline
         ...(startTime ? [{
           id: 'timeline',
@@ -122,6 +107,21 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
           spec.template?.spec?.containers,
           spec.template?.spec?.initContainers,
         ),
+
+        // Conditions
+        ...(status?.conditions?.length ? [{
+          id: 'conditions',
+          title: 'Conditions',
+          data: {
+            type: 'conditions' as const,
+            items: status.conditions.map(c => ({
+              type: c.type || '',
+              status: c.status || '',
+              reason: c.reason,
+              message: c.message,
+            })),
+          },
+        }] : []),
       ],
     };
   },

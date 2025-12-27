@@ -459,23 +459,6 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
       }
     }
 
-    // Conditions
-    if (status?.conditions && status.conditions.length > 0) {
-      sections.push({
-        id: 'conditions',
-        title: 'Conditions',
-        data: {
-          type: 'conditions' as const,
-          items: status.conditions.map(c => ({
-            type: c.type ?? '',
-            status: c.status ?? 'Unknown',
-            reason: c.reason,
-            message: c.message,
-          })),
-        },
-      });
-    }
-
     // Failure info
     if (status?.failureTime) {
       sections.push({
@@ -496,6 +479,23 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
               )}
             </div>
           ),
+        },
+      });
+    }
+
+    // Conditions
+    if (status?.conditions && status.conditions.length > 0) {
+      sections.push({
+        id: 'conditions',
+        title: 'Conditions',
+        data: {
+          type: 'conditions' as const,
+          items: status.conditions.map(c => ({
+            type: c.type ?? '',
+            status: c.status ?? 'Unknown',
+            reason: c.reason,
+            message: c.message,
+          })),
         },
       });
     }

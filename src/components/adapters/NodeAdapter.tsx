@@ -163,6 +163,20 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
           },
         }] : []),
 
+        // Taints
+        ...(taints.length > 0 ? [{
+          id: 'taints',
+          title: 'Taints',
+          data: {
+            type: 'taints' as const,
+            items: taints.map(t => ({
+              key: t.key || '',
+              value: t.value,
+              effect: t.effect || '',
+            })),
+          },
+        }] : []),
+
         // Conditions
         ...(conditions.length > 0 ? [{
           id: 'conditions',
@@ -174,20 +188,6 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
               status: c.status || '',
               reason: c.reason,
               message: c.message,
-            })),
-          },
-        }] : []),
-
-        // Taints
-        ...(taints.length > 0 ? [{
-          id: 'taints',
-          title: 'Taints',
-          data: {
-            type: 'taints' as const,
-            items: taints.map(t => ({
-              key: t.key || '',
-              value: t.value,
-              effect: t.effect || '',
             })),
           },
         }] : []),

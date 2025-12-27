@@ -84,6 +84,12 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
           },
         }] : []),
 
+        // Containers
+        ...getContainerSections(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        ),
+
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
@@ -98,12 +104,6 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
             })),
           },
         }] : []),
-
-        // Containers
-        ...getContainerSections(
-          spec.template?.spec?.containers,
-          spec.template?.spec?.initContainers,
-        ),
       ],
     };
   },

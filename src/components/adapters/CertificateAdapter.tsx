@@ -498,23 +498,6 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
       }
     }
 
-    // Conditions
-    if (status?.conditions && status.conditions.length > 0) {
-      sections.push({
-        id: 'conditions',
-        title: 'Conditions',
-        data: {
-          type: 'conditions' as const,
-          items: status.conditions.map(c => ({
-            type: c.type ?? '',
-            status: c.status ?? 'Unknown',
-            reason: c.reason,
-            message: c.message,
-          })),
-        },
-      });
-    }
-
     // Failed issuance info
     if (status?.failedIssuanceAttempts && status.failedIssuanceAttempts > 0) {
       sections.push({
@@ -534,6 +517,23 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
               )}
             </div>
           ),
+        },
+      });
+    }
+
+    // Conditions
+    if (status?.conditions && status.conditions.length > 0) {
+      sections.push({
+        id: 'conditions',
+        title: 'Conditions',
+        data: {
+          type: 'conditions' as const,
+          items: status.conditions.map(c => ({
+            type: c.type ?? '',
+            status: c.status ?? 'Unknown',
+            reason: c.reason,
+            message: c.message,
+          })),
         },
       });
     }
