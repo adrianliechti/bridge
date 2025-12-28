@@ -1,13 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, Copy, Check } from 'lucide-react';
 import { streamCombinedLogs, getWorkloadPods, type LogEntry } from '../api/kubernetesLogs';
 import { useCluster } from '../hooks/useCluster';
 import type { KubernetesResource } from '../api/kubernetes';
 
 export interface LogViewerProps {
   resource: KubernetesResource;
-  // Callback to expose logs for external use (e.g., copy)
-  onLogsRef?: (getLogs: () => LogEntry[]) => void;
+  toolbarRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 // Color palette for different pods
@@ -275,29 +275,41 @@ const TAIL_LINES = 4000;
 
 export function LogViewer({ 
   resource,
-  onLogsRef,
+  toolbarRef,
 }: LogViewerProps) {
   const { context } = useCluster();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
-  const logsRef = useRef<LogEntry[]>([]);
-  
-  // Keep logsRef in sync with logs state
-  useEffect(() => {
-    logsRef.current = logs;
-  }, [logs]);
 
-  // Expose logs getter to parent
-  useEffect(() => {
-    if (onLogsRef) {
-      onLogsRef(() => logsRef.current);
-    }
-  }, [onLogsRef]);
+  const handleCopyLogs = async () => {
+    const text = logs.map(log => `${log.timestamp} [${log.podName}] ${log.message}`).join('\n');
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Toolbar actions rendered via portal
+  const toolbarActions = toolbarRef?.current ? createPortal(
+    <button
+      onClick={handleCopyLogs}
+      disabled={logs.length === 0}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      title="Copy logs"
+    >
+      {copied ? (
+        <Check size={12} className="text-emerald-500" />
+      ) : (
+        <Copy size={12} />
+      )}
+    </button>,
+    toolbarRef.current
+  ) : null;
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const namespace = resource.metadata?.namespace;
@@ -365,6 +377,9 @@ export function LogViewer({
 
   return (
     <div className="flex flex-col h-full bg-neutral-50 dark:bg-neutral-950">
+      {/* Toolbar actions rendered via portal to parent */}
+      {toolbarActions}
+
       {/* Pod legend */}
       {podNames.length > 1 && (
         <div className="shrink-0 px-4 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900/30">

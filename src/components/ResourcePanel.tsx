@@ -1,4 +1,4 @@
-import { X, Loader2, Copy, Check, Save, RotateCcw, RefreshCw } from 'lucide-react';
+import { X, Loader2, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, updateResource, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
@@ -8,8 +8,7 @@ import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './adapters';
 import type { ResourceAction } from './adapters/types';
 import { LogViewer } from './LogViewer';
-import type { LogEntry } from '../api/kubernetesLogs';
-import { MetadataView, EventsView, ManifestEditor, type ManifestEditorState } from './sections';
+import { MetadataView, EventsView, ManifestEditor } from './sections';
 
 interface ResourcePanelProps {
   isOpen: boolean;
@@ -46,13 +45,11 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [events, setEvents] = useState<CoreV1Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs'>('yaml');
-  const [copied, setCopied] = useState(false);
-  const [manifestEditorState, setManifestEditorState] = useState<ManifestEditorState | null>(null);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
-  const getLogsRef = useRef<(() => LogEntry[]) | null>(null);
   const resourceConfigRef = useRef<Awaited<ReturnType<typeof getResourceConfigByKind>> | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   // Auto-refresh interval (5 seconds)
   const REFRESH_INTERVAL = 5000;
@@ -84,15 +81,6 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
 
     return () => clearInterval(interval);
   }, [isOpen, resourceId?.name, fullObject, fetchResourceData]);
-
-  const handleCopyLogs = async () => {
-    if (!getLogsRef.current) return;
-    const logs = getLogsRef.current();
-    const text = logs.map(log => `${log.timestamp} [${log.podName}] ${log.message}`).join('\n');
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   // Get actions for the current resource
   const resourceActions = fullObject ? getResourceActions(fullObject) : [];
@@ -323,45 +311,10 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             </button>
           )}
         </div>
-        {/* Tab-specific action buttons */}
+        {/* Tab-specific action buttons - portal target for child components + overview actions */}
         <div className="ml-auto pr-4 flex items-center gap-1">
-          {activeTab === 'yaml' && manifestEditorState && (
-            <>
-              <button
-                onClick={() => manifestEditorState?.save()}
-                disabled={!manifestEditorState.isDirty || manifestEditorState.hasError || manifestEditorState.isSaving}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Save changes"
-              >
-                {manifestEditorState.isSaving ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Save size={12} />
-                )}
-              </button>
-              <button
-                onClick={() => manifestEditorState?.reset()}
-                disabled={!manifestEditorState.isDirty || manifestEditorState.isSaving}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Reset changes"
-              >
-                <RotateCcw size={12} />
-              </button>
-            </>
-          )}
-          {activeTab === 'logs' && (
-            <button
-              onClick={handleCopyLogs}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
-              title="Copy logs"
-            >
-              {copied ? (
-                <Check size={12} className="text-emerald-500" />
-              ) : (
-                <Copy size={12} />
-              )}
-            </button>
-          )}
+          {/* Portal target for child component toolbar actions */}
+          <div ref={toolbarRef} className="flex items-center gap-1" />
           {activeTab === 'overview' && resourceActions.length > 0 && (
             <>
               {resourceActions.map(action => {
@@ -476,7 +429,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             loading={loading}
             error={error}
             onSave={handleSaveResource}
-            onStateRef={setManifestEditorState}
+            toolbarRef={toolbarRef}
           />
         </div>
       )}
@@ -499,7 +452,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         <div className="flex-1 overflow-hidden">
           <LogViewer
             resource={fullObject}
-            onLogsRef={(getLogs) => { getLogsRef.current = getLogs; }}
+            toolbarRef={toolbarRef}
           />
         </div>
       )}

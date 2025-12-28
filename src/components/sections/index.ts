@@ -21,4 +21,4 @@ export { EventsView } from './EventsView';
 export { HelmReleaseView } from './HelmReleaseView';
 export { DockerConfigView } from './DockerConfigView';
 export { CertificateView, PrivateKeyView, PublicKeyView, CsrView, detectPemType } from './CertificateView';
-export { ManifestEditor, type ManifestEditorState } from './ManifestEditor';
+export { ManifestEditor } from './ManifestEditor';
