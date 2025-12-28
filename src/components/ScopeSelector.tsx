@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import type { V1Namespace } from '@kubernetes/client-node';
+import { matchesNamespacePattern } from '../config';
 
 interface NamespaceGroup {
   label: string;
@@ -12,9 +13,7 @@ interface ScopeSelectorProps {
   selectedNamespace: string | undefined;
   onSelectNamespace: (namespace: string | undefined) => void;
   disabled?: boolean;
-  /** Ordered list of label keys to group by (e.g., ['project', 'spaces']) */
   spaceLabels?: string[];
-  /** List of platform namespace names */
   platformNamespaces?: string[];
 }
 
@@ -33,8 +32,10 @@ export function ScopeSelector({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Create sets for quick lookup
-  const platformNsSet = useMemo(() => new Set(platformNamespaces), [platformNamespaces]);
+  // Helper function to check if a namespace matches platform patterns
+  const isPlatformNamespace = useMemo(() => {
+    return (name: string) => matchesNamespacePattern(name, platformNamespaces);
+  }, [platformNamespaces]);
 
   // Group namespaces
   const groups = useMemo(() => {
@@ -73,7 +74,7 @@ export function ScopeSelector({
     const userNs = namespaces
       .filter(ns => {
         const name = ns.metadata?.name;
-        return name && !assigned.has(name) && !platformNsSet.has(name);
+        return name && !assigned.has(name) && !isPlatformNamespace(name);
       })
       .sort((a, b) => 
         (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
@@ -87,7 +88,7 @@ export function ScopeSelector({
     const platformNs = namespaces
       .filter(ns => {
         const name = ns.metadata?.name;
-        return name && !assigned.has(name) && platformNsSet.has(name);
+        return name && !assigned.has(name) && isPlatformNamespace(name);
       })
       .sort((a, b) => 
         (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
@@ -98,7 +99,7 @@ export function ScopeSelector({
     }
 
     return result;
-  }, [namespaces, spaceLabels, platformNsSet]);
+  }, [namespaces, spaceLabels, isPlatformNamespace]);
 
   // Filter namespaces based on query
   const filteredGroups = useMemo(() => {

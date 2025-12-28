@@ -9,7 +9,7 @@ export interface AIConfig {
 }
 
 export interface PlatformConfig {
-  /** List of namespaces belonging to the platform */
+  /** List of namespaces belonging to the platform (supports wildcards: *-system, openshift-*) */
   namespaces?: string[];
   /** Configuration for namespace grouping */
   spaces?: {
@@ -61,4 +61,17 @@ export async function loadConfig(): Promise<AppConfig> {
 
 export function getConfig(): AppConfig {
   return config;
+}
+
+/**
+ * Checks if a namespace name matches any of the given patterns.
+ * Patterns can include wildcards (*) for flexible matching.
+ * Examples: *-system, openshift-*, *monitoring*
+ */
+export function matchesNamespacePattern(name: string, patterns: string[]): boolean {
+  return patterns.some(pattern => {
+    if (!pattern.includes('*')) return pattern === name;
+    const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`);
+    return regex.test(name);
+  });
 }
