@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { 
   Box, 
   HardDrive, 
-  ChevronDown,
-  ChevronRight,
   Cpu,
 } from 'lucide-react';
 import type { ContainerData } from '../adapters/types';
@@ -108,13 +106,8 @@ export function ContainerCard({
     <div className={`border rounded-lg overflow-hidden ${stateInfo.borderClass}`}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
       >
-        {expanded ? (
-          <ChevronDown size={14} className="text-neutral-600 dark:text-neutral-500" />
-        ) : (
-          <ChevronRight size={14} className="text-neutral-600 dark:text-neutral-500" />
-        )}
         <Box size={16} className={stateInfo.iconClass} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

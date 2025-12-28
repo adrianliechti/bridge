@@ -89,18 +89,7 @@ function SingleLineSecretTable({ entries }: { entries: { key: string; decoded: s
               </td>
               <td className="py-1.5 w-1">
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleCopy(key, decoded)}
-                    className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-                    title="Copy value"
-                  >
-                    {copiedKey === key ? (
-                      <Check size={12} className="text-emerald-500" />
-                    ) : (
-                      <Copy size={12} className="text-neutral-400" />
-                    )}
-                  </button>
-                  {isSensitive && (
+                  {isSensitive ? (
                     <button
                       onClick={() => toggleReveal(key)}
                       className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
@@ -112,7 +101,20 @@ function SingleLineSecretTable({ entries }: { entries: { key: string; decoded: s
                         <Eye size={12} className="text-neutral-400" />
                       )}
                     </button>
+                  ) : (
+                    <div className="w-7" />
                   )}
+                  <button
+                    onClick={() => handleCopy(key, decoded)}
+                    className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                    title="Copy value"
+                  >
+                    {copiedKey === key ? (
+                      <Check size={12} className="text-emerald-500" />
+                    ) : (
+                      <Copy size={12} className="text-neutral-400" />
+                    )}
+                  </button>
                 </div>
               </td>
             </tr>
@@ -258,7 +260,7 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
     const certificateEntries: { key: string; pem: string }[] = [];
     const privateKeyEntries: { key: string; pem: string }[] = [];
     const publicKeyEntries: string[] = [];
-    const csrEntries: string[] = [];
+    const csrEntries: { key: string; pem: string }[] = [];
 
     keys.forEach(key => {
       const rawValue = data[key] || btoa(stringData[key] || '');
@@ -284,7 +286,7 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
               publicKeyEntries.push(key);
               break;
             case 'csr':
-              csrEntries.push(key);
+              csrEntries.push({ key, pem: pemResult.content });
               break;
             default:
               if (isMultiline(decoded)) {
@@ -364,8 +366,8 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
           type: 'custom',
           render: () => (
             <div className="space-y-2">
-              {csrEntries.map(key => (
-                <CsrView key={key} name={key} />
+              {csrEntries.map(({ key, pem }) => (
+                <CsrView key={key} name={key} pem={pem} />
               ))}
             </div>
           ),

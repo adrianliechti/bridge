@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { 
   HardDrive, 
-  ChevronDown,
-  ChevronRight,
   KeyRound,
   Settings,
   FolderOpen,
@@ -71,13 +69,8 @@ export function VolumeCard({ volume }: { volume: VolumeData }) {
     <div className={`border rounded-lg overflow-hidden ${typeStyles[volume.type] || 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50'}`}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
       >
-        {expanded ? (
-          <ChevronDown size={14} className="text-neutral-600 dark:text-neutral-500" />
-        ) : (
-          <ChevronRight size={14} className="text-neutral-600 dark:text-neutral-500" />
-        )}
         {typeIcons[volume.type] || <HardDrive size={14} className="text-neutral-600 dark:text-neutral-400" />}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

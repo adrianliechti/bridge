@@ -4,7 +4,7 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { useState } from 'react';
-import { Shield, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, Clock, Copy, Check, Eye, EyeOff } from 'lucide-react';
+import { Shield, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, Clock, Copy, Check } from 'lucide-react';
 import * as x509 from '@peculiar/x509';
 
 // Common PEM certificate prefixes
@@ -492,7 +492,6 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
 // Component for displaying private key info with optional reveal
 export function PrivateKeyView({ name, pem }: { name: string; pem: string }) {
   const [expanded, setExpanded] = useState(false);
-  const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -529,18 +528,61 @@ export function PrivateKeyView({ name, pem }: { name: string; pem: string }) {
               <Copy size={14} className="text-neutral-400" />
             )}
           </button>
+          {expanded ? (
+            <ChevronDown size={14} className="text-neutral-400" />
+          ) : (
+            <ChevronRight size={14} className="text-neutral-400" />
+          )}
+        </div>
+      </button>
+      {expanded && (
+        <div className="border-t border-neutral-200 dark:border-neutral-700 p-3">
+          <pre className="text-xs text-neutral-600 dark:text-neutral-400 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
+            {pem}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Component for displaying CSR info
+export function CsrView({ name, pem }: { name: string; pem: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(pem);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Shield size={14} className="text-amber-500 dark:text-amber-400" />
+          <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{name}</span>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
+            Certificate Request
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setRevealed(!revealed);
+              handleCopy();
             }}
             className="p-1 rounded hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
-            title={revealed ? 'Hide private key' : 'Reveal private key'}
+            title="Copy CSR"
           >
-            {revealed ? (
-              <EyeOff size={14} className="text-neutral-400" />
+            {copied ? (
+              <Check size={14} className="text-emerald-500" />
             ) : (
-              <Eye size={14} className="text-neutral-400" />
+              <Copy size={14} className="text-neutral-400" />
             )}
           </button>
           {expanded ? (
@@ -552,33 +594,11 @@ export function PrivateKeyView({ name, pem }: { name: string; pem: string }) {
       </button>
       {expanded && (
         <div className="border-t border-neutral-200 dark:border-neutral-700 p-3">
-          {!revealed ? (
-            <div className="flex items-center gap-2 text-xs text-neutral-500">
-              <AlertTriangle size={12} className="text-amber-500" />
-              <span>Private key hidden for security. Click the eye icon to reveal.</span>
-            </div>
-          ) : (
-            <pre className="text-xs text-neutral-600 dark:text-neutral-400 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
-              {pem}
-            </pre>
-          )}
+          <pre className="text-xs text-neutral-600 dark:text-neutral-400 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
+            {pem}
+          </pre>
         </div>
       )}
-    </div>
-  );
-}
-
-// Component for displaying CSR info
-export function CsrView({ name }: { name: string }) {
-  return (
-    <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-3">
-      <div className="flex items-center gap-2">
-        <Shield size={14} className="text-amber-500 dark:text-amber-400" />
-        <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{name}</span>
-        <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
-          Certificate Request
-        </span>
-      </div>
     </div>
   );
 }

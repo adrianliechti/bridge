@@ -3,7 +3,7 @@
 // Extracts display data from Gateway API HTTPRoute resources
 
 import React from 'react';
-import { ChevronDown, ChevronRight, Route, GitBranch, Link } from 'lucide-react';
+import { Route, GitBranch, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 
 interface HTTPRule {
@@ -48,7 +48,7 @@ interface HTTPRoute {
 export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
   kinds: ['HTTPRoute', 'HTTPRoutes'],
 
-  adapt(resource, _namespace): ResourceSections {
+  adapt(resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 
@@ -183,13 +183,8 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
     <div className="border border-purple-500/30 bg-purple-500/5 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
       >
-        {expanded ? (
-          <ChevronDown size={14} className="text-neutral-600 dark:text-neutral-500" />
-        ) : (
-          <ChevronRight size={14} className="text-neutral-600 dark:text-neutral-500" />
-        )}
         <Route size={14} className="text-purple-400" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

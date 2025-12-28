@@ -3,7 +3,7 @@
 // Extracts display data from Ingress v1 resources
 
 import React from 'react';
-import { ChevronDown, ChevronRight, Network, Route, KeyRound, Globe } from 'lucide-react';
+import { Network, Route, KeyRound, Globe } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1Ingress, V1IngressRule, V1IngressTLS, V1HTTPIngressPath } from '@kubernetes/client-node';
 
@@ -137,13 +137,8 @@ function RuleCard({ rule, index }: { rule: V1IngressRule; index: number }) {
     <div className="border border-blue-500/30 bg-blue-500/5 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
       >
-        {expanded ? (
-          <ChevronDown size={14} className="text-neutral-500" />
-        ) : (
-          <ChevronRight size={14} className="text-neutral-500" />
-        )}
         <Network size={14} className="text-blue-400" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -207,13 +202,8 @@ function TLSCard({ tls, index }: { tls: V1IngressTLS; index: number }) {
     <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
       >
-        {expanded ? (
-          <ChevronDown size={14} className="text-neutral-500" />
-        ) : (
-          <ChevronRight size={14} className="text-neutral-500" />
-        )}
         <KeyRound size={14} className="text-amber-400" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

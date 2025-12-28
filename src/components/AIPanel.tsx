@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, X, Loader2, Trash2 } from 'lucide-react';
+import { Send, X, Loader2, Trash2 } from 'lucide-react';
 import { chat, type ChatContext } from '../api/kubernetesChat';
 import type { Message as APIMessage } from '../api/openai';
 import { Markdown } from './Markdown';

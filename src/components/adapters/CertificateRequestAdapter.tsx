@@ -1,11 +1,9 @@
 // CertificateRequest Adapter (cert-manager.io/v1)
 // Extracts display data from cert-manager CertificateRequest resources
 
-/* eslint-disable react-refresh/only-export-components */
-
-import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
+import { CertificateView, CsrView } from '../sections/CertificateView';
 
 
 // cert-manager CertificateRequest types
@@ -178,58 +176,6 @@ function decodeBase64(encoded?: string): string | null {
   } catch {
     return null;
   }
-}
-
-// Collapsible PEM data component with copy functionality
-function PemDataBlock({ title, data, icon }: { title: string; data: string; icon: React.ReactNode }) {
-  const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await navigator.clipboard.writeText(data);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="bg-neutral-100 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50 transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{title}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCopy}
-            className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-            title="Copy to clipboard"
-          >
-            {copied ? (
-              <Check size={14} className="text-emerald-400" />
-            ) : (
-              <Copy size={14} className="text-neutral-400" />
-            )}
-          </button>
-          {expanded ? (
-            <ChevronDown size={14} className="text-neutral-400" />
-          ) : (
-            <ChevronRight size={14} className="text-neutral-400" />
-          )}
-        </div>
-      </button>
-      {expanded && (
-        <div className="border-t border-neutral-200 dark:border-neutral-700 p-3">
-          <pre className="text-xs text-neutral-400 font-mono whitespace-pre-wrap break-all overflow-x-auto max-h-64 overflow-y-auto">
-            {data}
-          </pre>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
@@ -419,18 +365,10 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
           render: () => (
             <div className="space-y-3">
               {decodedCert && (
-                <PemDataBlock
-                  title="Certificate (PEM)"
-                  data={decodedCert}
-                  icon={<FileCheck size={14} className="text-emerald-400" />}
-                />
+                <CertificateView name="Issued Certificate" pem={decodedCert} />
               )}
               {decodedCA && (
-                <PemDataBlock
-                  title="CA Certificate (PEM)"
-                  data={decodedCA}
-                  icon={<Key size={14} className="text-purple-400" />}
-                />
+                <CertificateView name="CA Certificate" pem={decodedCA} />
               )}
             </div>
           ),
@@ -448,11 +386,7 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
           data: {
             type: 'custom',
             render: () => (
-              <PemDataBlock
-                title="CSR (PEM)"
-                data={decodedCSR}
-                icon={<FileCheck size={14} className="text-blue-400" />}
-              />
+              <CsrView name="Certificate Request" pem={decodedCSR} />
             ),
           },
         });

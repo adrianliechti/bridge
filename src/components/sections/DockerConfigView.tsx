@@ -123,18 +123,21 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
                     <td className="py-1.5 text-neutral-900 dark:text-neutral-300">
                       {username}
                     </td>
-                    <td className="py-1.5 w-1">
-                      <button
-                        onClick={() => handleCopy(`${registry}-username`, username)}
-                        className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-                        title="Copy username"
-                      >
-                        {copiedField === `${registry}-username` ? (
-                          <Check size={12} className="text-emerald-500" />
-                        ) : (
-                          <Copy size={12} className="text-neutral-400" />
-                        )}
-                      </button>
+                    <td className="py-1.5">
+                      <div className="flex items-center gap-1 justify-end">
+                        <div className="w-7" />
+                        <button
+                          onClick={() => handleCopy(`${registry}-username`, username)}
+                          className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                          title="Copy username"
+                        >
+                          {copiedField === `${registry}-username` ? (
+                            <Check size={12} className="text-emerald-500" />
+                          ) : (
+                            <Copy size={12} className="text-neutral-400" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -153,19 +156,8 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
                         <span className="text-neutral-500 dark:text-neutral-400">••••••••••••••••</span>
                       )}
                     </td>
-                    <td className="py-1.5 w-1">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleCopy(`${registry}-password`, password)}
-                          className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-                          title="Copy password"
-                        >
-                          {copiedField === `${registry}-password` ? (
-                            <Check size={12} className="text-emerald-500" />
-                          ) : (
-                            <Copy size={12} className="text-neutral-400" />
-                          )}
-                        </button>
+                    <td className="py-1.5">
+                      <div className="flex items-center gap-1 justify-end">
                         <button
                           onClick={() => toggleReveal(registry)}
                           className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
@@ -175,6 +167,17 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
                             <EyeOff size={12} className="text-neutral-400" />
                           ) : (
                             <Eye size={12} className="text-neutral-400" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleCopy(`${registry}-password`, password)}
+                          className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                          title="Copy password"
+                        >
+                          {copiedField === `${registry}-password` ? (
+                            <Check size={12} className="text-emerald-500" />
+                          ) : (
+                            <Copy size={12} className="text-neutral-400" />
                           )}
                         </button>
                       </div>
@@ -192,18 +195,21 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
                     <td className="py-1.5 text-neutral-900 dark:text-neutral-300">
                       {credentials.email}
                     </td>
-                    <td className="py-1.5 w-1">
-                      <button
-                        onClick={() => handleCopy(`${registry}-email`, credentials.email!)}
-                        className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
-                        title="Copy email"
-                      >
-                        {copiedField === `${registry}-email` ? (
-                          <Check size={12} className="text-emerald-500" />
-                        ) : (
-                          <Copy size={12} className="text-neutral-400" />
-                        )}
-                      </button>
+                    <td className="py-1.5">
+                      <div className="flex items-center gap-1 justify-end">
+                        <div className="w-7" />
+                        <button
+                          onClick={() => handleCopy(`${registry}-email`, credentials.email!)}
+                          className="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                          title="Copy email"
+                        >
+                          {copiedField === `${registry}-email` ? (
+                            <Check size={12} className="text-emerald-500" />
+                          ) : (
+                            <Copy size={12} className="text-neutral-400" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )}

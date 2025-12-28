@@ -3,7 +3,7 @@
 // Extracts display data from Gateway API Gateway resources
 
 import React from 'react';
-import { ChevronDown, ChevronRight, Radio, Globe } from 'lucide-react';
+import { Radio, Globe } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 
 interface Listener {
@@ -160,13 +160,8 @@ function ListenerCard({
     <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
       >
-        {expanded ? (
-          <ChevronDown size={14} className="text-neutral-500" />
-        ) : (
-          <ChevronRight size={14} className="text-neutral-500" />
-        )}
         <Radio size={14} className="text-emerald-400" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
