@@ -38,6 +38,7 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
   const [dark, setDark] = useState(isDarkMode);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const [editorReady, setEditorReady] = useState(false);
 
   // Update dark mode when it changes
   useEffect(() => {
@@ -60,6 +61,37 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
     };
   }, []);
 
+  // Collapse noisy sections in the editor
+  const collapseNoisySections = useCallback(async (editorInstance: editor.IStandaloneCodeEditor) => {
+    const model = editorInstance.getModel();
+    if (!model) return setEditorReady(true);
+
+    const lines = model.getValue().split('\n');
+    const fieldRegex = /^(\s*)(managedFields|ownerReferences|kubectl\.kubernetes\.io\/last-applied-configuration|status):/;
+
+    // Find all ranges to collapse
+    const ranges = lines.flatMap((line, i) => {
+      const match = line.match(fieldRegex);
+      if (!match) return [];
+
+      const indent = match[1].length;
+      const endIdx = lines.slice(i + 1).findIndex(l => 
+        l.trimStart().length > 0 && l.length - l.trimStart().length <= indent
+      );
+      const endLine = endIdx === -1 ? lines.length : i + 1 + endIdx;
+      
+      return endLine > i + 1 ? [{ start: i + 1, end: endLine }] : [];
+    });
+
+    // Collapse ranges in reverse order
+    for (const { start, end } of ranges.reverse()) {
+      editorInstance.setSelection({ startLineNumber: start, startColumn: 1, endLineNumber: end, endColumn: 1 });
+      await editorInstance.getAction('editor.fold')?.run();
+    }
+    editorInstance.setPosition({ lineNumber: 1, column: 1 });
+    setEditorReady(true);
+  }, []);
+
   // Convert resource to YAML when it changes
   useEffect(() => {
     if (resource) {
@@ -74,6 +106,12 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
           setOriginalValue(yaml);
           setParseError(null);
           setSaveError(null);
+          
+          // Re-collapse noisy sections when content changes
+          if (editorRef.current) {
+            setEditorReady(false);
+            setTimeout(() => collapseNoisySections(editorRef.current!), 100);
+          }
         } else {
           // User has local changes, just update the original for comparison
           // This means if they reset, they'll get the latest server version
@@ -81,7 +119,7 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
         }
       }
     }
-  }, [resource, originalValue, isDirty]);
+  }, [resource, originalValue, isDirty, collapseNoisySections]);
 
   // Validate YAML on change
   useEffect(() => {
@@ -118,6 +156,10 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
         }
       },
     });
+
+    // Auto-collapse noisy sections after a short delay to ensure content is loaded
+    setEditorReady(false);
+    setTimeout(() => collapseNoisySections(editor), 100);
   };
 
   const handleChange = (newValue: string | undefined) => {
@@ -216,7 +258,7 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
       )}
 
       {/* Editor */}
-      <div className="flex-1 min-h-0">
+      <div className={`flex-1 min-h-0 transition-opacity duration-150 ${editorReady ? 'opacity-100' : 'opacity-0'}`}>
         <Editor
           height="100%"
           language="yaml"
