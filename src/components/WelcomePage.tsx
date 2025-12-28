@@ -1,4 +1,4 @@
-import { Hexagon, Layers, Database, Zap } from 'lucide-react';
+import { Layers, Database, Zap } from 'lucide-react';
 
 export function WelcomePage() {
   return (
@@ -6,15 +6,8 @@ export function WelcomePage() {
       <div className="max-w-2xl mx-auto px-8 text-center">
         {/* Logo / Icon */}
         <div className="mb-8 relative">
-          <div className="w-20 h-20 mx-auto rounded-2xl bg-linear-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center">
-            <Hexagon size={40} className="text-neutral-500 dark:text-neutral-400" strokeWidth={1.5} />
-          </div>
+          <img src="/logo.png" alt="Logo" className="w-70 h-70 mx-auto" />
         </div>
-
-        {/* Welcome text */}
-        <p className="text-base text-neutral-500 dark:text-neutral-500 mb-8">
-          Select a namespace to get started
-        </p>
 
         {/* Feature cards */}
         <div className="grid grid-cols-3 gap-3">

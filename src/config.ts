@@ -15,6 +15,9 @@ export interface PlatformConfig {
 }
 
 export interface AppConfig {
+  context?: string;
+  namespace?: string;
+
   ai?: AIConfig;
   platform?: PlatformConfig;
 }

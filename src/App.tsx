@@ -5,6 +5,7 @@ import { ResourceOverview } from './components/ResourceOverview';
 import { WelcomePage } from './components/WelcomePage';
 import { preloadDiscovery } from './api/kubernetesDiscovery';
 import { PanelProvider } from './context/PanelProvider';
+import { getConfig } from './config';
 
 // Special marker for overview view
 const OVERVIEW_VIEW = Symbol('OVERVIEW');
@@ -12,7 +13,7 @@ type ViewMode = typeof OVERVIEW_VIEW | V1APIResource;
 
 function App() {
   const [selectedView, setSelectedView] = useState<ViewMode>(OVERVIEW_VIEW);
-  const [selectedNamespace, setSelectedNamespace] = useState<string | undefined>(undefined);
+  const [selectedNamespace, setSelectedNamespace] = useState<string | undefined>(() => getConfig().namespace);
 
   // Preload discovery data on mount
   useEffect(() => {
