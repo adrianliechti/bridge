@@ -1,6 +1,6 @@
 module github.com/adrianliechti/bridge
 
-go 1.25.5
+go 1.25.0
 
 require k8s.io/client-go v0.35.0
 
