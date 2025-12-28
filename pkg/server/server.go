@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/adrianliechti/bridge"
@@ -18,40 +19,78 @@ type Server struct {
 	handler http.Handler
 }
 
-func New(config *rest.Config, options *Options) (*Server, error) {
+func New(configs map[string]*rest.Config, options *Options) (*Server, error) {
 	if options == nil {
 		options = new(Options)
 	}
 
-	tr, err := rest.TransportFor(config)
+	// Build a reverse proxy for each context
+	proxies := make(map[string]*httputil.ReverseProxy)
 
-	if err != nil {
-		return nil, err
+	for name, config := range configs {
+		tr, err := rest.TransportFor(config)
+
+		if err != nil {
+			return nil, err
+		}
+
+		target, path, err := rest.DefaultServerUrlFor(config)
+
+		if err != nil {
+			return nil, err
+		}
+
+		target.Path = path
+
+		proxy := &httputil.ReverseProxy{
+			Transport: tr,
+
+			ErrorLog: log.New(io.Discard, "", 0),
+
+			Rewrite: func(r *httputil.ProxyRequest) {
+				r.SetURL(target)
+				r.Out.Host = target.Host
+			},
+		}
+
+		proxies[name] = proxy
 	}
 
-	target, path, err := rest.DefaultServerUrlFor(config)
+	contexts := make([]Context, 0)
 
-	if err != nil {
-		return nil, err
+	for name := range proxies {
+		context := Context{
+			Name: name,
+		}
+
+		contexts = append(contexts, context)
 	}
 
-	target.Path = path
+	slices.SortFunc(contexts, func(a, b Context) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	mux := http.NewServeMux()
 
-	proxy := &httputil.ReverseProxy{
-		Transport: tr,
+	mux.HandleFunc("GET /contexts", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(contexts)
+	})
 
-		ErrorLog: log.New(io.Discard, "", 0),
+	mux.HandleFunc("/contexts/{context}/{path...}", func(w http.ResponseWriter, r *http.Request) {
+		path := r.PathValue("path")
+		context := r.PathValue("context")
 
-		Rewrite: func(r *httputil.ProxyRequest) {
-			r.SetURL(target)
-			r.Out.Host = target.Host
-		},
-	}
+		proxy, ok := proxies[context]
 
-	mux.Handle("/api/", proxy)
-	mux.Handle("/apis/", proxy)
+		if !ok {
+			http.Error(w, "context not found", http.StatusNotFound)
+			return
+		}
+
+		r.URL.Path = "/" + path
+		proxy.ServeHTTP(w, r)
+	})
 
 	if options.OpenAIBaseURL != "" {
 		target, err := url.Parse(options.OpenAIBaseURL)
@@ -83,8 +122,8 @@ func New(config *rest.Config, options *Options) (*Server, error) {
 		w.Header().Set("Content-Type", "application/json")
 
 		config := &Config{
-			Context:   options.DefaultContext,
-			Namespace: options.DefaultNamespace,
+			DefaultContext:   options.DefaultContext,
+			DefaultNamespace: options.DefaultNamespace,
 		}
 
 		if options.OpenAIBaseURL != "" {

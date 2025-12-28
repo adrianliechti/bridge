@@ -89,6 +89,7 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
       await editorInstance.getAction('editor.fold')?.run();
     }
     editorInstance.setPosition({ lineNumber: 1, column: 1 });
+    editorInstance.revealLine(1);
     setEditorReady(true);
   }, []);
 

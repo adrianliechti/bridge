@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, X, Loader2, Trash2 } from 'lucide-react';
-import { chat, type ChatContext } from '../api/kubernetesChat';
+import { chat, type ChatEnvironment } from '../api/kubernetesChat';
 import type { Message as APIMessage } from '../api/openai';
 import { Markdown } from './Markdown';
 import { getConfig } from '../config';
+import { useCluster } from '../hooks/useCluster';
 
 interface Message {
   id: string;
@@ -16,10 +17,11 @@ interface AIPanelProps {
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
-  context?: ChatContext;
+  environment: Omit<ChatEnvironment, 'currentContext'>;
 }
 
-export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AIPanelProps) {
+export function AIPanel({ isOpen, onClose, otherPanelOpen = false, environment: chatEnvironment }: AIPanelProps) {
+  const { context: kubernetesContext } = useCluster();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationHistory, setConversationHistory] = useState<APIMessage[]>([]);
   const [input, setInput] = useState('');
@@ -71,8 +73,11 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
         userMessage.content,
         conversationHistory,
         {
+          environment: {
+            currentContext: kubernetesContext,
+            ...chatEnvironment,
+          },
           model: getConfig().ai?.model || '',
-          context,
           onStream: (_delta, snapshot) => {
             setMessages((prev) =>
               prev.map((m) =>

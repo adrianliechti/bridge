@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, updateResource, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
+import { useCluster } from '../hooks/useCluster';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './adapters';
 import type { ResourceAction } from './adapters/types';
@@ -38,6 +39,7 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
 }
 
 export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resource: resourceId }: ResourcePanelProps) {
+  const { context } = useCluster();
   const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,18 +61,18 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     if (!resourceId || !resourceId.name || !resourceId.kind) return;
     
     try {
-      const config = await getResourceConfigByKind(resourceId.kind, resourceId.apiVersion);
+      const config = await getResourceConfigByKind(context, resourceId.kind, resourceId.apiVersion);
       if (config) {
-        const resource = await getResource(config, resourceId.name, resourceId.namespace);
+        const resource = await getResource(context, config, resourceId.name, resourceId.namespace);
         setFullObject(resource);
       }
       // Also refresh events
-      const resourceEvents = await getResourceEvents(resourceId.name, resourceId.namespace);
+      const resourceEvents = await getResourceEvents(context, resourceId.name, resourceId.namespace);
       setEvents(resourceEvents);
     } catch {
       // Silent fail for background refreshes
     }
-  }, [resourceId]);
+  }, [context, resourceId]);
 
   // Auto-refresh polling
   useEffect(() => {
@@ -99,7 +101,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     setActionError(null);
     setLoadingAction(action.id);
     try {
-      await action.execute(fullObject!, resourceId?.namespace);
+      await action.execute(context, fullObject!);
       fetchResourceData(); // Refresh after action
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Action failed');
@@ -123,6 +125,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     }
 
     const updated = await updateResource(
+      context,
       resourceConfigRef.current,
       resourceId.name,
       updatedResource,
@@ -131,7 +134,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     
     // Update the local state with the response from the server
     setFullObject(updated);
-  }, [resourceId]);
+  }, [context, resourceId]);
 
   // Fetch the resource config and full resource when resourceId changes
   useEffect(() => {
@@ -156,7 +159,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       
       try {
         // Get the resource config by kind using discovery API
-        const config = await getResourceConfigByKind(kind, apiVersion);
+        const config = await getResourceConfigByKind(context, kind, apiVersion);
         if (!config) {
           setError(`Unknown resource kind: ${kind}`);
           setLoading(false);
@@ -167,7 +170,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         resourceConfigRef.current = config;
 
         // Then fetch the full resource
-        const resource = await getResource(config, name, ns);
+        const resource = await getResource(context, config, name, ns);
         setFullObject(resource);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch resource');
@@ -180,7 +183,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     const fetchEvents = async () => {
       setEventsLoading(true);
       try {
-        const resourceEvents = await getResourceEvents(name, ns);
+        const resourceEvents = await getResourceEvents(context, name, ns);
         setEvents(resourceEvents);
       } catch (err) {
         console.error('Failed to fetch events:', err);
@@ -192,7 +195,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
 
     fetchData();
     fetchEvents();
-  }, [resourceId]);
+  }, [context, resourceId]);
 
   if (!isOpen || !resourceId || !resourceId.name) return null;
 
@@ -461,7 +464,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           )}
 
           {fullObject && !loading && (
-            <ResourceVisualizer resource={fullObject} namespace={resourceId.namespace} hideActions />
+            <ResourceVisualizer resource={fullObject} hideActions />
           )}
         </div>
       )}
@@ -492,12 +495,10 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         </div>
       )}
 
-      {activeTab === 'logs' && supportsLogs && (
+      {activeTab === 'logs' && supportsLogs && fullObject && (
         <div className="flex-1 overflow-hidden">
           <LogViewer
-            namespace={resourceId.namespace!}
-            workloadKind={resourceKind}
-            workloadName={resourceName}
+            resource={fullObject}
             onLogsRef={(getLogs) => { getLogsRef.current = getLogs; }}
           />
         </div>

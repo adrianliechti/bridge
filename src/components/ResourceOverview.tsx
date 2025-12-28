@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { fetchApi } from '../api/kubernetes';
+import { useCluster } from '../hooks/useCluster';
 
 import { ResourcePanel } from './ResourcePanel';
 import type { V1ObjectReference, V1ObjectMeta } from '@kubernetes/client-node';
@@ -192,11 +193,8 @@ const APP_PADDING = 12;
 const APP_TITLE_HEIGHT = 36;
 const APP_GAP = 20;
 
-interface ResourceOverviewProps {
-  namespace?: string;
-}
-
-export function ResourceOverview({ namespace }: ResourceOverviewProps) {
+export function ResourceOverview() {
+  const { context, namespace } = useCluster();
   const [applications, setApplications] = useState<Application[]>([]);
   const [allResources, setAllResources] = useState<K8sResource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -269,7 +267,7 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
       const results = await Promise.allSettled(
         resourceTypes.map(async ({ path, kind }) => {
           try {
-            const data = await fetchApi<K8sResourceList>(path);
+            const data = await fetchApi<K8sResourceList>(path, context);
             // Set kind on each item since Kubernetes list API doesn't include it
             return (data.items || []).map(item => ({ ...item, kind }));
           } catch {
@@ -293,7 +291,7 @@ export function ResourceOverview({ namespace }: ResourceOverviewProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [namespace]);
+  }, [context, namespace]);
 
   useEffect(() => {
     loadResources();

@@ -1,18 +1,14 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
-
-export interface Namespace {
-  name: string;
-  labels?: Record<string, string>;
-}
+import type { V1Namespace } from '@kubernetes/client-node';
 
 interface NamespaceGroup {
   label: string;
-  namespaces: Namespace[];
+  namespaces: V1Namespace[];
 }
 
-interface NamespaceSelectorProps {
-  namespaces: Namespace[];
+interface ScopeSelectorProps {
+  namespaces: V1Namespace[];
   selectedNamespace: string | undefined;
   onSelectNamespace: (namespace: string | undefined) => void;
   disabled?: boolean;
@@ -22,14 +18,14 @@ interface NamespaceSelectorProps {
   platformNamespaces?: string[];
 }
 
-export function NamespaceSelector({ 
+export function ScopeSelector({ 
   namespaces, 
   selectedNamespace, 
   onSelectNamespace,
   disabled = false,
   spaceLabels = [],
   platformNamespaces = [],
-}: NamespaceSelectorProps) {
+}: ScopeSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -47,17 +43,18 @@ export function NamespaceSelector({
 
     // Group by labels in order
     for (const labelKey of spaceLabels) {
-      const grouped = new Map<string, Namespace[]>();
+      const grouped = new Map<string, V1Namespace[]>();
       
       for (const ns of namespaces) {
-        if (assigned.has(ns.name)) continue;
-        const labelValue = ns.labels?.[labelKey];
+        const name = ns.metadata?.name;
+        if (!name || assigned.has(name)) continue;
+        const labelValue = ns.metadata?.labels?.[labelKey];
         if (labelValue) {
           if (!grouped.has(labelValue)) {
             grouped.set(labelValue, []);
           }
           grouped.get(labelValue)!.push(ns);
-          assigned.add(ns.name);
+          assigned.add(name);
         }
       }
 
@@ -65,15 +62,22 @@ export function NamespaceSelector({
       for (const [value, nsList] of Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b))) {
         result.push({
           label: value,
-          namespaces: nsList.sort((a, b) => a.name.localeCompare(b.name)),
+          namespaces: nsList.sort((a, b) => 
+            (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
+          ),
         });
       }
     }
 
     // User namespaces (fallback - before platform)
     const userNs = namespaces
-      .filter(ns => !assigned.has(ns.name) && !platformNsSet.has(ns.name))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter(ns => {
+        const name = ns.metadata?.name;
+        return name && !assigned.has(name) && !platformNsSet.has(name);
+      })
+      .sort((a, b) => 
+        (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
+      );
     
     if (userNs.length > 0) {
       result.push({ label: 'User', namespaces: userNs });
@@ -81,8 +85,13 @@ export function NamespaceSelector({
 
     // Platform namespaces (last)
     const platformNs = namespaces
-      .filter(ns => !assigned.has(ns.name) && platformNsSet.has(ns.name))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter(ns => {
+        const name = ns.metadata?.name;
+        return name && !assigned.has(name) && platformNsSet.has(name);
+      })
+      .sort((a, b) => 
+        (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
+      );
     
     if (platformNs.length > 0) {
       result.push({ label: 'Platform', namespaces: platformNs });
@@ -99,7 +108,7 @@ export function NamespaceSelector({
       .map(group => ({
         ...group,
         namespaces: group.namespaces.filter(ns => 
-          ns.name.toLowerCase().includes(query.toLowerCase())
+          ns.metadata?.name?.toLowerCase().includes(query.toLowerCase())
         ),
       }))
       .filter(group => group.namespaces.length > 0);
@@ -116,7 +125,10 @@ export function NamespaceSelector({
     
     for (const group of filteredGroups) {
       for (const ns of group.namespaces) {
-        options.push({ value: ns.name, label: ns.name });
+        const name = ns.metadata?.name;
+        if (name) {
+          options.push({ value: name, label: name });
+        }
       }
     }
     
@@ -194,7 +206,7 @@ export function NamespaceSelector({
         <input
           ref={inputRef}
           type="text"
-          className="w-full px-3 py-1.5 pr-8 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg text-[13px] text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-neutral-400/50 dark:focus:ring-neutral-500/50 cursor-default placeholder:text-neutral-400"
+          className="w-full px-3 py-1.5 pr-8 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg text-sm text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-neutral-400/50 dark:focus:ring-neutral-500/50 cursor-default placeholder:text-neutral-400"
           value={isOpen ? query : (selectedNamespace || 'All Namespaces')}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => !disabled && setIsOpen(true)}
@@ -209,7 +221,7 @@ export function NamespaceSelector({
           className="absolute inset-y-0 right-0 flex items-center pr-2"
           disabled={disabled}
         >
-          <ChevronDown size={14} className="text-neutral-400 dark:text-neutral-500" />
+          <ChevronDown size={16} className="text-neutral-400 dark:text-neutral-500" />
         </button>
       </div>
 
@@ -228,7 +240,7 @@ export function NamespaceSelector({
                 <div
                   data-index={++optionIndex}
                   onClick={() => handleSelect('')}
-                  className={`px-3 py-2 cursor-pointer text-[13px] flex items-center justify-between ${
+                  className={`px-3 py-2 cursor-pointer text-sm flex items-center justify-between ${
                     focusedIndex === optionIndex
                       ? 'bg-neutral-100 dark:bg-neutral-700'
                       : ''
@@ -240,7 +252,7 @@ export function NamespaceSelector({
                 >
                   <span className="truncate">All Namespaces</span>
                   {selectedNamespace === undefined && (
-                    <Check size={14} className="text-neutral-500 dark:text-neutral-400" />
+                    <Check size={16} className="text-neutral-500 dark:text-neutral-400" />
                   )}
                 </div>
               )}
@@ -250,16 +262,19 @@ export function NamespaceSelector({
                     {group.label}
                   </div>
                   {group.namespaces.map((ns) => {
+                    const name = ns.metadata?.name;
+                    if (!name) return null;
+                    
                     const currentIndex = ++optionIndex;
-                    const isSelected = selectedNamespace === ns.name;
+                    const isSelected = selectedNamespace === name;
                     const isFocused = focusedIndex === currentIndex;
                     
                     return (
                       <div
-                        key={ns.name}
+                        key={name}
                         data-index={currentIndex}
-                        onClick={() => handleSelect(ns.name)}
-                        className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-[13px] flex items-center justify-between ${
+                        onClick={() => handleSelect(name)}
+                        className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-sm flex items-center justify-between ${
                           isFocused ? 'bg-neutral-100 dark:bg-neutral-700' : ''
                         } ${
                           isSelected
@@ -267,9 +282,9 @@ export function NamespaceSelector({
                             : 'text-neutral-600 dark:text-neutral-400'
                         }`}
                       >
-                        <span className="truncate">{ns.name}</span>
+                        <span className="truncate">{name}</span>
                         {isSelected && (
-                          <Check size={14} className="text-neutral-500 dark:text-neutral-400" />
+                          <Check size={16} className="text-neutral-500 dark:text-neutral-400" />
                         )}
                       </div>
                     );

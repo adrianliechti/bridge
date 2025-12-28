@@ -4,6 +4,7 @@ import type { V1APIResource } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { usePanels } from '../hooks/usePanelState';
+import { useCluster } from '../hooks/useCluster';
 import { ResourceTable } from './ResourceTable';
 import { ColumnFilter } from './ColumnFilter';
 import { AIPanel } from './AIPanel';
@@ -20,10 +21,10 @@ function getDisplayName(resource: V1APIResource): string {
 
 interface ResourcePageProps {
   resource: V1APIResource;
-  namespace?: string;
 }
 
-export function ResourcePage({ resource, namespace }: ResourcePageProps) {
+export function ResourcePage({ resource }: ResourcePageProps) {
+  const { namespace } = useCluster();
   const [title, setTitle] = useState(() => getDisplayName(resource));
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
@@ -103,7 +104,6 @@ export function ResourcePage({ resource, namespace }: ResourcePageProps) {
         <section className="flex-1 min-h-0 overflow-hidden">
           <ResourceTable
             config={resource}
-            namespace={namespace}
             hiddenColumns={hiddenColumns}
             onColumnsLoaded={handleColumnsLoaded}
             selectedItem={selectedItem}
@@ -115,7 +115,7 @@ export function ResourcePage({ resource, namespace }: ResourcePageProps) {
         isOpen={isAIPanelOpen}
         onClose={() => close(PANEL_AI)}
         otherPanelOpen={isDetailPanelOpen}
-        context={{
+        environment={{
           currentNamespace: selectedItem?.object.metadata.namespace || namespace || 'all namespaces',
           selectedResourceKind: resource.group 
             ? `${resource.kind} (${resource.group}/${resource.version})` 

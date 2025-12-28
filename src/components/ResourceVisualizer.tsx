@@ -4,6 +4,7 @@
 // It provides a consistent look and feel across all resource kinds.
 
 import type { KubernetesResource } from '../api/kubernetes';
+import { useCluster } from '../hooks/useCluster';
 import { adaptResource, getResourceActions } from './adapters';
 import { ActionBar } from './sections/ActionBar';
 import { SectionRenderer } from './sections/SectionRenderer';
@@ -14,13 +15,13 @@ import { SectionRenderer } from './sections/SectionRenderer';
 
 interface ResourceVisualizerProps {
   resource: KubernetesResource;
-  namespace?: string;
   onActionComplete?: () => void;
   hideActions?: boolean;
 }
 
-export function ResourceVisualizer({ resource, namespace, onActionComplete, hideActions = false }: ResourceVisualizerProps) {
-  const sections = adaptResource(resource, namespace);
+export function ResourceVisualizer({ resource, onActionComplete, hideActions = false }: ResourceVisualizerProps) {
+  const { context } = useCluster();
+  const sections = adaptResource(context, resource);
   const actions = getResourceActions(resource);
 
   // Get kubernetes.io/description annotation if present
@@ -40,7 +41,6 @@ export function ResourceVisualizer({ resource, namespace, onActionComplete, hide
         <ActionBar 
           actions={actions} 
           resource={resource} 
-          namespace={namespace}
           onActionComplete={onActionComplete}
         />
       )}

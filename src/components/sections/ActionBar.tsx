@@ -2,15 +2,16 @@ import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import type { ResourceAction } from '../adapters/types';
 import type { KubernetesResource } from '../../api/kubernetes';
+import { useCluster } from '../../hooks/useCluster';
 
 export interface ActionBarProps {
   actions: ResourceAction[];
   resource: KubernetesResource;
-  namespace?: string;
   onActionComplete?: () => void;
 }
 
-export function ActionBar({ actions, resource, namespace, onActionComplete }: ActionBarProps) {
+export function ActionBar({ actions, resource, onActionComplete }: ActionBarProps) {
+  const { context } = useCluster();
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export function ActionBar({ actions, resource, namespace, onActionComplete }: Ac
     setError(null);
     setLoadingAction(action.id);
     try {
-      await action.execute(resource, namespace);
+      await action.execute(context, resource);
       onActionComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');

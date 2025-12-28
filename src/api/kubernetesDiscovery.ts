@@ -8,13 +8,25 @@ import type {
   V1APIGroupList,
   V1CustomResourceDefinition,
 } from '@kubernetes/client-node';
-import { fetchApi } from './kubernetes';
 
-// Discovery cache - stores resources by unique group/plural key
+// Discovery cache - per-context, stores resources by unique group/plural key
 // aliasCache maps plural, singular, and short names to resources (with priority)
-let resourceCache: Map<string, V1APIResource> | null = null;
-let aliasCache: Map<string, V1APIResource> | null = null;
-let discoveryPromise: Promise<Map<string, V1APIResource>> | null = null;
+const resourceCacheByContext = new Map<string, Map<string, V1APIResource>>();
+const aliasCacheByContext = new Map<string, Map<string, V1APIResource>>();
+const discoveryPromiseByContext = new Map<string, Promise<Map<string, V1APIResource>>>();
+
+// Clear discovery cache for a specific context (useful when switching contexts)
+export function clearDiscoveryCache(context?: string): void {
+  if (context) {
+    resourceCacheByContext.delete(context);
+    aliasCacheByContext.delete(context);
+    discoveryPromiseByContext.delete(context);
+  } else {
+    resourceCacheByContext.clear();
+    aliasCacheByContext.clear();
+    discoveryPromiseByContext.clear();
+  }
+}
 
 // Group priority for alias resolution (lower = higher priority, like kubectl)
 // Core API has highest priority, then well-known groups
@@ -82,25 +94,37 @@ function addResourceToMap(
   }
 }
 
+// Helper to fetch API with context
+async function fetchApiWithContext<T>(url: string, context: string): Promise<T> {
+  const finalUrl = `/contexts/${context}${url}`;
+  const response = await fetch(finalUrl);
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
+}
+
 // Discover all API resources from the cluster
-export async function discoverResources(): Promise<Map<string, V1APIResource>> {
+export async function discoverResources(context: string): Promise<Map<string, V1APIResource>> {
   // Return cached result if available
-  if (aliasCache) {
-    return aliasCache;
+  const cachedAliases = aliasCacheByContext.get(context);
+  if (cachedAliases) {
+    return cachedAliases;
   }
 
   // Return in-flight promise if discovery is already running
-  if (discoveryPromise) {
-    return discoveryPromise;
+  const existingPromise = discoveryPromiseByContext.get(context);
+  if (existingPromise) {
+    return existingPromise;
   }
 
-  discoveryPromise = (async () => {
+  const discoveryPromise = (async () => {
     const resources = new Map<string, V1APIResource>();
     const aliases = new Map<string, V1APIResource>();
 
     // Fetch core v1 resources
     try {
-      const coreV1 = await fetchApi<V1APIResourceList>('/api/v1');
+      const coreV1 = await fetchApiWithContext<V1APIResourceList>('/api/v1', context);
       for (const resource of coreV1.resources) {
         // Skip subresources (they contain '/')
         if (resource.name.includes('/')) continue;
@@ -118,7 +142,7 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
 
     // Fetch API groups
     try {
-      const apiGroups = await fetchApi<V1APIGroupList>('/apis');
+      const apiGroups = await fetchApiWithContext<V1APIGroupList>('/apis', context);
       
       // Fetch resources for each group (use preferred version)
       await Promise.all(
@@ -129,7 +153,7 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
           const apiBase = `/apis/${group.name}/${preferredVersion}`;
           
           try {
-            const resourceList = await fetchApi<V1APIResourceList>(apiBase);
+            const resourceList = await fetchApiWithContext<V1APIResourceList>(apiBase, context);
             for (const resource of resourceList.resources) {
               // Skip subresources
               if (resource.name.includes('/')) continue;
@@ -150,30 +174,31 @@ export async function discoverResources(): Promise<Map<string, V1APIResource>> {
       console.warn('Failed to fetch API groups:', e);
     }
 
-    resourceCache = resources;
-    aliasCache = aliases;
-    discoveryPromise = null;
+    resourceCacheByContext.set(context, resources);
+    aliasCacheByContext.set(context, aliases);
+    discoveryPromiseByContext.delete(context);
     return aliases;
   })();
 
+  discoveryPromiseByContext.set(context, discoveryPromise);
   return discoveryPromise;
 }
 
 // Get resource config by plural name
-export async function getResourceConfig(plural: string): Promise<V1APIResource | undefined> {
-  const resources = await discoverResources();
+export async function getResourceConfig(context: string, plural: string): Promise<V1APIResource | undefined> {
+  const resources = await discoverResources(context);
   return resources.get(plural);
 }
 
 // Get resource config by fully qualified name (e.g., "pods.metrics.k8s.io")
-export async function getResourceConfigByQualifiedName(name: string): Promise<V1APIResource | undefined> {
-  await discoverResources(); // Ensure discovery is complete
-  return resourceCache?.get(name);
+export async function getResourceConfigByQualifiedName(context: string, name: string): Promise<V1APIResource | undefined> {
+  await discoverResources(context); // Ensure discovery is complete
+  return resourceCacheByContext.get(context)?.get(name);
 }
 
 // Get resource config by kind name
-export async function getResourceConfigByKind(kind: string, apiVersion?: string): Promise<V1APIResource | undefined> {
-  const resources = await discoverResources();
+export async function getResourceConfigByKind(context: string, kind: string, apiVersion?: string): Promise<V1APIResource | undefined> {
+  const resources = await discoverResources(context);
   
   // Parse apiVersion to get group (e.g., "apps/v1" -> "apps", "v1" -> "")
   let targetGroup = '';
@@ -209,9 +234,9 @@ export async function getResourceConfigByKind(kind: string, apiVersion?: string)
   return undefined;
 }
 
-// Preload discovery (call on app startup)
-export function preloadDiscovery(): void {
-  discoverResources().catch(console.error);
+// Preload discovery for a context (call on app startup or context switch)
+export function preloadDiscovery(context: string): void {
+  discoverResources(context).catch(console.error);
 }
 
 // Re-export V1APIResource for consumers

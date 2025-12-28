@@ -10,19 +10,38 @@ import (
 	"runtime"
 
 	"github.com/adrianliechti/bridge/pkg/server"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 func main() {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	configOverrides := &clientcmd.ConfigOverrides{}
 
-	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{})
 
-	config, err := kubeconfig.ClientConfig()
+	rawConfig, err := kubeconfig.RawConfig()
 
 	if err != nil {
 		panic(err)
+	}
+
+	// Build a rest.Config for each context in the kubeconfig
+	configs := make(map[string]*rest.Config)
+
+	for contextName := range rawConfig.Contexts {
+		contextConfig := clientcmd.NewNonInteractiveClientConfig(rawConfig, contextName, &clientcmd.ConfigOverrides{}, loadingRules)
+
+		restConfig, err := contextConfig.ClientConfig()
+		if err != nil {
+			fmt.Printf("Warning: failed to load context %q: %v\n", contextName, err)
+			continue
+		}
+
+		configs[contextName] = restConfig
+	}
+
+	if len(configs) == 0 {
+		panic("no valid kubernetes contexts found in kubeconfig")
 	}
 
 	port, err := getFreePort("localhost", 8888)
@@ -31,16 +50,13 @@ func main() {
 		panic(err)
 	}
 
-	options := &server.Options{}
+	options := &server.Options{
+		DefaultContext: rawConfig.CurrentContext,
+	}
 
-	if cfg, err := kubeconfig.RawConfig(); err == nil {
-		if cfg.CurrentContext != "" {
-			options.DefaultContext = cfg.CurrentContext
-
-			if c, ok := cfg.Contexts[cfg.CurrentContext]; ok {
-				options.DefaultNamespace = c.Namespace
-			}
-		}
+	// Set default namespace from current context
+	if c, ok := rawConfig.Contexts[rawConfig.CurrentContext]; ok && c.Namespace != "" {
+		options.DefaultNamespace = c.Namespace
 	}
 
 	if val := os.Getenv("OPENAI_BASE_URL"); val != "" {
@@ -60,7 +76,7 @@ func main() {
 		options.OpenAIModel = val
 	}
 
-	s, err := server.New(config, options)
+	s, err := server.New(configs, options)
 
 	if err != nil {
 		panic(err)
