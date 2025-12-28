@@ -343,7 +343,7 @@ function timeAgo(dateString?: string): string {
 export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
   kinds: ['ApplicationSet', 'ApplicationSets'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;

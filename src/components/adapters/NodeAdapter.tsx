@@ -16,7 +16,7 @@ import {
 export const NodeAdapter: ResourceAdapter<V1Node> = {
   kinds: ['Node', 'Nodes'],
 
-  adapt(resource): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
@@ -75,7 +75,7 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
               const nodeName = metadata?.name;
               if (!nodeName) return null;
 
-              const metrics = await getNodeMetrics(nodeName);
+              const metrics = await getNodeMetrics(context, nodeName);
               if (!metrics) return null;
 
               const allocatableCpu = allocatable.cpu ?? '0';

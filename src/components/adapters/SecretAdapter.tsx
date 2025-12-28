@@ -203,7 +203,7 @@ function MultilineSecretValue({ name, decoded, isSensitive }: { name: string; de
 export const SecretAdapter: ResourceAdapter<V1Secret> = {
   kinds: ['Secret', 'Secrets'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const data = resource.data || {};
     const stringData = resource.stringData || {};
 

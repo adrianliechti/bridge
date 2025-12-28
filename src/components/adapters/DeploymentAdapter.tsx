@@ -10,10 +10,11 @@ import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/ku
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
   kinds: ['Deployment', 'Deployments'],
 
-  adapt(resource, namespace): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
+    const namespace = metadata?.namespace;
 
     if (!spec) {
       return { sections: [] };
@@ -29,7 +30,7 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
       const matchLabels = spec.selector?.matchLabels;
       if (!namespace || !matchLabels || Object.keys(matchLabels).length === 0) return null;
 
-      const podMetrics = await getPodMetricsBySelector(namespace, matchLabels);
+      const podMetrics = await getPodMetricsBySelector(context, namespace, matchLabels);
       if (podMetrics.length === 0) return null;
 
       return aggregateContainerMetrics(podMetrics);
@@ -83,10 +84,10 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
               if (!namespace || !metadata?.name) return [];
               
               try {
-                const rsConfig = await getResourceConfig('replicasets');
+                const rsConfig = await getResourceConfig(context, 'replicasets');
                 if (!rsConfig) return [];
                 
-                const rsList = await getResourceList(rsConfig, namespace);
+                const rsList = await getResourceList(context, rsConfig, namespace);
                 const deploymentName = metadata.name ?? '';
                 const deploymentUid = metadata.uid;
                 

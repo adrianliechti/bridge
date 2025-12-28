@@ -39,7 +39,7 @@ function getServiceTypeInfo(type?: string): { label: string; status: StatusLevel
 export const ServiceAdapter: ResourceAdapter<V1Service> = {
   kinds: ['Service', 'Services'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 

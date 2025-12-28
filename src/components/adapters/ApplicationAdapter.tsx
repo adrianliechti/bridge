@@ -256,7 +256,7 @@ function getRepoName(url?: string): string {
 export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
   kinds: ['Application', 'Applications'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 
@@ -567,11 +567,11 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
         message: 'This will sync the application to match the desired state in Git. Continue?',
         confirmLabel: 'Sync',
       },
-      execute: async (resource) => {
+      execute: async (context, resource) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace || 'argocd';
         if (!name) throw new Error('Application name is required');
-        await syncApplication(name, namespace);
+        await syncApplication(context, name, namespace);
       },
       // Disable sync if an operation is already running
       isDisabled: (resource) => {
@@ -592,11 +592,11 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
         message: 'This will sync the application and DELETE resources that are no longer in Git. This action cannot be undone. Continue?',
         confirmLabel: 'Sync & Prune',
       },
-      execute: async (resource) => {
+      execute: async (context, resource) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace || 'argocd';
         if (!name) throw new Error('Application name is required');
-        await syncApplication(name, namespace, { prune: true });
+        await syncApplication(context, name, namespace, { prune: true });
       },
       isDisabled: (resource) => {
         const status = (resource as ArgoCDApplication).status;
@@ -611,11 +611,11 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
       label: 'Refresh',
       icon: <RefreshCw size={14} />,
       variant: 'secondary',
-      execute: async (resource) => {
+      execute: async (context, resource) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace || 'argocd';
         if (!name) throw new Error('Application name is required');
-        await refreshApplication(name, namespace);
+        await refreshApplication(context, name, namespace);
       },
     },
     {
@@ -623,11 +623,11 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
       label: 'Hard Refresh',
       icon: <GitCompare size={14} />,
       variant: 'secondary',
-      execute: async (resource) => {
+      execute: async (context, resource) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace || 'argocd';
         if (!name) throw new Error('Application name is required');
-        await refreshApplication(name, namespace, true);
+        await refreshApplication(context, name, namespace, true);
       },
     },
   ],

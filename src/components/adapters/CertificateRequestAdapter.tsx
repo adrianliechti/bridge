@@ -181,7 +181,7 @@ function decodeBase64(encoded?: string): string | null {
 export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
   kinds: ['CertificateRequest', 'CertificateRequests'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;

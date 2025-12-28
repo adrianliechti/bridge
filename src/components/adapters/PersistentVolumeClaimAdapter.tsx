@@ -9,7 +9,7 @@ import type { V1PersistentVolumeClaim } from '@kubernetes/client-node';
 export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeClaim> = {
   kinds: ['PersistentVolumeClaim', 'PersistentVolumeClaims'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 

@@ -51,7 +51,7 @@ function formatRelativeTime(timestamp?: string | Date): string {
 export const EventAdapter: ResourceAdapter<CoreV1Event> = {
   kinds: ['Event', 'Events'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const metadata = resource.metadata;
     const involvedObject = resource.involvedObject;
     const source = resource.source;

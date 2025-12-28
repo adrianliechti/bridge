@@ -290,11 +290,11 @@ export interface ResourceAction {
   };
   /** 
    * Execute the action. 
+   * @param context - The Kubernetes context name
    * @param resource - The resource to act upon
-   * @param namespace - The namespace of the resource
    * @returns A promise that resolves when the action completes
    */
-  execute: (resource: KubernetesResource, namespace?: string) => Promise<void>;
+  execute: (context: string, resource: KubernetesResource) => Promise<void>;
   /** 
    * Optional function to determine if action should be shown.
    * @param resource - The resource to check
@@ -327,10 +327,10 @@ export interface ResourceAction {
 export interface ResourceAdapter<T = KubernetesResource> {
   /** The Kubernetes kind(s) this adapter handles */
   readonly kinds: string[];
-  
+
   /** Extract all display sections from the resource */
-  adapt(resource: T, namespace?: string): ResourceSections;
-  
+  adapt(context: string, resource: T): ResourceSections;
+
   /** Optional actions that can be performed on this resource type */
   readonly actions?: ResourceAction[];
 }

@@ -9,7 +9,7 @@ import { getContainerSections } from './utils';
 export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
   kinds: ['ReplicaSet', 'ReplicaSets'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;

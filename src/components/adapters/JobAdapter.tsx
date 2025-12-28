@@ -9,7 +9,7 @@ import { getContainerSections } from './utils';
 export const JobAdapter: ResourceAdapter<V1Job> = {
   kinds: ['Job', 'Jobs'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 

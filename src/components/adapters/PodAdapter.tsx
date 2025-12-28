@@ -15,10 +15,11 @@ import {
 export const PodAdapter: ResourceAdapter<V1Pod> = {
   kinds: ['Pod', 'Pods'],
 
-  adapt(resource, namespace): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
+    const namespace = metadata?.namespace;
 
     if (!spec) {
       return { sections: [] };
@@ -34,10 +35,10 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
     // Create metrics loader for container metrics
     const metricsLoader = async () => {
       const podName = metadata?.name;
-      const podNamespace = namespace || metadata?.namespace;
+      const podNamespace = namespace;
       if (!podName || !podNamespace) return null;
 
-      const metrics = await getPodMetrics(podName, podNamespace);
+      const metrics = await getPodMetrics(context, podName, podNamespace);
       if (!metrics) return null;
 
       const result = new Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }>();

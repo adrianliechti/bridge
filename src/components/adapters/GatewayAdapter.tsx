@@ -39,7 +39,7 @@ interface Gateway {
 export const GatewayAdapter: ResourceAdapter<Gateway> = {
   kinds: ['Gateway', 'Gateways'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 

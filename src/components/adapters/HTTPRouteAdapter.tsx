@@ -48,7 +48,7 @@ interface HTTPRoute {
 export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
   kinds: ['HTTPRoute', 'HTTPRoutes'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 
