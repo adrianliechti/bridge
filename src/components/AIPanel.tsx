@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, X, Loader2 } from 'lucide-react';
+import { Send, Sparkles, X, Loader2, Trash2 } from 'lucide-react';
 import { chat, type ChatContext } from '../api/kubernetesChat';
 import type { Message as APIMessage } from '../api/openai';
 import { Markdown } from './Markdown';
@@ -20,13 +20,7 @@ interface AIPanelProps {
 }
 
 export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AIPanelProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Hello! I can help you understand and manage your Kubernetes resources. What would you like to know?',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [conversationHistory, setConversationHistory] = useState<APIMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -130,6 +124,11 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
     }
   };
 
+  const handleClearChat = () => {
+    setMessages([]);
+    setConversationHistory([]);
+  };
+
   return (
     <div
       className={`fixed top-0 right-0 h-screen bg-white border-l border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 flex flex-col transition-all duration-300 ease-in-out z-30 ${
@@ -141,16 +140,22 @@ export function AIPanel({ isOpen, onClose, otherPanelOpen = false, context }: AI
     >
       {/* Header */}
       <div className="shrink-0 h-16 px-4 flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
-        <div className="flex items-center gap-2">
-          <Sparkles size={20} className="text-sky-400" />
-          <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">AI Assistant</h3>
+        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">AI Assistant</h3>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleClearChat}
+            className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 rounded-md transition-colors"
+            title="Clear chat"
+          >
+            <Trash2 size={18} />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 rounded-md transition-colors"
+          >
+            <X size={18} />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="-mr-2 p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 rounded-md transition-colors"
-        >
-          <X size={18} />
-        </button>
       </div>
 
       {/* Messages */}

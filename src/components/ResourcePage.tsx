@@ -116,8 +116,10 @@ export function ResourcePage({ resource, namespace }: ResourcePageProps) {
         onClose={() => close(PANEL_AI)}
         otherPanelOpen={isDetailPanelOpen}
         context={{
-          currentNamespace: namespace,
-          selectedResourceKind: resource.name,
+          currentNamespace: selectedItem?.object.metadata.namespace || namespace || 'all namespaces',
+          selectedResourceKind: resource.group 
+            ? `${resource.kind} (${resource.group}/${resource.version})` 
+            : `${resource.kind} (${resource.version})`,
           selectedResourceName: selectedItem?.object.metadata.name,
         }}
       />

@@ -37,21 +37,28 @@ export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Pro
       {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
       <div className="space-y-2">
         {items.map(rs => (
-          <div key={rs.name} className={`border rounded-lg p-2 ${
+          <div key={rs.name} className={`border rounded-lg p-3 ${
             rs.isCurrent 
               ? 'border-blue-500/30 bg-blue-500/5' 
               : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50 opacity-60'
           }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Layers size={14} className={rs.isCurrent ? 'text-blue-400' : 'text-neutral-600 dark:text-neutral-500'} />
-                <span className="text-sm text-neutral-900 dark:text-neutral-100 truncate max-w-50" title={rs.name}>
-                  {rs.name}
-                </span>
-                {rs.revision && (
-                  <span className="text-xs bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-700 dark:text-neutral-400">
-                    rev {rs.revision}
+            <div className="flex items-center gap-3">
+              <Layers size={16} className={rs.isCurrent ? 'text-blue-400' : 'text-neutral-600 dark:text-neutral-500'} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={rs.name}>
+                    {rs.name}
                   </span>
+                  {rs.revision && (
+                    <span className="text-xs bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-700 dark:text-neutral-400">
+                      rev {rs.revision}
+                    </span>
+                  )}
+                </div>
+                {rs.images.length > 0 && (
+                  <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">
+                    {rs.images.join(', ')}
+                  </div>
                 )}
               </div>
               <div className="text-xs">
@@ -61,11 +68,6 @@ export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Pro
                 <span className="text-neutral-600 dark:text-neutral-500 ml-1">ready</span>
               </div>
             </div>
-            {rs.images.length > 0 && (
-              <div className="mt-1 text-xs text-cyan-600 dark:text-cyan-400/70 truncate">
-                {rs.images.join(', ')}
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -97,24 +99,31 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
   return (
     <div>
       {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
-      <div className="space-y-1">
+      <div className="space-y-2">
         {items.map(pvc => (
-          <div key={pvc.name} className={`flex items-center justify-between text-xs px-2 py-1.5 rounded ${
+          <div key={pvc.name} className={`border rounded-lg p-3 ${
             pvc.status === 'Bound' 
-              ? 'bg-emerald-500/10 border border-emerald-500/20'
-              : 'bg-neutral-100 dark:bg-neutral-900/50 border border-neutral-300 dark:border-neutral-700'
+              ? 'border-emerald-500/30 bg-emerald-500/5'
+              : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50'
           }`}>
-            <div className="flex items-center gap-2">
-              <HardDrive size={12} className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-600 dark:text-neutral-500'} />
-              <span className="text-neutral-900 dark:text-neutral-300">{pvc.name}</span>
-            </div>
             <div className="flex items-center gap-3">
-              {pvc.capacity && (
-                <span className="text-cyan-600 dark:text-cyan-400">{pvc.capacity}</span>
-              )}
-              <span className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-                {pvc.status}
-              </span>
+              <HardDrive size={16} className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-600 dark:text-neutral-500'} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{pvc.name}</span>
+                </div>
+                <div className="text-xs text-neutral-600 dark:text-neutral-500">
+                  {pvc.storageClass || 'default'} storage class
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                {pvc.capacity && (
+                  <span className="text-cyan-600 dark:text-cyan-400">{pvc.capacity}</span>
+                )}
+                <span className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                  {pvc.status}
+                </span>
+              </div>
             </div>
           </div>
         ))}
@@ -150,36 +159,40 @@ export function RelatedJobsSection({ loader, title }: { loader: () => Promise<Jo
   return (
     <div>
       {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
-      <div className="space-y-1">
+      <div className="space-y-2">
         {displayJobs.map(job => (
           <div 
             key={job.name} 
-            className={`flex items-center justify-between text-xs px-2 py-1.5 rounded ${
+            className={`border rounded-lg p-3 ${
               job.status === 'Complete' 
-                ? 'bg-emerald-500/10 border border-emerald-500/20' 
+                ? 'border-emerald-500/30 bg-emerald-500/5' 
                 : job.status === 'Failed'
-                ? 'bg-red-500/10 border border-red-500/20'
-                : 'bg-amber-500/10 border border-amber-500/20'
+                ? 'border-red-500/30 bg-red-500/5'
+                : 'border-amber-500/30 bg-amber-500/5'
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {job.status === 'Complete' ? (
-                <CheckCircle2 size={12} className="text-emerald-400" />
+                <CheckCircle2 size={16} className="text-emerald-400" />
               ) : job.status === 'Failed' ? (
-                <XCircle size={12} className="text-red-400" />
+                <XCircle size={16} className="text-red-400" />
               ) : (
-                <Clock size={12} className="text-amber-400" />
+                <Clock size={16} className="text-amber-400" />
               )}
-              <span className="text-neutral-900 dark:text-neutral-300 truncate max-w-45" title={job.name}>{job.name}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {job.startTime && (
-                <span className="text-neutral-600 dark:text-neutral-500">{formatTimeAgo(new Date(job.startTime))}</span>
-              )}
-              <span className={
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={job.name}>{job.name}</span>
+                </div>
+                {job.startTime && (
+                  <div className="text-xs text-neutral-600 dark:text-neutral-500">
+                    Started {formatTimeAgo(new Date(job.startTime))}
+                  </div>
+                )}
+              </div>
+              <span className={`text-xs ${
                 job.status === 'Complete' ? 'text-emerald-600 dark:text-emerald-400' :
                 job.status === 'Failed' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
-              }>
+              }`}>
                 {job.status}
               </span>
             </div>

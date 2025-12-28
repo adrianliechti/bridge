@@ -229,7 +229,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const hasMetadata = filteredLabelsCount > 0 || filteredAnnotationsCount > 0;
 
   // Resource kinds that support logs (have pods)
-  const LOGGABLE_KINDS = ['Pod', 'Deployment', 'DaemonSet', 'ReplicaSet', 'StatefulSet', 'Job', 'CronJob'];
+  const LOGGABLE_KINDS = ['Pod', 'Deployment', 'DaemonSet', 'ReplicaSet', 'StatefulSet', 'Job'];
   const supportsLogs = LOGGABLE_KINDS.includes(resourceKind) && !!resourceId.namespace;
 
   return (
