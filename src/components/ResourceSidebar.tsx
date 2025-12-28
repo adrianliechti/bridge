@@ -29,6 +29,7 @@ import {
 import { getCustomResourceDefinitions, crdToResourceConfig } from '../api/kubernetes';
 import { getResourceConfig } from '../api/kubernetesDiscovery';
 import { ScopeSelector } from './ScopeSelector';
+import { ContextSelector } from './ContextSelector';
 import { type V1APIResource } from '../api/kubernetesTable';
 import { getConfig } from '../config';
 import { useCluster } from '../hooks/useCluster';
@@ -102,7 +103,7 @@ export function ResourceSidebar({
   onSelectResource,
   isOverviewSelected,
 }: ResourceSidebarProps) {
-  const { context, namespace, namespaces, setNamespace } = useCluster();
+  const { context, contexts, namespace, namespaces, setContext, setNamespace } = useCluster();
   const [builtInConfigs, setBuiltInConfigs] = useState<Map<string, V1APIResource>>(new Map());
   const [crdConfigs, setCrdConfigs] = useState<V1APIResource[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
@@ -173,8 +174,16 @@ export function ResourceSidebar({
 
   return (
     <aside className="w-56 h-full shrink-0 bg-white dark:bg-black/40 backdrop-blur-xl flex flex-col rounded-xl border border-neutral-300/50 dark:border-neutral-700/50">
-      {/* Header with Scope Selector */}
-      <div className="shrink-0 px-3 pt-3 pb-2">
+      {/* Header with Context & Namespace Selectors */}
+      <div className="shrink-0 px-3 pt-3 pb-2 space-y-2">
+        {/* Context selector - subtle, above namespace */}
+        <ContextSelector
+          contexts={contexts}
+          selectedContext={context}
+          onSelectContext={setContext}
+        />
+        
+        {/* Namespace selector - primary */}
         <ScopeSelector
           namespaces={namespaces}
           selectedNamespace={namespace}
