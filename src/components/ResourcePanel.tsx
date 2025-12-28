@@ -8,6 +8,7 @@ import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './adapters';
 import type { ResourceAction } from './adapters/types';
 import { LogViewer } from './LogViewer';
+import { TerminalViewer } from './TerminalViewer';
 import { MetadataView, EventsView, ManifestEditor } from './sections';
 
 interface ResourcePanelProps {
@@ -44,7 +45,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<CoreV1Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs'>('yaml');
+  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal'>('yaml');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
@@ -222,6 +223,9 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   // Resource kinds that support logs (have pods)
   const LOGGABLE_KINDS = ['Pod', 'Deployment', 'DaemonSet', 'ReplicaSet', 'StatefulSet', 'Job'];
   const supportsLogs = LOGGABLE_KINDS.includes(resourceKind) && !!resourceId.namespace;
+  
+  // Only pods support terminal
+  const supportsTerminal = resourceKind === 'Pod' && !!resourceId.namespace;
 
   return (
     <aside 
@@ -308,6 +312,18 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
               }`}
             >
               Logs
+            </button>
+          )}
+          {supportsTerminal && (
+            <button
+              onClick={() => setActiveTab('terminal')}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+                activeTab === 'terminal'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
+              }`}
+            >
+              Terminal
             </button>
           )}
         </div>
@@ -451,6 +467,15 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       {activeTab === 'logs' && supportsLogs && fullObject && (
         <div className="flex-1 overflow-hidden">
           <LogViewer
+            resource={fullObject}
+            toolbarRef={toolbarRef}
+          />
+        </div>
+      )}
+
+      {activeTab === 'terminal' && supportsTerminal && fullObject && (
+        <div className="flex-1 overflow-hidden">
+          <TerminalViewer
             resource={fullObject}
             toolbarRef={toolbarRef}
           />
