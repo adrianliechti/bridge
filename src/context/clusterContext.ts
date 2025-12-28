@@ -10,10 +10,12 @@ export interface ClusterContextValue {
   contexts: Context[];
   namespace: string | undefined;
   namespaces: V1Namespace[];
+  selectedResource: V1APIResource | null;
 
   // Setters
   setContext: (context: string) => void;
   setNamespace: (namespace: string | undefined) => void;
+  setSelectedResource: (resource: V1APIResource | null) => void;
 
   // API wrappers (context is auto-injected)
   api: {

@@ -9,9 +9,9 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/adrianliechti/bridge/pkg/server"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/adrianliechti/bridge/pkg/server"
 )
 
 func main() {
@@ -25,22 +25,25 @@ func main() {
 		panic(err)
 	}
 
-	// Build a rest.Config for each context in the kubeconfig
-	configs := make(map[string]*rest.Config)
+	contexts := make([]server.BridgeContext, 0)
 
-	for contextName := range rawConfig.Contexts {
-		contextConfig := clientcmd.NewNonInteractiveClientConfig(rawConfig, contextName, &clientcmd.ConfigOverrides{}, loadingRules)
+	for context := range rawConfig.Contexts {
+		contextConfig := clientcmd.NewNonInteractiveClientConfig(rawConfig, context, &clientcmd.ConfigOverrides{}, loadingRules)
 
 		restConfig, err := contextConfig.ClientConfig()
+
 		if err != nil {
-			fmt.Printf("Warning: failed to load context %q: %v\n", contextName, err)
+			fmt.Printf("Warning: failed to load context %q: %v\n", context, err)
 			continue
 		}
 
-		configs[contextName] = restConfig
+		contexts = append(contexts, server.BridgeContext{
+			Name:   context,
+			Config: restConfig,
+		})
 	}
 
-	if len(configs) == 0 {
+	if len(contexts) == 0 {
 		panic("no valid kubernetes contexts found in kubeconfig")
 	}
 
@@ -50,7 +53,7 @@ func main() {
 		panic(err)
 	}
 
-	options := &server.Options{
+	options := &server.BridgeOptions{
 		DefaultContext: rawConfig.CurrentContext,
 	}
 
@@ -76,7 +79,7 @@ func main() {
 		options.OpenAIModel = val
 	}
 
-	s, err := server.New(configs, options)
+	s, err := server.New(contexts, options)
 
 	if err != nil {
 		panic(err)

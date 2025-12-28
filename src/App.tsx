@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { ResourceSidebar, type V1APIResource } from './components/ResourceSidebar';
 import { ResourcePage } from './components/ResourcePage';
 import { ResourceOverview } from './components/ResourceOverview';
@@ -7,36 +7,27 @@ import { PanelProvider } from './context/PanelProvider';
 import { ClusterProvider } from './context/ClusterProvider';
 import { useCluster } from './hooks/useCluster';
 
-// Special marker for overview view
-const OVERVIEW_VIEW = Symbol('OVERVIEW');
-type ViewMode = typeof OVERVIEW_VIEW | V1APIResource;
-
 function AppContent() {
-  const { namespace } = useCluster();
-  const [selectedView, setSelectedView] = useState<ViewMode>(OVERVIEW_VIEW);
+  const { namespace, selectedResource, setSelectedResource } = useCluster();
 
   // Handler for sidebar resource selection
   const handleSelectResource = useCallback((resource: V1APIResource | null) => {
-    if (resource === null) {
-      setSelectedView(OVERVIEW_VIEW);
-    } else {
-      setSelectedView(resource);
-    }
-  }, []);
+    setSelectedResource(resource);
+  }, [setSelectedResource]);
 
   // Check if overview is selected
-  const isOverview = selectedView === OVERVIEW_VIEW;
+  const isOverview = selectedResource === null;
 
   // Create a key for MainContent to force remount when resource changes
   const resourceKey = isOverview
     ? 'overview'
-    : `${(selectedView as V1APIResource).group || ''}/${(selectedView as V1APIResource).name}`;
+    : `${selectedResource.group || ''}/${selectedResource.name}`;
 
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <div className="py-2 pl-2 shrink-0 h-full">
         <ResourceSidebar
-          selectedResource={isOverview ? null : (selectedView as V1APIResource)}
+          selectedResource={selectedResource}
           onSelectResource={handleSelectResource}
           isOverviewSelected={isOverview}
         />
@@ -62,14 +53,14 @@ function AppContent() {
           </section>
         </main>
       ) : (
-        <ResourcePage key={resourceKey} resource={selectedView as V1APIResource} />
+        <ResourcePage key={resourceKey} resource={selectedResource} />
       )}
     </div>
   );
 }
 
 function App() {
-  const { context, namespace } = useCluster();
+  const { context } = useCluster();
 
   // Don't render until we have a context
   if (!context) {
@@ -80,8 +71,8 @@ function App() {
     );
   }
 
-  // Use key to reset AppContent state when namespace changes
-  return <AppContent key={namespace ?? '__all__'} />;
+  // Use key to reset AppContent state when context changes
+  return <AppContent key={context} />;
 }
 
 function AppWrapper() {

@@ -19,22 +19,22 @@ type Server struct {
 	handler http.Handler
 }
 
-func New(configs map[string]*rest.Config, options *Options) (*Server, error) {
+func New(contexts []BridgeContext, options *BridgeOptions) (*Server, error) {
 	if options == nil {
-		options = new(Options)
+		options = new(BridgeOptions)
 	}
 
 	// Build a reverse proxy for each context
 	proxies := make(map[string]*httputil.ReverseProxy)
 
-	for name, config := range configs {
-		tr, err := rest.TransportFor(config)
+	for _, c := range contexts {
+		tr, err := rest.TransportFor(c.Config)
 
 		if err != nil {
 			return nil, err
 		}
 
-		target, path, err := rest.DefaultServerUrlFor(config)
+		target, path, err := rest.DefaultServerUrlFor(c.Config)
 
 		if err != nil {
 			return nil, err
@@ -53,28 +53,28 @@ func New(configs map[string]*rest.Config, options *Options) (*Server, error) {
 			},
 		}
 
-		proxies[name] = proxy
+		proxies[c.Name] = proxy
 	}
-
-	contexts := make([]Context, 0)
-
-	for name := range proxies {
-		context := Context{
-			Name: name,
-		}
-
-		contexts = append(contexts, context)
-	}
-
-	slices.SortFunc(contexts, func(a, b Context) int {
-		return strings.Compare(a.Name, b.Name)
-	})
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /contexts", func(w http.ResponseWriter, r *http.Request) {
+		result := make([]Context, 0)
+
+		for name := range proxies {
+			context := Context{
+				Name: name,
+			}
+
+			result = append(result, context)
+		}
+
+		slices.SortFunc(result, func(a, b Context) int {
+			return strings.Compare(a.Name, b.Name)
+		})
+
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(contexts)
+		json.NewEncoder(w).Encode(result)
 	})
 
 	mux.HandleFunc("/contexts/{context}/{path...}", func(w http.ResponseWriter, r *http.Request) {
