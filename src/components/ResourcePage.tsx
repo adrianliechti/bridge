@@ -7,7 +7,7 @@ import { usePanels } from '../hooks/usePanelState';
 import { useCluster } from '../hooks/useCluster';
 import { ResourceTable } from './ResourceTable';
 import { ColumnFilter } from './ColumnFilter';
-import { AIPanel } from './AIPanel';
+import { ChatPanel } from './ChatPanel';
 import { ResourcePanel } from './ResourcePanel';
 import { getConfig } from '../config';
 
@@ -32,7 +32,7 @@ export function ResourcePage({ resource }: ResourcePageProps) {
   const { hiddenColumns, toggleColumn } = useColumnVisibility();
   const { isOpen, open, close, toggle } = usePanels();
   
-  const isAIPanelOpen = isOpen(PANEL_AI);
+  const isChatPanelOpen = isOpen(PANEL_AI);
   const isDetailPanelOpen = isOpen(PANEL_DETAIL);
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export function ResourcePage({ resource }: ResourcePageProps) {
 
   // Calculate right padding for header actions based on which panels are open
   const getHeaderActionsPadding = () => {
-    const openPanelCount = [isDetailPanelOpen, isAIPanelOpen].filter(Boolean).length;
+    const openPanelCount = [isDetailPanelOpen, isChatPanelOpen].filter(Boolean).length;
     if (openPanelCount >= 2) return 'pr-[56rem]'; // 28rem + 28rem
     if (openPanelCount === 1) return 'pr-[40rem]';
     return '';
@@ -90,7 +90,7 @@ export function ResourcePage({ resource }: ResourcePageProps) {
               <button
                 onClick={() => toggle(PANEL_AI)}
                 className={`p-2 rounded-md transition-colors ${
-                  isAIPanelOpen 
+                  isChatPanelOpen 
                     ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800' 
                     : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
                 }`}
@@ -111,8 +111,8 @@ export function ResourcePage({ resource }: ResourcePageProps) {
           />
         </section>
       </main>
-      <AIPanel 
-        isOpen={isAIPanelOpen}
+      <ChatPanel 
+        isOpen={isChatPanelOpen}
         onClose={() => close(PANEL_AI)}
         otherPanelOpen={isDetailPanelOpen}
         environment={{
@@ -129,7 +129,7 @@ export function ResourcePage({ resource }: ResourcePageProps) {
           setSelectedItem(null);
           close(PANEL_DETAIL);
         }}
-        otherPanelOpen={isAIPanelOpen}
+        otherPanelOpen={isChatPanelOpen}
         resource={selectedItem ? {
           name: selectedItem.object.metadata.name,
           namespace: selectedItem.object.metadata.namespace,

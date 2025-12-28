@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { ChevronDown, Copy, Check } from 'lucide-react';
+import { ChevronDown, Copy, Check, Filter } from 'lucide-react';
 import { streamCombinedLogs, getWorkloadPods, type LogEntry } from '../api/kubernetesLogs';
 import { useCluster } from '../hooks/useCluster';
 import type { KubernetesResource } from '../api/kubernetes';
+import { ToolbarPortal } from './ToolbarPortal';
 
 export interface LogViewerProps {
   resource: KubernetesResource;
@@ -283,6 +283,7 @@ export function LogViewer({
   const [autoScroll, setAutoScroll] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showOnlyIssues, setShowOnlyIssues] = useState(false);
   
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
@@ -294,22 +295,6 @@ export function LogViewer({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Toolbar actions rendered via portal
-  const toolbarActions = toolbarRef?.current ? createPortal(
-    <button
-      onClick={handleCopyLogs}
-      disabled={logs.length === 0}
-      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      title="Copy logs"
-    >
-      {copied ? (
-        <Check size={12} className="text-emerald-500" />
-      ) : (
-        <Copy size={12} />
-      )}
-    </button>,
-    toolbarRef.current
-  ) : null;
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const namespace = resource.metadata?.namespace;
@@ -378,7 +363,33 @@ export function LogViewer({
   return (
     <div className="flex flex-col h-full bg-neutral-50 dark:bg-neutral-950">
       {/* Toolbar actions rendered via portal to parent */}
-      {toolbarActions}
+      {toolbarRef && (
+        <ToolbarPortal toolbarRef={toolbarRef}>
+          <button
+            onClick={() => setShowOnlyIssues(!showOnlyIssues)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors ${
+              showOnlyIssues
+                ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/20'
+                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+            }`}
+            title={showOnlyIssues ? 'Show all logs' : 'Show only errors & warnings'}
+          >
+            <Filter size={12} />
+          </button>
+          <button
+            onClick={handleCopyLogs}
+            disabled={logs.length === 0}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Copy logs"
+          >
+            {copied ? (
+              <Check size={12} className="text-emerald-500" />
+            ) : (
+              <Copy size={12} />
+            )}
+          </button>
+        </ToolbarPortal>
+      )}
 
       {/* Pod legend */}
       {podNames.length > 1 && (
@@ -426,6 +437,12 @@ export function LogViewer({
           {logs.map((log, index) => {
             const parsed = parseLogMessage(log.message);
             const level = detectLogLevel(log.message, parsed.jsonData, parsed.level);
+            
+            // Filter out non-issue logs if filter is enabled
+            if (showOnlyIssues && level !== 'error' && level !== 'warn') {
+              return null;
+            }
+            
             const textColor = LOG_LEVEL_COLORS[level];
             const bgStyle = LOG_LEVEL_BG[level];
             const isStructured = parsed.format !== 'plain';

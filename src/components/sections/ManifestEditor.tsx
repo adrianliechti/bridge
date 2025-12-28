@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import Editor, { type OnMount, type Monaco } from '@monaco-editor/react';
 import { Loader2, AlertCircle, X, Save, RotateCcw } from 'lucide-react';
 import { stringify as toYaml, parse as parseYaml } from 'yaml';
 import type { KubernetesResource } from '../../api/kubernetes';
 import type { editor } from 'monaco-editor';
+import { ToolbarPortal } from '../ToolbarPortal';
 
 interface ManifestEditorProps {
   resource: KubernetesResource | null;
@@ -186,33 +186,6 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
     }
   }, [parseError, isDirty, value, onSave]);
 
-  // Toolbar actions rendered via portal
-  const toolbarActions = toolbarRef?.current ? createPortal(
-    <>
-      <button
-        onClick={handleSave}
-        disabled={!isDirty || !!parseError || saving}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Save changes"
-      >
-        {saving ? (
-          <Loader2 size={12} className="animate-spin" />
-        ) : (
-          <Save size={12} />
-        )}
-      </button>
-      <button
-        onClick={handleReset}
-        disabled={!isDirty || saving}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Reset changes"
-      >
-        <RotateCcw size={12} />
-      </button>
-    </>,
-    toolbarRef.current
-  ) : null;
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -243,7 +216,30 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar actions rendered via portal to parent */}
-      {toolbarActions}
+      {toolbarRef && (
+        <ToolbarPortal toolbarRef={toolbarRef}>
+          <button
+            onClick={handleSave}
+            disabled={!isDirty || !!parseError || saving}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Save changes"
+          >
+            {saving ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Save size={12} />
+            )}
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={!isDirty || saving}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Reset changes"
+          >
+            <RotateCcw size={12} />
+          </button>
+        </ToolbarPortal>
+      )}
 
       {/* Status bar */}
       {(parseError || saveError) && (

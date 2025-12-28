@@ -13,14 +13,14 @@ interface Message {
   isStreaming?: boolean;
 }
 
-interface AIPanelProps {
+interface ChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
   environment: Omit<ChatEnvironment, 'currentContext'>;
 }
 
-export function AIPanel({ isOpen, onClose, otherPanelOpen = false, environment: chatEnvironment }: AIPanelProps) {
+export function ChatPanel({ isOpen, onClose, otherPanelOpen = false, environment: chatEnvironment }: ChatPanelProps) {
   const { context: kubernetesContext } = useCluster();
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationHistory, setConversationHistory] = useState<APIMessage[]>([]);
