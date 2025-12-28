@@ -6,7 +6,8 @@ export function WelcomePage() {
       <div className="max-w-2xl mx-auto px-8 text-center">
         {/* Logo / Icon */}
         <div className="mb-8 relative">
-          <img src="/logo.png" alt="Logo" className="w-70 h-70 mx-auto" />
+          <img src="/logo.png" alt="Logo" className="w-70 h-70 mx-auto dark:hidden" />
+          <img src="/logo_dark.png" alt="Logo" className="w-70 h-70 mx-auto hidden dark:block" />
         </div>
 
         {/* Feature cards */}
