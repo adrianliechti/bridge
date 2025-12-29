@@ -5,46 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"runtime"
 
-	"k8s.io/client-go/tools/clientcmd"
-
+	"github.com/adrianliechti/bridge/pkg/config"
 	"github.com/adrianliechti/bridge/pkg/server"
 )
 
 func main() {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-
-	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{})
-
-	rawConfig, err := kubeconfig.RawConfig()
+	cfg, err := config.New()
 
 	if err != nil {
 		panic(err)
-	}
-
-	contexts := make([]server.BridgeContext, 0)
-
-	for context := range rawConfig.Contexts {
-		contextConfig := clientcmd.NewNonInteractiveClientConfig(rawConfig, context, &clientcmd.ConfigOverrides{}, loadingRules)
-
-		restConfig, err := contextConfig.ClientConfig()
-
-		if err != nil {
-			fmt.Printf("Warning: failed to load context %q: %v\n", context, err)
-			continue
-		}
-
-		contexts = append(contexts, server.BridgeContext{
-			Name:   context,
-			Config: restConfig,
-		})
-	}
-
-	if len(contexts) == 0 {
-		panic("no valid kubernetes contexts found in kubeconfig")
 	}
 
 	port, err := getFreePort("localhost", 8888)
@@ -53,33 +25,7 @@ func main() {
 		panic(err)
 	}
 
-	options := &server.BridgeOptions{
-		DefaultContext: rawConfig.CurrentContext,
-	}
-
-	// Set default namespace from current context
-	if c, ok := rawConfig.Contexts[rawConfig.CurrentContext]; ok && c.Namespace != "" {
-		options.DefaultNamespace = c.Namespace
-	}
-
-	if val := os.Getenv("OPENAI_BASE_URL"); val != "" {
-		options.OpenAIBaseURL = val
-	}
-
-	if val := os.Getenv("OPENAI_API_KEY"); val != "" {
-		options.OpenAIKey = val
-
-		if options.OpenAIBaseURL == "" {
-			options.OpenAIModel = "gpt-5.2"
-			options.OpenAIBaseURL = "https://api.openai.com/v1"
-		}
-	}
-
-	if val := os.Getenv("OPENAI_MODEL"); val != "" {
-		options.OpenAIModel = val
-	}
-
-	s, err := server.New(contexts, options)
+	srv, err := server.New(cfg)
 
 	if err != nil {
 		panic(err)
@@ -88,11 +34,10 @@ func main() {
 	url := fmt.Sprintf("http://localhost:%d", port)
 	addr := fmt.Sprintf("localhost:%d", port)
 
-	if err := openBrowser(url); err != nil {
-		fmt.Printf("Please open your browser and navigate to %s\n", url)
-	}
+	openBrowser(url)
+	fmt.Printf("Bridge is running at %s\n", url)
 
-	if err := s.ListenAndServe(context.Background(), addr); err != nil {
+	if err := srv.ListenAndServe(context.Background(), addr); err != nil {
 		panic(err)
 	}
 }

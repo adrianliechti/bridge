@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/adrianliechti/bridge"
+	"github.com/adrianliechti/bridge/pkg/config"
 	"k8s.io/client-go/rest"
 )
 
@@ -19,15 +20,10 @@ type Server struct {
 	handler http.Handler
 }
 
-func New(contexts []BridgeContext, options *BridgeOptions) (*Server, error) {
-	if options == nil {
-		options = new(BridgeOptions)
-	}
-
-	// Build a reverse proxy for each context
+func New(cfg *config.Config) (*Server, error) {
 	proxies := make(map[string]*httputil.ReverseProxy)
 
-	for _, c := range contexts {
+	for _, c := range cfg.Contexts {
 		tr, err := rest.TransportFor(c.Config)
 
 		if err != nil {
@@ -92,8 +88,8 @@ func New(contexts []BridgeContext, options *BridgeOptions) (*Server, error) {
 		proxy.ServeHTTP(w, r)
 	})
 
-	if options.OpenAIBaseURL != "" {
-		target, err := url.Parse(options.OpenAIBaseURL)
+	if cfg.OpenAI != nil {
+		target, err := url.Parse(cfg.OpenAI.URL)
 
 		if err != nil {
 			return nil, err
@@ -107,8 +103,8 @@ func New(contexts []BridgeContext, options *BridgeOptions) (*Server, error) {
 
 				r.SetURL(target)
 
-				if options.OpenAIKey != "" {
-					r.Out.Header.Set("Authorization", "Bearer "+options.OpenAIKey)
+				if cfg.OpenAI.Token != "" {
+					r.Out.Header.Set("Authorization", "Bearer "+cfg.OpenAI.Token)
 				}
 
 				r.Out.Host = target.Host
@@ -122,26 +118,26 @@ func New(contexts []BridgeContext, options *BridgeOptions) (*Server, error) {
 		w.Header().Set("Content-Type", "application/json")
 
 		config := &Config{
-			DefaultContext:   options.DefaultContext,
-			DefaultNamespace: options.DefaultNamespace,
+			DefaultContext:   cfg.CurrentContext,
+			DefaultNamespace: cfg.CurrentNamespace,
 		}
 
-		if options.OpenAIBaseURL != "" {
+		if cfg.OpenAI != nil {
 			config.AI = &AIConfig{
-				Model: options.OpenAIModel,
+				Model: cfg.OpenAI.Model,
 			}
 		}
 
-		if len(options.PlatformNamespaces) > 0 || len(options.PlatformSpaceLabels) > 0 {
+		if cfg.Platform != nil {
 			config.Platform = &PlatformConfig{}
 
-			if len(options.PlatformNamespaces) > 0 {
-				config.Platform.Namespaces = options.PlatformNamespaces
+			if len(cfg.Platform.PlatformNamespaces) > 0 {
+				config.Platform.Namespaces = cfg.Platform.PlatformNamespaces
 			}
 
-			if len(options.PlatformSpaceLabels) > 0 {
+			if len(cfg.Platform.PlatformSpaceLabels) > 0 {
 				config.Platform.Spaces = &PlatformSpacesConfig{
-					Labels: options.PlatformSpaceLabels,
+					Labels: cfg.Platform.PlatformSpaceLabels,
 				}
 			}
 		}
