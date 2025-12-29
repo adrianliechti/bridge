@@ -1,0 +1,8 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Bridge",
+  "outputfilename": "Bridge",
+  "author": {
+    "name": "Adrian Liechti"
+  }
+}
