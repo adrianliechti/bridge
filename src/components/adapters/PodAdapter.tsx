@@ -11,6 +11,7 @@ import {
   formatCpu,
   formatBytes,
 } from '../../api/kubernetesMetrics';
+import { getResourceQuotaSection } from './utils';
 
 export const PodAdapter: ResourceAdapter<V1Pod> = {
   kinds: ['Pod', 'Pods'],
@@ -59,6 +60,10 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
       return result;
     };
 
+    // Aggregate containers for quota calculation
+    const allContainers = [...containers, ...initContainers];
+    const quotaSection = getResourceQuotaSection(allContainers);
+
     return {
       sections: [
         // Status overview
@@ -74,6 +79,9 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
             ],
           },
         },
+
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
 
         // Init containers
         ...(initContainers.length > 0 ? [{

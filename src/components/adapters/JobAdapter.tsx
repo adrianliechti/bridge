@@ -4,7 +4,7 @@
 import { Play, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1Job } from '@kubernetes/client-node';
-import { getContainerSections } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 
 export const JobAdapter: ResourceAdapter<V1Job> = {
   kinds: ['Job', 'Jobs'],
@@ -33,6 +33,13 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
     const startTime = status?.startTime ? new Date(status.startTime) : undefined;
     const completionTime = status?.completionTime ? new Date(status.completionTime) : undefined;
 
+    // Calculate resource quota from template containers
+    const allContainers = [
+      ...(spec.template?.spec?.containers ?? []),
+      ...(spec.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
+
     return {
       sections: [
         // Job status overview
@@ -55,6 +62,9 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
             ],
           },
         },
+
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
 
         // Progress
         {

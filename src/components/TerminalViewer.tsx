@@ -144,6 +144,7 @@ export function TerminalViewer({
     const xterm = xtermRef.current;
     xterm.clear();
     xterm.writeln(`Connecting to ${podName}/${selectedContainer}...`);
+    xterm.writeln('');
     
     try {
       const session = new ExecSession({

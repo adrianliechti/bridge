@@ -3,7 +3,7 @@
 
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1DaemonSet } from '@kubernetes/client-node';
-import { getContainerSections } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
@@ -36,6 +36,13 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
 
       return aggregateContainerMetrics(podMetrics);
     };
+
+    // Calculate resource quota from template containers
+    const allContainers = [
+      ...(spec.template?.spec?.containers ?? []),
+      ...(spec.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
 
     return {
       sections: [
@@ -107,6 +114,9 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
           spec.template?.spec?.initContainers,
           metricsLoader,
         ),
+
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
 
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{

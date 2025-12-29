@@ -1,15 +1,24 @@
 import { Box, Tag } from 'lucide-react';
 import type { InfoRowData } from '../adapters/types';
 
-export function InfoGridSection({ items, columns = 2 }: { items: InfoRowData[]; columns?: 1 | 2 }) {
+export function InfoGridSection({ items, columns = 2 }: { items: InfoRowData[]; columns?: 1 | 2 | 3 }) {
   const filteredItems = items.filter(item => item.value !== undefined && item.value !== null);
   
+  const gridClass = columns === 3 ? 'grid-cols-3' : columns === 2 ? 'grid-cols-2' : 'grid-cols-1';
+  
+  // For 3 columns: left, center, right alignment
+  const getAlignment = (index: number): string => {
+    if (columns !== 3) return '';
+    const position = index % 3;
+    if (position === 0) return 'text-left';
+    if (position === 1) return 'text-center';
+    return 'text-right';
+  };
+  
   return (
-    <div className={`bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3 grid gap-2 text-xs ${
-      columns === 2 ? 'grid-cols-2' : 'grid-cols-1'
-    }`}>
+    <div className={`bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3 grid gap-2 text-xs ${gridClass}`}>
       {filteredItems.map((item, i) => (
-        <div key={i} className="overflow-hidden">
+        <div key={i} className={`overflow-hidden ${getAlignment(i)}`}>
           <span className="text-neutral-500 dark:text-neutral-500">{item.label}:</span>{' '}
           <span className={item.color || 'text-neutral-900 dark:text-neutral-300'}>{item.value}</span>
         </div>

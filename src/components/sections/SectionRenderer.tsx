@@ -1,5 +1,5 @@
 import type { Section, SectionData } from '../adapters/types';
-import { StatusCardsSection, GaugesSection, PodGridSection } from './StatusSection';
+import { StatusCardsSection, GaugesSection } from './StatusSection';
 import { ConditionsView } from './ConditionsView';
 import { ContainersSection } from './ContainerSection';
 import { VolumesSection } from './VolumeSection';
@@ -7,7 +7,8 @@ import { CapacityBarsSection, TaintsSection } from './NodeSection';
 import { RelatedReplicaSetsSection, RelatedPVCsSection, RelatedJobsSection } from './RelatedSection';
 import { VolumeClaimTemplatesSection, ScheduleSection, JobProgressSection, TimelineSection } from './JobSection';
 import { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSection } from './InfoSection';
-import { ContainerMetricsSection, WorkloadMetricsSection, NodeMetricsSection } from './MetricsSection';
+import { NodeMetricsSection } from './MetricsSection';
+import { ResourceQuotaSection } from './ResourceQuotaSection';
 
 export function SectionRenderer({ section }: { section: Section }) {
   const { title, data } = section;
@@ -35,9 +36,6 @@ function renderSectionData(data: SectionData): React.ReactNode {
 
     case 'gauges':
       return <GaugesSection items={data.items} podGrid={data.showPodGrid} />;
-
-    case 'pod-grid':
-      return <PodGridSection data={data.data} />;
 
     case 'conditions':
       return <ConditionsView conditions={data.items} />;
@@ -87,14 +85,11 @@ function renderSectionData(data: SectionData): React.ReactNode {
     case 'addresses':
       return <AddressesSection addresses={data.addresses} />;
 
-    case 'container-metrics':
-      return <ContainerMetricsSection loader={data.loader} title={data.title} />;
-
-    case 'workload-metrics':
-      return <WorkloadMetricsSection loader={data.loader} title={data.title} />;
-
     case 'node-metrics':
       return <NodeMetricsSection loader={data.loader} title={data.title} />;
+
+    case 'resource-quota':
+      return <ResourceQuotaSection data={data.data} />;
 
     case 'custom':
       return data.render();

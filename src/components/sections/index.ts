@@ -12,7 +12,8 @@ export { CapacityBarsSection, TaintsSection } from './NodeSection';
 export { RelatedReplicaSetsSection, RelatedPVCsSection, RelatedJobsSection } from './RelatedSection';
 export { VolumeClaimTemplatesSection, ScheduleSection, JobProgressSection, TimelineSection } from './JobSection';
 export { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSection } from './InfoSection';
-export { MetricsProgressBar, ContainerMetricsSection, WorkloadMetricsSection, NodeMetricsSection } from './MetricsSection';
+export { MetricsProgressBar, NodeMetricsSection } from './MetricsSection';
+export { ResourceQuotaSection } from './ResourceQuotaSection';
 export { SectionRenderer } from './SectionRenderer';
 
 // Manifest components

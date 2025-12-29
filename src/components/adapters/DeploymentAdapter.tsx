@@ -4,7 +4,7 @@
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
-import { getContainerSections } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
@@ -35,6 +35,13 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
 
       return aggregateContainerMetrics(podMetrics);
     };
+
+    // Calculate resource quota from template containers
+    const allContainers = [
+      ...(spec.template?.spec?.containers ?? []),
+      ...(spec.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
 
     return {
       sections: [
@@ -70,7 +77,7 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
                 { label: 'Max Unavailable', value: String(spec.strategy.rollingUpdate.maxUnavailable ?? '25%'), color: 'text-amber-400' },
               ] : []),
             ],
-            columns: 2,
+            columns: 3,
           },
         },
 
@@ -144,6 +151,9 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
           spec.template?.spec?.initContainers,
           metricsLoader,
         ),
+
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
 
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{

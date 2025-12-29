@@ -3,7 +3,7 @@
 
 import { Play, Pause, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, JobData } from './types';
-import { parseCronSchedule, formatTimeAgo, getContainerSections } from './utils';
+import { parseCronSchedule, formatTimeAgo, getContainerSections, getResourceQuotaSection } from './utils';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1CronJob } from '@kubernetes/client-node';
 
@@ -29,6 +29,13 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
     // Parse cron schedule for display
     const scheduleDescription = parseCronSchedule(schedule);
 
+    // Calculate resource quota from job template containers
+    const allContainers = [
+      ...(spec.jobTemplate?.spec?.template?.spec?.containers ?? []),
+      ...(spec.jobTemplate?.spec?.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
+
     return {
       sections: [
         // Status overview
@@ -52,6 +59,10 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
             ],
           },
         },
+
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
+
         // Schedule
         {
           id: 'schedule',

@@ -4,7 +4,7 @@
 import type { ResourceAdapter, ResourceSections, PVCData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1StatefulSet } from '@kubernetes/client-node';
-import { getContainerSections } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
@@ -39,6 +39,13 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
 
       return aggregateContainerMetrics(podMetrics);
     };
+
+    // Calculate resource quota from template containers
+    const allContainers = [
+      ...(spec.template?.spec?.containers ?? []),
+      ...(spec.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
 
     return {
       sections: [
@@ -165,6 +172,9 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
           spec.template?.spec?.initContainers,
           metricsLoader,
         ),
+
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
 
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{
