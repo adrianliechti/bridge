@@ -110,7 +110,6 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
-          title: 'Conditions',
           data: {
             type: 'conditions' as const,
             items: (status?.conditions ?? []).map(c => ({

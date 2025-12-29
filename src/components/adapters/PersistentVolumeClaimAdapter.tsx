@@ -140,7 +140,6 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
     if (status?.conditions?.length) {
       sections.push({
         id: 'conditions',
-        title: 'Conditions',
         data: {
           type: 'conditions',
           items: status.conditions.map(c => ({

@@ -180,7 +180,6 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
         // Conditions
         ...(conditions.length > 0 ? [{
           id: 'conditions',
-          title: 'Conditions',
           data: {
             type: 'conditions' as const,
             items: conditions.map(c => ({

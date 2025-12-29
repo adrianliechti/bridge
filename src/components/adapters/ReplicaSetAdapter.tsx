@@ -93,7 +93,6 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
-          title: 'Conditions',
           data: {
             type: 'conditions' as const,
             items: (status?.conditions ?? []).map(c => ({

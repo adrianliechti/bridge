@@ -62,17 +62,29 @@ export function ConditionsView({ conditions }: ConditionsViewProps) {
     return isInverted ? !statusTrue : statusTrue;
   };
 
-  // Sort: negative conditions first, then positive
-  const sortedConditions = [...conditions].sort((a, b) => {
-    const aPositive = isPositive(a);
-    const bPositive = isPositive(b);
-    if (aPositive === bPositive) return 0;
-    return aPositive ? 1 : -1;
+  // Filter to show only conditions that are not good (negative or unknown)
+  const filteredConditions = conditions.filter(condition => !isPositive(condition));
+
+  // If all conditions are good, don't render anything
+  if (filteredConditions.length === 0) {
+    return null;
+  }
+
+  // Sort: negative conditions first, then unknown
+  const sortedConditions = [...filteredConditions].sort((a, b) => {
+    const aUnknown = a.status === 'Unknown';
+    const bUnknown = b.status === 'Unknown';
+    if (aUnknown === bUnknown) return 0;
+    return aUnknown ? 1 : -1;
   });
 
   return (
-    <div className="rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700/50">
-      {sortedConditions.map((condition, index) => {
+    <div>
+      <h5 className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+        Conditions
+      </h5>
+      <div className="rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700/50">
+        {sortedConditions.map((condition, index) => {
         const positive = isPositive(condition);
         const isUnknown = condition.status === 'Unknown';
         const hasDetails = condition.reason || condition.message;
@@ -158,6 +170,7 @@ export function ConditionsView({ conditions }: ConditionsViewProps) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

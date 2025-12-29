@@ -421,7 +421,6 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
     if (status?.conditions && status.conditions.length > 0) {
       sections.push({
         id: 'conditions',
-        title: 'Conditions',
         data: {
           type: 'conditions' as const,
           items: status.conditions.map(c => ({

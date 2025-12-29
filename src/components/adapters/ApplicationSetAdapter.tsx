@@ -596,7 +596,6 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
         // Conditions
         ...(conditions.length > 0 ? [{
           id: 'conditions',
-          title: 'Conditions',
           data: {
             type: 'conditions' as const,
             items: conditions,

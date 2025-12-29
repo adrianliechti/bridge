@@ -148,7 +148,6 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
-          title: 'Conditions',
           data: {
             type: 'conditions' as const,
             items: (status?.conditions ?? []).map(c => ({

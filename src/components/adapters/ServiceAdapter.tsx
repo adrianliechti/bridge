@@ -300,7 +300,6 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
     if (status?.conditions && status.conditions.length > 0) {
       sections.push({
         id: 'conditions',
-        title: 'Conditions',
         data: {
           type: 'conditions',
           items: status.conditions.map(c => ({
