@@ -10,7 +10,7 @@ import type { V1Ingress, V1IngressRule, V1IngressTLS, V1HTTPIngressPath } from '
 export const IngressAdapter: ResourceAdapter<V1Ingress> = {
   kinds: ['Ingress', 'Ingresses'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 

@@ -48,7 +48,7 @@ interface GRPCRoute {
 export const GRPCRouteAdapter: ResourceAdapter<GRPCRoute> = {
   kinds: ['GRPCRoute', 'GRPCRoutes'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 

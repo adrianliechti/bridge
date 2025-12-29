@@ -34,8 +34,9 @@ export type {
 } from '@kubernetes/client-node';
 
 // Base fetch helper for JSON API calls
-export async function fetchApi<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+export async function fetchApi<T>(url: string, context?: string): Promise<T> {
+  const finalUrl = context ? `/contexts/${context}${url}` : url;
+  const response = await fetch(finalUrl);
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status} ${response.statusText}`);
   }
@@ -43,14 +44,15 @@ export async function fetchApi<T>(url: string): Promise<T> {
 }
 
 // Fetch all namespaces
-export async function getNamespaces(): Promise<V1NamespaceList> {
-  return fetchApi<V1NamespaceList>('/api/v1/namespaces');
+export async function getNamespaces(context: string): Promise<V1NamespaceList> {
+  return fetchApi<V1NamespaceList>('/api/v1/namespaces', context);
 }
 
 // Fetch all CustomResourceDefinitions from the cluster
-export async function getCustomResourceDefinitions(): Promise<V1CustomResourceDefinition[]> {
+export async function getCustomResourceDefinitions(context: string): Promise<V1CustomResourceDefinition[]> {
   const response = await fetchApi<V1CustomResourceDefinitionList>(
-    '/apis/apiextensions.k8s.io/v1/customresourcedefinitions'
+    '/apis/apiextensions.k8s.io/v1/customresourcedefinitions',
+    context
   );
   return response.items;
 }
@@ -63,6 +65,7 @@ export interface KubernetesResource extends KubernetesObject {
 
 // Fetch a single resource by name
 export async function getResource(
+  context: string,
   config: V1APIResource,
   resourceName: string,
   namespace?: string
@@ -73,21 +76,24 @@ export async function getResource(
       ? `${apiBase}/namespaces/${namespace}/${config.name}/${resourceName}`
       : `${apiBase}/${config.name}/${resourceName}`;
 
-  return fetchApi<KubernetesResource>(url);
+  return fetchApi<KubernetesResource>(url, context);
 }
 
 // Update a resource (PUT)
 export async function updateResource(
+  context: string,
   config: V1APIResource,
   resourceName: string,
   resource: KubernetesResource,
   namespace?: string
 ): Promise<KubernetesResource> {
   const apiBase = getApiBase(config);
-  const url =
+  const path =
     config.namespaced && namespace
       ? `${apiBase}/namespaces/${namespace}/${config.name}/${resourceName}`
       : `${apiBase}/${config.name}/${resourceName}`;
+
+  const url = `/contexts/${context}${path}`;
 
   const response = await fetch(url, {
     method: 'PUT',
@@ -116,6 +122,7 @@ export async function updateResource(
 
 // Fetch a list of resources (full objects, not Table API)
 export async function getResourceList(
+  context: string,
   config: V1APIResource,
   namespace?: string
 ): Promise<KubernetesResource[]> {
@@ -125,12 +132,13 @@ export async function getResourceList(
       ? `${apiBase}/namespaces/${namespace}/${config.name}`
       : `${apiBase}/${config.name}`;
 
-  const response = await fetchApi<KubernetesListObject<KubernetesResource>>(url);
+  const response = await fetchApi<KubernetesListObject<KubernetesResource>>(url, context);
   return response.items;
 }
 
 // Fetch events for a specific resource
 export async function getResourceEvents(
+  context: string,
   resourceName: string,
   namespace?: string
 ): Promise<CoreV1Event[]> {
@@ -142,7 +150,7 @@ export async function getResourceEvents(
     ? `/api/v1/namespaces/${namespace}/events?fieldSelector=${encodeURIComponent(fieldSelector)}`
     : `/api/v1/events?fieldSelector=${encodeURIComponent(fieldSelector)}`;
 
-  const response = await fetchApi<CoreV1EventList>(url);
+  const response = await fetchApi<CoreV1EventList>(url, context);
 
   // Sort by last timestamp (most recent first)
   // Note: timestamps from K8s API are strings, not Date objects

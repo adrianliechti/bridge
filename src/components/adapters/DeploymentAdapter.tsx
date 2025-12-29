@@ -4,16 +4,17 @@
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
-import { getContainerSections } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
   kinds: ['Deployment', 'Deployments'],
 
-  adapt(resource, namespace): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
+    const namespace = metadata?.namespace;
 
     if (!spec) {
       return { sections: [] };
@@ -29,11 +30,18 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
       const matchLabels = spec.selector?.matchLabels;
       if (!namespace || !matchLabels || Object.keys(matchLabels).length === 0) return null;
 
-      const podMetrics = await getPodMetricsBySelector(namespace, matchLabels);
+      const podMetrics = await getPodMetricsBySelector(context, namespace, matchLabels);
       if (podMetrics.length === 0) return null;
 
       return aggregateContainerMetrics(podMetrics);
     };
+
+    // Calculate resource quota from template containers
+    const allContainers = [
+      ...(spec.template?.spec?.containers ?? []),
+      ...(spec.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
 
     return {
       sections: [
@@ -69,7 +77,7 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
                 { label: 'Max Unavailable', value: String(spec.strategy.rollingUpdate.maxUnavailable ?? '25%'), color: 'text-amber-400' },
               ] : []),
             ],
-            columns: 2,
+            columns: 3,
           },
         },
 
@@ -83,10 +91,10 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
               if (!namespace || !metadata?.name) return [];
               
               try {
-                const rsConfig = await getResourceConfig('replicasets');
+                const rsConfig = await getResourceConfig(context, 'replicasets');
                 if (!rsConfig) return [];
                 
-                const rsList = await getResourceList(rsConfig, namespace);
+                const rsList = await getResourceList(context, rsConfig, namespace);
                 const deploymentName = metadata.name ?? '';
                 const deploymentUid = metadata.uid;
                 
@@ -144,10 +152,12 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
           metricsLoader,
         ),
 
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
+
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
-          title: 'Conditions',
           data: {
             type: 'conditions' as const,
             items: (status?.conditions ?? []).map(c => ({

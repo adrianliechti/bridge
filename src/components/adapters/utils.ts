@@ -1,7 +1,13 @@
 // Utility functions for visualizers
 
-import type { Section, ContainerData } from './types';
+import type { Section, ContainerData, ResourceQuotaData } from './types';
 import type { V1Container } from '@kubernetes/client-node';
+import { 
+  parseCpuToNanoCores, 
+  parseMemoryToBytes, 
+  formatCpu, 
+  formatBytes 
+} from '../../api/kubernetesMetrics';
 
 export function formatDuration(ms: number): string {
   const seconds = Math.floor(ms / 1000);
@@ -249,4 +255,81 @@ export function getStandardMetadataSections(
   }
   
   return sections;
+}
+
+/**
+ * Aggregate resource quotas (requests and limits) from all containers
+ */
+export function aggregateResourceQuota(containers?: V1Container[]): ResourceQuotaData | null {
+  if (!containers || containers.length === 0) return null;
+
+  let cpuRequestsNanoCores = 0;
+  let cpuLimitsNanoCores = 0;
+  let memoryRequestsBytes = 0;
+  let memoryLimitsBytes = 0;
+  let hasCpuRequests = false;
+  let hasCpuLimits = false;
+  let hasMemoryRequests = false;
+  let hasMemoryLimits = false;
+
+  for (const container of containers) {
+    const resources = container.resources;
+    if (!resources) continue;
+
+    const requests = resources.requests as Record<string, string> | undefined;
+    const limits = resources.limits as Record<string, string> | undefined;
+
+    if (requests?.cpu) {
+      cpuRequestsNanoCores += parseCpuToNanoCores(requests.cpu);
+      hasCpuRequests = true;
+    }
+    if (limits?.cpu) {
+      cpuLimitsNanoCores += parseCpuToNanoCores(limits.cpu);
+      hasCpuLimits = true;
+    }
+    if (requests?.memory) {
+      memoryRequestsBytes += parseMemoryToBytes(requests.memory);
+      hasMemoryRequests = true;
+    }
+    if (limits?.memory) {
+      memoryLimitsBytes += parseMemoryToBytes(limits.memory);
+      hasMemoryLimits = true;
+    }
+  }
+
+  // Return null if no quota data at all
+  if (!hasCpuRequests && !hasCpuLimits && !hasMemoryRequests && !hasMemoryLimits) {
+    return null;
+  }
+
+  return {
+    cpu: {
+      requests: hasCpuRequests ? formatCpu(cpuRequestsNanoCores) : undefined,
+      requestsNanoCores: hasCpuRequests ? cpuRequestsNanoCores : undefined,
+      limits: hasCpuLimits ? formatCpu(cpuLimitsNanoCores) : undefined,
+      limitsNanoCores: hasCpuLimits ? cpuLimitsNanoCores : undefined,
+    },
+    memory: {
+      requests: hasMemoryRequests ? formatBytes(memoryRequestsBytes) : undefined,
+      requestsBytes: hasMemoryRequests ? memoryRequestsBytes : undefined,
+      limits: hasMemoryLimits ? formatBytes(memoryLimitsBytes) : undefined,
+      limitsBytes: hasMemoryLimits ? memoryLimitsBytes : undefined,
+    },
+  };
+}
+
+/**
+ * Create a resource quota section if containers have requests/limits defined
+ */
+export function getResourceQuotaSection(containers?: V1Container[]): Section | null {
+  const quota = aggregateResourceQuota(containers);
+  if (!quota) return null;
+
+  return {
+    id: 'resource-quota',
+    data: {
+      type: 'resource-quota' as const,
+      data: quota,
+    },
+  };
 }

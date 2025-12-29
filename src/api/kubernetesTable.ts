@@ -5,8 +5,9 @@ import type { TableResponse } from '../types/table';
 import type { V1APIResource } from '@kubernetes/client-node';
 import { getApiBase } from './kubernetes';
 
-async function fetchTable(url: string): Promise<TableResponse> {
-  const response = await fetch(url, {
+async function fetchTable(url: string, context: string): Promise<TableResponse> {
+  const finalUrl = `/contexts/${context}${url}`;
+  const response = await fetch(finalUrl, {
     headers: {
       Accept: 'application/json;as=Table;v=v1;g=meta.k8s.io',
     },
@@ -28,6 +29,7 @@ export type {
 
 // Get table for a resource (built-in or CRD)
 export async function getResourceTable(
+  context: string,
   config: V1APIResource,
   namespace?: string
 ): Promise<TableResponse> {
@@ -36,5 +38,5 @@ export async function getResourceTable(
     ? `${apiBase}/namespaces/${namespace}/${config.name}`
     : `${apiBase}/${config.name}`;
 
-  return fetchTable(url);
+  return fetchTable(url, context);
 }

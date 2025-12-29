@@ -3,17 +3,18 @@
 
 import { Play, Pause, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, JobData } from './types';
-import { parseCronSchedule, formatTimeAgo, getContainerSections } from './utils';
+import { parseCronSchedule, formatTimeAgo, getContainerSections, getResourceQuotaSection } from './utils';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1CronJob } from '@kubernetes/client-node';
 
 export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
   kinds: ['CronJob', 'CronJobs'],
 
-  adapt(resource, namespace): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
+    const namespace = metadata?.namespace;
 
     if (!spec) {
       return { sections: [] };
@@ -27,6 +28,13 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
 
     // Parse cron schedule for display
     const scheduleDescription = parseCronSchedule(schedule);
+
+    // Calculate resource quota from job template containers
+    const allContainers = [
+      ...(spec.jobTemplate?.spec?.template?.spec?.containers ?? []),
+      ...(spec.jobTemplate?.spec?.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
 
     return {
       sections: [
@@ -51,6 +59,10 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
             ],
           },
         },
+
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
+
         // Schedule
         {
           id: 'schedule',
@@ -112,10 +124,10 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
               if (!namespace || !metadata?.name) return [];
               
               try {
-                const jobConfig = await getResourceConfig('jobs');
+                const jobConfig = await getResourceConfig(context, 'jobs');
                 if (!jobConfig) return [];
                 
-                const jobs = await getResourceList(jobConfig, namespace);
+                const jobs = await getResourceList(context, jobConfig, namespace);
                 const cronJobName = metadata.name ?? '';
                 const cronJobUid = metadata.uid;
                 

@@ -166,40 +166,6 @@ export interface VolumeClaimTemplateData {
   accessModes?: string[];
 }
 
-/** Container metrics data (for pods) */
-export interface ContainerMetricsData {
-  name: string;
-  cpu: {
-    usage: string;
-    usageNanoCores: number;
-    request?: string;
-    requestNanoCores?: number;
-    limit?: string;
-    limitNanoCores?: number;
-  };
-  memory: {
-    usage: string;
-    usageBytes: number;
-    request?: string;
-    requestBytes?: number;
-    limit?: string;
-    limitBytes?: number;
-  };
-}
-
-/** Workload aggregated metrics data (for deployments, statefulsets, daemonsets) */
-export interface WorkloadMetricsData {
-  totalCpu: string;
-  totalCpuNanoCores: number;
-  totalMemory: string;
-  totalMemoryBytes: number;
-  podMetrics: Array<{
-    name: string;
-    cpu: string;
-    memory: string;
-  }>;
-}
-
 /** Node metrics data */
 export interface NodeMetricsData {
   cpu: {
@@ -216,6 +182,22 @@ export interface NodeMetricsData {
   };
 }
 
+/** Resource quota data (aggregated requests/limits from containers) */
+export interface ResourceQuotaData {
+  cpu: {
+    requests?: string;
+    requestsNanoCores?: number;
+    limits?: string;
+    limitsNanoCores?: number;
+  };
+  memory: {
+    requests?: string;
+    requestsBytes?: number;
+    limits?: string;
+    limitsBytes?: number;
+  };
+}
+
 // ============================================
 // SECTION DEFINITIONS
 // ============================================
@@ -227,9 +209,8 @@ export interface NodeMetricsData {
 export type SectionData =
   | { type: 'status-cards'; items: StatusCardData[] }
   | { type: 'gauges'; items: GaugeData[]; showPodGrid?: PodGridData }
-  | { type: 'pod-grid'; data: PodGridData }
   | { type: 'conditions'; items: ConditionData[] }
-  | { type: 'info-grid'; items: InfoRowData[]; columns?: 1 | 2 }
+  | { type: 'info-grid'; items: InfoRowData[]; columns?: 1 | 2 | 3 }
   | { type: 'containers'; items: ContainerData[]; metricsLoader?: () => Promise<Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }> | null>; title?: string }
   | { type: 'volumes'; items: VolumeData[] }
   | { type: 'labels'; labels: Record<string, string>; title?: string }
@@ -244,9 +225,8 @@ export type SectionData =
   | { type: 'job-progress'; completions: number; succeeded: number; failed: number; active: number }
   | { type: 'timeline'; startTime?: Date; completionTime?: Date }
   | { type: 'addresses'; addresses: Array<{ type: string; address: string }> }
-  | { type: 'container-metrics'; loader: () => Promise<ContainerMetricsData[] | null>; title?: string }
-  | { type: 'workload-metrics'; loader: () => Promise<WorkloadMetricsData | null>; title?: string }
   | { type: 'node-metrics'; loader: () => Promise<NodeMetricsData | null>; title?: string }
+  | { type: 'resource-quota'; data: ResourceQuotaData }
   | { type: 'custom'; render: () => ReactNode };
 
 export interface Section {
@@ -290,11 +270,11 @@ export interface ResourceAction {
   };
   /** 
    * Execute the action. 
+   * @param context - The Kubernetes context name
    * @param resource - The resource to act upon
-   * @param namespace - The namespace of the resource
    * @returns A promise that resolves when the action completes
    */
-  execute: (resource: KubernetesResource, namespace?: string) => Promise<void>;
+  execute: (context: string, resource: KubernetesResource) => Promise<void>;
   /** 
    * Optional function to determine if action should be shown.
    * @param resource - The resource to check
@@ -327,10 +307,10 @@ export interface ResourceAction {
 export interface ResourceAdapter<T = KubernetesResource> {
   /** The Kubernetes kind(s) this adapter handles */
   readonly kinds: string[];
-  
+
   /** Extract all display sections from the resource */
-  adapt(resource: T, namespace?: string): ResourceSections;
-  
+  adapt(context: string, resource: T): ResourceSections;
+
   /** Optional actions that can be performed on this resource type */
   readonly actions?: ResourceAction[];
 }

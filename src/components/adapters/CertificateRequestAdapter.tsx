@@ -181,7 +181,7 @@ function decodeBase64(encoded?: string): string | null {
 export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
   kinds: ['CertificateRequest', 'CertificateRequests'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
@@ -421,7 +421,6 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
     if (status?.conditions && status.conditions.length > 0) {
       sections.push({
         id: 'conditions',
-        title: 'Conditions',
         data: {
           type: 'conditions' as const,
           items: status.conditions.map(c => ({

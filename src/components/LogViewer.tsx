@@ -1,15 +1,13 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { ChevronDown, Copy, Check, Filter } from 'lucide-react';
 import { streamCombinedLogs, getWorkloadPods, type LogEntry } from '../api/kubernetesLogs';
+import { useCluster } from '../hooks/useCluster';
+import type { KubernetesResource } from '../api/kubernetes';
+import { ToolbarPortal } from './ToolbarPortal';
 
 export interface LogViewerProps {
-  namespace?: string;
-  // Either provide pod names directly, or a workload reference
-  podNames?: string[];
-  workloadKind?: string;
-  workloadName?: string;
-  // Callback to expose logs for external use (e.g., copy)
-  onLogsRef?: (getLogs: () => LogEntry[]) => void;
+  resource: KubernetesResource;
+  toolbarRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 // Color palette for different pods
@@ -44,14 +42,6 @@ function formatTimestamp(timestamp?: string): string {
   } catch {
     return timestamp;
   }
-}
-
-// Shorten pod name for display - keep last 2 parts for context
-function shortenPodName(name: string): string {
-  const parts = name.split('-');
-  if (parts.length <= 2) return name;
-  // Return last 2 parts (usually hash-hash or name-hash)
-  return parts.slice(-2).join('-');
 }
 
 type LogFormat = 'json' | 'klog' | 'logfmt' | 'plain';
@@ -231,21 +221,27 @@ function detectLogLevel(message: string, jsonData?: Record<string, unknown>, pre
   return 'unknown';
 }
 
-// Custom hook for fetching pods from workload
-function useWorkloadPods(
-  namespace: string | undefined,
-  workloadKind?: string,
-  workloadName?: string,
-  enabled: boolean = true
-) {
+// Custom hook for fetching pods from a resource
+// For Pods, returns the pod name directly; for workloads, fetches associated pods
+function useResourcePods(context: string, resource: KubernetesResource) {
   const [state, setState] = useState<{
     podNames: string[];
     loading: boolean;
     error: string | null;
   }>({ podNames: [], loading: false, error: null });
 
+  const kind = resource.kind;
+  const name = resource.metadata?.name;
+  const namespace = resource.metadata?.namespace;
+
   useEffect(() => {
-    if (!enabled || !workloadKind || !workloadName || !namespace) {
+    if (!kind || !name || !namespace) {
+      return;
+    }
+
+    // For Pods, return the name directly without fetching
+    if (kind === 'Pod') {
+      setState({ podNames: [name], loading: false, error: null });
       return;
     }
 
@@ -253,7 +249,7 @@ function useWorkloadPods(
 
     async function fetchPods() {
       try {
-        const pods = await getWorkloadPods(namespace!, workloadKind!, workloadName!);
+        const pods = await getWorkloadPods(context, namespace!, kind!, name!);
         if (!cancelled) {
           setState({ podNames: pods, loading: false, error: null });
         }
@@ -270,7 +266,7 @@ function useWorkloadPods(
     return () => {
       cancelled = true;
     };
-  }, [namespace, workloadKind, workloadName, enabled]);
+  }, [context, namespace, kind, name]);
 
   return state;
 }
@@ -278,58 +274,31 @@ function useWorkloadPods(
 const TAIL_LINES = 4000;
 
 export function LogViewer({ 
-  namespace,
-  podNames: initialPodNames,
-  workloadKind,
-  workloadName,
-  onLogsRef,
+  resource,
+  toolbarRef,
 }: LogViewerProps) {
+  const { context } = useCluster();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showOnlyIssues, setShowOnlyIssues] = useState(false);
   
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
-  const logsRef = useRef<LogEntry[]>([]);
-  
-  // Keep logsRef in sync with logs state
-  useEffect(() => {
-    logsRef.current = logs;
-  }, [logs]);
 
-  // Expose logs getter to parent
-  useEffect(() => {
-    if (onLogsRef) {
-      onLogsRef(() => logsRef.current);
-    }
-  }, [onLogsRef]);
+  const handleCopyLogs = async () => {
+    const text = logs.map(log => `${log.timestamp} [${log.podName}] ${log.message}`).join('\n');
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // For Pods, use the workloadName directly as the pod name
-  // For other workloads, we need to fetch the pods
-  const isPod = workloadKind === 'Pod';
-  const directPodNames = useMemo(() => 
-    isPod && workloadName ? [workloadName] : initialPodNames,
-    [isPod, workloadName, initialPodNames]
-  );
-
-  // Fetch pod names from workload if needed (not for Pods)
-  const shouldFetchPods = !directPodNames?.length && !!workloadKind && !!workloadName && !isPod;
-  const { podNames: fetchedPodNames, loading: isLoading, error: fetchError } = useWorkloadPods(
-    namespace,
-    workloadKind,
-    workloadName,
-    shouldFetchPods
-  );
-
-  // Determine which pod names to use - either passed in, direct (for Pod), or fetched
-  const podNames = useMemo(() => {
-    if (directPodNames && directPodNames.length > 0) {
-      return directPodNames;
-    }
-    return fetchedPodNames;
-  }, [directPodNames, fetchedPodNames]);
+  const namespace = resource.metadata?.namespace;
+  const { podNames, loading: isLoading, error: fetchError } = useResourcePods(context, resource);
 
   // Detect manual scroll to disable auto-scroll
   const handleScroll = useCallback(() => {
@@ -356,6 +325,7 @@ export function LogViewer({
           setHasStarted(true);
           
           abortControllerRef.current = streamCombinedLogs({
+            context,
             namespace,
             podNames,
             follow: true,
@@ -372,7 +342,7 @@ export function LogViewer({
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [shouldAutoStart, namespace, podNames]);
+  }, [shouldAutoStart, context, namespace, podNames]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -392,6 +362,35 @@ export function LogViewer({
 
   return (
     <div className="flex flex-col h-full bg-neutral-50 dark:bg-neutral-950">
+      {/* Toolbar actions rendered via portal to parent */}
+      {toolbarRef && (
+        <ToolbarPortal toolbarRef={toolbarRef}>
+          <button
+            onClick={() => setShowOnlyIssues(!showOnlyIssues)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors ${
+              showOnlyIssues
+                ? 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/20'
+                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+            }`}
+            title={showOnlyIssues ? 'Show all logs' : 'Show only errors & warnings'}
+          >
+            <Filter size={12} />
+          </button>
+          <button
+            onClick={handleCopyLogs}
+            disabled={logs.length === 0}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Copy logs"
+          >
+            {copied ? (
+              <Check size={12} className="text-emerald-500" />
+            ) : (
+              <Copy size={12} />
+            )}
+          </button>
+        </ToolbarPortal>
+      )}
+
       {/* Pod legend */}
       {podNames.length > 1 && (
         <div className="shrink-0 px-4 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900/30">
@@ -403,7 +402,7 @@ export function LogViewer({
                 title={name}
               >
                 <span className="w-2 h-2 rounded-full bg-current" />
-                {shortenPodName(name)}
+                {name}
               </span>
             ))}
           </div>
@@ -438,6 +437,12 @@ export function LogViewer({
           {logs.map((log, index) => {
             const parsed = parseLogMessage(log.message);
             const level = detectLogLevel(log.message, parsed.jsonData, parsed.level);
+            
+            // Filter out non-issue logs if filter is enabled
+            if (showOnlyIssues && level !== 'error' && level !== 'warn') {
+              return null;
+            }
+            
             const textColor = LOG_LEVEL_COLORS[level];
             const bgStyle = LOG_LEVEL_BG[level];
             const isStructured = parsed.format !== 'plain';
@@ -453,16 +458,11 @@ export function LogViewer({
                     className={`${getPodColor(log.podName, podNames)}`}
                     title={log.podName}
                   >
-                    {shortenPodName(log.podName)}
+                    {log.podName}
                   </span>
                   {log.container && log.container !== log.podName && (
                     <span className="text-neutral-500 dark:text-neutral-500">
                       {log.container}
-                    </span>
-                  )}
-                  {isStructured && (
-                    <span className="text-neutral-500 dark:text-neutral-600 uppercase">
-                      {parsed.format}
                     </span>
                   )}
                 </div>

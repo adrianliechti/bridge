@@ -80,13 +80,13 @@ export function hasAdapter(kind: string): boolean {
 /**
  * Adapt a resource to display sections using the appropriate adapter
  */
-export function adaptResource(resource: KubernetesResource, namespace?: string): ResourceSections | null {
+export function adaptResource(context: string, resource: KubernetesResource): ResourceSections | null {
   const kind = resource.kind;
   if (!kind) return null;
   
   const adapter = getAdapter(kind);
   if (!adapter) return null;
-  return adapter.adapt(resource, namespace);
+  return adapter.adapt(context, resource);
 }
 
 /**

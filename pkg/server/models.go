@@ -1,8 +1,12 @@
 package server
 
+type Context struct {
+	Name string `json:"name"`
+}
+
 type Config struct {
-	Context   string `json:"context,omitempty"`
-	Namespace string `json:"namespace,omitempty"`
+	DefaultContext   string `json:"defaultContext,omitempty"`
+	DefaultNamespace string `json:"defaultNamespace,omitempty"`
 
 	AI       *AIConfig       `json:"ai,omitempty"`
 	Platform *PlatformConfig `json:"platform,omitempty"`

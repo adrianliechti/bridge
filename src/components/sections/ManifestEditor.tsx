@@ -1,25 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Editor, { type OnMount, type Monaco } from '@monaco-editor/react';
-import { Loader2, AlertCircle, X } from 'lucide-react';
+import { Loader2, AlertCircle, X, Save, RotateCcw } from 'lucide-react';
 import { stringify as toYaml, parse as parseYaml } from 'yaml';
 import type { KubernetesResource } from '../../api/kubernetes';
 import type { editor } from 'monaco-editor';
-
-// Editor state exposed to parent component
-export interface ManifestEditorState {
-  isDirty: boolean;
-  hasError: boolean;
-  isSaving: boolean;
-  save: () => Promise<void>;
-  reset: () => void;
-}
+import { ToolbarPortal } from '../ToolbarPortal';
 
 interface ManifestEditorProps {
   resource: KubernetesResource | null;
   loading: boolean;
   error: string | null;
   onSave: (resource: KubernetesResource) => Promise<void>;
-  onStateRef?: (state: ManifestEditorState | null) => void;
+  toolbarRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 // Detect if dark mode is enabled
@@ -28,7 +20,7 @@ function isDarkMode(): boolean {
     window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-export function ManifestEditor({ resource, loading, error, onSave, onStateRef }: ManifestEditorProps) {
+export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }: ManifestEditorProps) {
   const [value, setValue] = useState<string>('');
   const [originalValue, setOriginalValue] = useState<string>('');
   const [isDirty, setIsDirty] = useState(false);
@@ -89,6 +81,7 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
       await editorInstance.getAction('editor.fold')?.run();
     }
     editorInstance.setPosition({ lineNumber: 1, column: 1 });
+    editorInstance.revealLine(1);
     setEditorReady(true);
   }, []);
 
@@ -193,24 +186,6 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
     }
   }, [parseError, isDirty, value, onSave]);
 
-  // Expose state to parent via ref callback
-  useEffect(() => {
-    if (onStateRef) {
-      onStateRef({
-        isDirty,
-        hasError: !!parseError,
-        isSaving: saving,
-        save: handleSave,
-        reset: handleReset,
-      });
-    }
-    return () => {
-      if (onStateRef) {
-        onStateRef(null);
-      }
-    };
-  }, [onStateRef, isDirty, parseError, saving, handleSave, handleReset]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -240,6 +215,32 @@ export function ManifestEditor({ resource, loading, error, onSave, onStateRef }:
 
   return (
     <div className="flex flex-col h-full">
+      {/* Toolbar actions rendered via portal to parent */}
+      {toolbarRef && (
+        <ToolbarPortal toolbarRef={toolbarRef}>
+          <button
+            onClick={handleSave}
+            disabled={!isDirty || !!parseError || saving}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Save changes"
+          >
+            {saving ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Save size={12} />
+            )}
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={!isDirty || saving}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Reset changes"
+          >
+            <RotateCcw size={12} />
+          </button>
+        </ToolbarPortal>
+      )}
+
       {/* Status bar */}
       {(parseError || saveError) && (
         <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20">

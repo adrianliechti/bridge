@@ -147,7 +147,7 @@ function BinaryValue({ name, value }: { name: string; value: string }) {
 export const ConfigMapAdapter: ResourceAdapter<V1ConfigMap> = {
   kinds: ['ConfigMap', 'ConfigMaps'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const data = resource.data || {};
     const binaryData = resource.binaryData || {};
 

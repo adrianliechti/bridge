@@ -9,7 +9,7 @@ import type { V1PersistentVolumeClaim } from '@kubernetes/client-node';
 export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeClaim> = {
   kinds: ['PersistentVolumeClaim', 'PersistentVolumeClaims'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 
@@ -140,7 +140,6 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
     if (status?.conditions?.length) {
       sections.push({
         id: 'conditions',
-        title: 'Conditions',
         data: {
           type: 'conditions',
           items: status.conditions.map(c => ({

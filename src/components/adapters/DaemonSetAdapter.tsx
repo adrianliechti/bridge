@@ -3,15 +3,17 @@
 
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1DaemonSet } from '@kubernetes/client-node';
-import { getContainerSections } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
   kinds: ['DaemonSet', 'DaemonSets'],
 
-  adapt(resource, namespace): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
+    const metadata = resource.metadata;
+    const namespace = metadata?.namespace;
 
     if (!spec) {
       return { sections: [] };
@@ -29,11 +31,18 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
       const matchLabels = spec.selector?.matchLabels;
       if (!namespace || !matchLabels || Object.keys(matchLabels).length === 0) return null;
 
-      const podMetrics = await getPodMetricsBySelector(namespace, matchLabels);
+      const podMetrics = await getPodMetricsBySelector(context, namespace, matchLabels);
       if (podMetrics.length === 0) return null;
 
       return aggregateContainerMetrics(podMetrics);
     };
+
+    // Calculate resource quota from template containers
+    const allContainers = [
+      ...(spec.template?.spec?.containers ?? []),
+      ...(spec.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
 
     return {
       sections: [
@@ -106,10 +115,12 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
           metricsLoader,
         ),
 
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
+
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
-          title: 'Conditions',
           data: {
             type: 'conditions' as const,
             items: (status?.conditions ?? []).map(c => ({

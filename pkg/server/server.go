@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/adrianliechti/bridge"
@@ -18,40 +19,78 @@ type Server struct {
 	handler http.Handler
 }
 
-func New(config *rest.Config, options *Options) (*Server, error) {
+func New(contexts []BridgeContext, options *BridgeOptions) (*Server, error) {
 	if options == nil {
-		options = new(Options)
+		options = new(BridgeOptions)
 	}
 
-	tr, err := rest.TransportFor(config)
+	// Build a reverse proxy for each context
+	proxies := make(map[string]*httputil.ReverseProxy)
 
-	if err != nil {
-		return nil, err
+	for _, c := range contexts {
+		tr, err := rest.TransportFor(c.Config)
+
+		if err != nil {
+			return nil, err
+		}
+
+		target, path, err := rest.DefaultServerUrlFor(c.Config)
+
+		if err != nil {
+			return nil, err
+		}
+
+		target.Path = path
+
+		proxy := &httputil.ReverseProxy{
+			Transport: tr,
+
+			ErrorLog: log.New(io.Discard, "", 0),
+
+			Rewrite: func(r *httputil.ProxyRequest) {
+				r.SetURL(target)
+				r.Out.Host = target.Host
+			},
+		}
+
+		proxies[c.Name] = proxy
 	}
-
-	target, path, err := rest.DefaultServerUrlFor(config)
-
-	if err != nil {
-		return nil, err
-	}
-
-	target.Path = path
 
 	mux := http.NewServeMux()
 
-	proxy := &httputil.ReverseProxy{
-		Transport: tr,
+	mux.HandleFunc("GET /contexts", func(w http.ResponseWriter, r *http.Request) {
+		result := make([]Context, 0)
 
-		ErrorLog: log.New(io.Discard, "", 0),
+		for name := range proxies {
+			context := Context{
+				Name: name,
+			}
 
-		Rewrite: func(r *httputil.ProxyRequest) {
-			r.SetURL(target)
-			r.Out.Host = target.Host
-		},
-	}
+			result = append(result, context)
+		}
 
-	mux.Handle("/api/", proxy)
-	mux.Handle("/apis/", proxy)
+		slices.SortFunc(result, func(a, b Context) int {
+			return strings.Compare(a.Name, b.Name)
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	})
+
+	mux.HandleFunc("/contexts/{context}/{path...}", func(w http.ResponseWriter, r *http.Request) {
+		path := r.PathValue("path")
+		context := r.PathValue("context")
+
+		proxy, ok := proxies[context]
+
+		if !ok {
+			http.Error(w, "context not found", http.StatusNotFound)
+			return
+		}
+
+		r.URL.Path = "/" + path
+		proxy.ServeHTTP(w, r)
+	})
 
 	if options.OpenAIBaseURL != "" {
 		target, err := url.Parse(options.OpenAIBaseURL)
@@ -83,8 +122,8 @@ func New(config *rest.Config, options *Options) (*Server, error) {
 		w.Header().Set("Content-Type", "application/json")
 
 		config := &Config{
-			Context:   options.DefaultContext,
-			Namespace: options.DefaultNamespace,
+			DefaultContext:   options.DefaultContext,
+			DefaultNamespace: options.DefaultNamespace,
 		}
 
 		if options.OpenAIBaseURL != "" {

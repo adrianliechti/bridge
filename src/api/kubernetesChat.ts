@@ -97,9 +97,9 @@ export const kubernetesTools: Tool[] = [
 ];
 
 // Get resource config from discovery API (supports plural, singular, and short names)
-async function getResourceConfigForName(resourceName: string): Promise<{ config: V1APIResource; plural: string } | null> {
+async function getResourceConfigForName(context: string, resourceName: string): Promise<{ config: V1APIResource; plural: string } | null> {
   const name = resourceName.toLowerCase();
-  const config = await getResourceConfig(name);
+  const config = await getResourceConfig(context, name);
   if (config) {
     return { config, plural: config.name };
   }
@@ -108,26 +108,27 @@ async function getResourceConfigForName(resourceName: string): Promise<{ config:
 
 // Execute Kubernetes tool calls
 async function executeKubernetes(
+  context: string,
   toolName: string,
   args: Record<string, string>
 ): Promise<unknown> {
   switch (toolName) {
     case 'list_resources': {
-      const result = await getResourceConfigForName(args.resource);
+      const result = await getResourceConfigForName(context, args.resource);
       if (!result) {
         return { error: `Unknown resource type: ${args.resource}` };
       }
       const { config, plural: resourceName } = result;
 
       const apiBase = getApiBase(config);
-      let url: string;
+      let path: string;
       if (config.namespaced && args.namespace && args.namespace !== 'all') {
-        url = `${apiBase}/namespaces/${args.namespace}/${resourceName}`;
+        path = `${apiBase}/namespaces/${args.namespace}/${resourceName}`;
       } else {
-        url = `${apiBase}/${resourceName}`;
+        path = `${apiBase}/${resourceName}`;
       }
 
-      const response = await fetch(url);
+      const response = await fetch(`/contexts/${context}${path}`);
       if (!response.ok) {
         return { error: `Failed to list ${resourceName}: ${response.status} ${response.statusText}` };
       }
@@ -146,21 +147,21 @@ async function executeKubernetes(
     }
 
     case 'get_resource': {
-      const result = await getResourceConfigForName(args.resource);
+      const result = await getResourceConfigForName(context, args.resource);
       if (!result) {
         return { error: `Unknown resource type: ${args.resource}` };
       }
       const { config, plural: resourceName } = result;
 
       const apiBase = getApiBase(config);
-      let url: string;
+      let path: string;
       if (config.namespaced && args.namespace) {
-        url = `${apiBase}/namespaces/${args.namespace}/${resourceName}/${args.name}`;
+        path = `${apiBase}/namespaces/${args.namespace}/${resourceName}/${args.name}`;
       } else {
-        url = `${apiBase}/${resourceName}/${args.name}`;
+        path = `${apiBase}/${resourceName}/${args.name}`;
       }
 
-      const response = await fetch(url);
+      const response = await fetch(`/contexts/${context}${path}`);
       if (!response.ok) {
         return { error: `Failed to get ${args.resource} ${args.name}: ${response.status} ${response.statusText}` };
       }
@@ -169,12 +170,12 @@ async function executeKubernetes(
 
     case 'get_pod_logs': {
       const tailLines = args.tailLines || '100';
-      let url = `/api/v1/namespaces/${args.namespace}/pods/${args.name}/log?tailLines=${tailLines}`;
+      let path = `/api/v1/namespaces/${args.namespace}/pods/${args.name}/log?tailLines=${tailLines}`;
       if (args.container) {
-        url += `&container=${args.container}`;
+        path += `&container=${args.container}`;
       }
 
-      const response = await fetch(url);
+      const response = await fetch(`/contexts/${context}${path}`);
       if (!response.ok) {
         return { error: `Failed to get logs: ${response.status} ${response.statusText}` };
       }
@@ -183,7 +184,7 @@ async function executeKubernetes(
     }
 
     case 'describe_resource': {
-      const result = await getResourceConfigForName(args.resource);
+      const result = await getResourceConfigForName(context, args.resource);
       if (!result) {
         return { error: `Unknown resource type: ${args.resource}` };
       }
@@ -191,22 +192,22 @@ async function executeKubernetes(
 
       // Get the resource details
       const apiBase = getApiBase(config);
-      let url: string;
+      let path: string;
       if (config.namespaced && args.namespace) {
-        url = `${apiBase}/namespaces/${args.namespace}/${resourceName}/${args.name}`;
+        path = `${apiBase}/namespaces/${args.namespace}/${resourceName}/${args.name}`;
       } else {
-        url = `${apiBase}/${resourceName}/${args.name}`;
+        path = `${apiBase}/${resourceName}/${args.name}`;
       }
 
-      const resourceResponse = await fetch(url);
+      const resourceResponse = await fetch(`/contexts/${context}${path}`);
       if (!resourceResponse.ok) {
         return { error: `Failed to get ${args.resource} ${args.name}: ${resourceResponse.status}` };
       }
       const resource = await resourceResponse.json();
 
       // Get events related to this resource
-      const eventsUrl = `/api/v1/namespaces/${args.namespace}/events?fieldSelector=involvedObject.name=${args.name}`;
-      const eventsResponse = await fetch(eventsUrl);
+      const eventsPath = `/api/v1/namespaces/${args.namespace}/events?fieldSelector=involvedObject.name=${args.name}`;
+      const eventsResponse = await fetch(`/contexts/${context}${eventsPath}`);
       let events: unknown[] = [];
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json();
@@ -232,17 +233,18 @@ async function executeKubernetes(
 }
 
 // Execute a tool call and return the result
-export async function executeTool(toolCall: ToolCall): Promise<ToolResult> {
+export async function executeTool(context: string, toolCall: ToolCall): Promise<ToolResult> {
   const args = JSON.parse(toolCall.arguments);
-  const data = await executeKubernetes(toolCall.name, args);
+  const data = await executeKubernetes(context, toolCall.name, args);
   return {
     id: toolCall.id,
     data,
   };
 }
 
-// Context about what the user is currently viewing in the UI
-export interface ChatContext {
+// Environment about what the user is currently viewing in the UI
+export interface ChatEnvironment {
+  currentContext: string;
   currentNamespace?: string;
   selectedResourceKind?: string;
   selectedResourceName?: string;
@@ -252,20 +254,21 @@ export interface ChatContext {
 export async function chat(
   userMessage: string,
   conversationHistory: Message[],
-  options?: {
+  options: {
+    environment: ChatEnvironment;
     model?: string;
     instructions?: string;
-    context?: ChatContext;
     onStream?: (delta: string, snapshot: string) => void;
     onToolCall?: (toolName: string, args: Record<string, string>) => void;
   }
 ): Promise<{ response: Message; history: Message[] }> {
   const model = options?.model || '';
+  const context = options.environment.currentContext;
   
   // Build context-aware instructions
   let contextInfo = '';
-  if (options?.context) {
-    const ctx = options.context;
+  if (options?.environment) {
+    const ctx = options.environment;
     const parts: string[] = [];
     if (ctx.currentNamespace) {
       parts.push(`- Current namespace: ${ctx.currentNamespace}`);
@@ -325,7 +328,7 @@ Format your responses using markdown for better readability.${contextInfo}`;
       const args = JSON.parse(toolCall.arguments);
       options?.onToolCall?.(toolCall.name, args);
 
-      const result = await executeTool(toolCall);
+      const result = await executeTool(context, toolCall);
       currentHistory.push({
         role: Role.Tool,
         content: '',

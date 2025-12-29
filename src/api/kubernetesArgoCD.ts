@@ -23,11 +23,12 @@ export interface ApplicationStatus {
 }
 
 async function patchApplication(
+  context: string,
   name: string,
   namespace: string,
   patch: object
 ): Promise<Response> {
-  const url = `${ARGOCD_API}/namespaces/${namespace}/applications/${name}`;
+  const url = `/contexts/${context}${ARGOCD_API}/namespaces/${namespace}/applications/${name}`;
   
   const response = await fetch(url, {
     method: 'PATCH',
@@ -44,6 +45,7 @@ async function patchApplication(
 }
 
 export async function syncApplication(
+  context: string,
   name: string,
   namespace: string = 'argocd',
   options: SyncOptions = {}
@@ -61,10 +63,11 @@ export async function syncApplication(
     },
   };
 
-  await patchApplication(name, namespace, patch);
+  await patchApplication(context, name, namespace, patch);
 }
 
 export async function getApplicationStatus(
+  context: string,
   name: string,
   namespace: string = 'argocd'
 ): Promise<ApplicationStatus> {
@@ -80,7 +83,7 @@ export async function getApplicationStatus(
         finishedAt?: string;
       };
     };
-  }>(url);
+  }>(url, context);
 
   return {
     sync: {
@@ -101,11 +104,12 @@ export async function getApplicationStatus(
 }
 
 export async function refreshApplication(
+  context: string,
   name: string,
   namespace: string = 'argocd',
   hard: boolean = false
 ): Promise<void> {
-  await patchApplication(name, namespace, {
+  await patchApplication(context, name, namespace, {
     metadata: {
       annotations: { 'argocd.argoproj.io/refresh': hard ? 'hard' : 'normal' },
     },
@@ -113,13 +117,15 @@ export async function refreshApplication(
 }
 
 export async function terminateOperation(
+  context: string,
   name: string,
   namespace: string = 'argocd'
 ): Promise<void> {
-  await patchApplication(name, namespace, { operation: null });
+  await patchApplication(context, name, namespace, { operation: null });
 }
 
 export async function rollbackApplication(
+  context: string,
   name: string,
   namespace: string = 'argocd',
   historyId: number
@@ -129,12 +135,12 @@ export async function rollbackApplication(
     status?: {
       history?: Array<{ id?: number; revision?: string }>;
     };
-  }>(url);
+  }>(url, context);
 
   const historyEntry = app.status?.history?.find(h => h.id === historyId);
   if (!historyEntry?.revision) {
     throw new Error(`History entry with ID ${historyId} not found`);
   }
 
-  await syncApplication(name, namespace, { revision: historyEntry.revision });
+  await syncApplication(context, name, namespace, { revision: historyEntry.revision });
 }

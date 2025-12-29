@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { AlertTriangle, ChevronUp, ChevronDown, ChevronsUpDown, RefreshCw } from 'lucide-react';
 import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
+import { useCluster } from '../hooks/useCluster';
 import { getResourceTable, type V1APIResource } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
 
@@ -59,7 +60,6 @@ function isStatusColumn(column: TableColumnDefinition): boolean {
 
 interface ResourceTableProps {
   config: V1APIResource;
-  namespace?: string;
   hiddenColumns: Set<string>;
   onColumnsLoaded?: (columns: TableColumnDefinition[]) => void;
   selectedItem?: TableRow | null;
@@ -68,17 +68,17 @@ interface ResourceTableProps {
 
 export function ResourceTable({ 
   config, 
-  namespace, 
   hiddenColumns,
   onColumnsLoaded,
   selectedItem,
   onSelectItem
 }: ResourceTableProps) {
+  const { context, namespace } = useCluster();
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
   
   const { data, loading, error, refetch, isRefetching } = useKubernetesQuery(
-    () => getResourceTable(config, namespace),
-    [config, namespace]
+    () => getResourceTable(context, config, namespace),
+    [context, config, namespace]
   );
 
   // Get visible columns

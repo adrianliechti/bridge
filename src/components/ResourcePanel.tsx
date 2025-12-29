@@ -1,14 +1,15 @@
-import { X, Loader2, Copy, Check, Save, RotateCcw, RefreshCw } from 'lucide-react';
+import { X, Loader2, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, updateResource, type CoreV1Event, type KubernetesResource } from '../api/kubernetes';
 import { getResourceConfigByKind } from '../api/kubernetesDiscovery';
+import { useCluster } from '../hooks/useCluster';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './adapters';
 import type { ResourceAction } from './adapters/types';
 import { LogViewer } from './LogViewer';
-import type { LogEntry } from '../api/kubernetesLogs';
-import { MetadataView, EventsView, ManifestEditor, type ManifestEditorState } from './sections';
+import { TerminalViewer } from './TerminalViewer';
+import { MetadataView, EventsView, ManifestEditor } from './sections';
 
 interface ResourcePanelProps {
   isOpen: boolean;
@@ -38,19 +39,18 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
 }
 
 export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resource: resourceId }: ResourcePanelProps) {
+  const { context } = useCluster();
   const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<CoreV1Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs'>('yaml');
-  const [copied, setCopied] = useState(false);
-  const [manifestEditorState, setManifestEditorState] = useState<ManifestEditorState | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal'>('yaml');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
-  const getLogsRef = useRef<(() => LogEntry[]) | null>(null);
   const resourceConfigRef = useRef<Awaited<ReturnType<typeof getResourceConfigByKind>> | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   // Auto-refresh interval (5 seconds)
   const REFRESH_INTERVAL = 5000;
@@ -59,18 +59,18 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     if (!resourceId || !resourceId.name || !resourceId.kind) return;
     
     try {
-      const config = await getResourceConfigByKind(resourceId.kind, resourceId.apiVersion);
+      const config = await getResourceConfigByKind(context, resourceId.kind, resourceId.apiVersion);
       if (config) {
-        const resource = await getResource(config, resourceId.name, resourceId.namespace);
+        const resource = await getResource(context, config, resourceId.name, resourceId.namespace);
         setFullObject(resource);
       }
       // Also refresh events
-      const resourceEvents = await getResourceEvents(resourceId.name, resourceId.namespace);
+      const resourceEvents = await getResourceEvents(context, resourceId.name, resourceId.namespace);
       setEvents(resourceEvents);
     } catch {
       // Silent fail for background refreshes
     }
-  }, [resourceId]);
+  }, [context, resourceId]);
 
   // Auto-refresh polling
   useEffect(() => {
@@ -83,15 +83,6 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     return () => clearInterval(interval);
   }, [isOpen, resourceId?.name, fullObject, fetchResourceData]);
 
-  const handleCopyLogs = async () => {
-    if (!getLogsRef.current) return;
-    const logs = getLogsRef.current();
-    const text = logs.map(log => `${log.timestamp} [${log.podName}] ${log.message}`).join('\n');
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   // Get actions for the current resource
   const resourceActions = fullObject ? getResourceActions(fullObject) : [];
 
@@ -99,7 +90,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     setActionError(null);
     setLoadingAction(action.id);
     try {
-      await action.execute(fullObject!, resourceId?.namespace);
+      await action.execute(context, fullObject!);
       fetchResourceData(); // Refresh after action
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Action failed');
@@ -123,6 +114,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     }
 
     const updated = await updateResource(
+      context,
       resourceConfigRef.current,
       resourceId.name,
       updatedResource,
@@ -131,7 +123,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     
     // Update the local state with the response from the server
     setFullObject(updated);
-  }, [resourceId]);
+  }, [context, resourceId]);
 
   // Fetch the resource config and full resource when resourceId changes
   useEffect(() => {
@@ -156,7 +148,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       
       try {
         // Get the resource config by kind using discovery API
-        const config = await getResourceConfigByKind(kind, apiVersion);
+        const config = await getResourceConfigByKind(context, kind, apiVersion);
         if (!config) {
           setError(`Unknown resource kind: ${kind}`);
           setLoading(false);
@@ -167,7 +159,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         resourceConfigRef.current = config;
 
         // Then fetch the full resource
-        const resource = await getResource(config, name, ns);
+        const resource = await getResource(context, config, name, ns);
         setFullObject(resource);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch resource');
@@ -180,7 +172,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     const fetchEvents = async () => {
       setEventsLoading(true);
       try {
-        const resourceEvents = await getResourceEvents(name, ns);
+        const resourceEvents = await getResourceEvents(context, name, ns);
         setEvents(resourceEvents);
       } catch (err) {
         console.error('Failed to fetch events:', err);
@@ -192,7 +184,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
 
     fetchData();
     fetchEvents();
-  }, [resourceId]);
+  }, [context, resourceId]);
 
   if (!isOpen || !resourceId || !resourceId.name) return null;
 
@@ -231,6 +223,9 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   // Resource kinds that support logs (have pods)
   const LOGGABLE_KINDS = ['Pod', 'Deployment', 'DaemonSet', 'ReplicaSet', 'StatefulSet', 'Job'];
   const supportsLogs = LOGGABLE_KINDS.includes(resourceKind) && !!resourceId.namespace;
+  
+  // Only pods support terminal
+  const supportsTerminal = resourceKind === 'Pod' && !!resourceId.namespace;
 
   return (
     <aside 
@@ -319,46 +314,23 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
               Logs
             </button>
           )}
-        </div>
-        {/* Tab-specific action buttons */}
-        <div className="ml-auto pr-4 flex items-center gap-1">
-          {activeTab === 'yaml' && manifestEditorState && (
-            <>
-              <button
-                onClick={() => manifestEditorState?.save()}
-                disabled={!manifestEditorState.isDirty || manifestEditorState.hasError || manifestEditorState.isSaving}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Save changes"
-              >
-                {manifestEditorState.isSaving ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Save size={12} />
-                )}
-              </button>
-              <button
-                onClick={() => manifestEditorState?.reset()}
-                disabled={!manifestEditorState.isDirty || manifestEditorState.isSaving}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Reset changes"
-              >
-                <RotateCcw size={12} />
-              </button>
-            </>
-          )}
-          {activeTab === 'logs' && (
+          {supportsTerminal && (
             <button
-              onClick={handleCopyLogs}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
-              title="Copy logs"
+              onClick={() => setActiveTab('terminal')}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+                activeTab === 'terminal'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
+              }`}
             >
-              {copied ? (
-                <Check size={12} className="text-emerald-500" />
-              ) : (
-                <Copy size={12} />
-              )}
+              Terminal
             </button>
           )}
+        </div>
+        {/* Tab-specific action buttons - portal target for child components + overview actions */}
+        <div className="ml-auto pr-4 flex items-center gap-1">
+          {/* Portal target for child component toolbar actions */}
+          <div ref={toolbarRef} className="flex items-center gap-1" />
           {activeTab === 'overview' && resourceActions.length > 0 && (
             <>
               {resourceActions.map(action => {
@@ -461,7 +433,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           )}
 
           {fullObject && !loading && (
-            <ResourceVisualizer resource={fullObject} namespace={resourceId.namespace} hideActions />
+            <ResourceVisualizer resource={fullObject} hideActions />
           )}
         </div>
       )}
@@ -473,7 +445,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             loading={loading}
             error={error}
             onSave={handleSaveResource}
-            onStateRef={setManifestEditorState}
+            toolbarRef={toolbarRef}
           />
         </div>
       )}
@@ -492,13 +464,20 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         </div>
       )}
 
-      {activeTab === 'logs' && supportsLogs && (
+      {activeTab === 'logs' && supportsLogs && fullObject && (
         <div className="flex-1 overflow-hidden">
           <LogViewer
-            namespace={resourceId.namespace!}
-            workloadKind={resourceKind}
-            workloadName={resourceName}
-            onLogsRef={(getLogs) => { getLogsRef.current = getLogs; }}
+            resource={fullObject}
+            toolbarRef={toolbarRef}
+          />
+        </div>
+      )}
+
+      {activeTab === 'terminal' && supportsTerminal && fullObject && (
+        <div className="flex-1 overflow-hidden">
+          <TerminalViewer
+            resource={fullObject}
+            toolbarRef={toolbarRef}
           />
         </div>
       )}

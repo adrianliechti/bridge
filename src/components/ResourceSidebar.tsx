@@ -26,11 +26,13 @@ import {
   LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
-import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
-import { getNamespaces, getCustomResourceDefinitions, crdToResourceConfig, getResourceConfig } from '../api/kubernetes';
-import { NamespaceSelector, type Namespace } from './NamespaceSelector';
+import { getCustomResourceDefinitions, crdToResourceConfig } from '../api/kubernetes';
+import { getResourceConfig } from '../api/kubernetesDiscovery';
+import { ScopeSelector } from './ScopeSelector';
+import { ContextSelector } from './ContextSelector';
 import { type V1APIResource } from '../api/kubernetesTable';
 import { getConfig } from '../config';
+import { useCluster } from '../hooks/useCluster';
 
 // Re-export for use in App
 export type { V1APIResource };
@@ -93,19 +95,15 @@ const categoryLabels: Record<string, string> = {
 interface ResourceSidebarProps {
   selectedResource: V1APIResource | null;
   onSelectResource: (resource: V1APIResource | null) => void;
-  selectedNamespace: string | undefined;
-  onSelectNamespace: (namespace: string | undefined) => void;
   isOverviewSelected?: boolean;
 }
 
 export function ResourceSidebar({
   selectedResource,
   onSelectResource,
-  selectedNamespace,
-  onSelectNamespace,
   isOverviewSelected,
 }: ResourceSidebarProps) {
-  const { data: namespacesData } = useKubernetesQuery(() => getNamespaces(), []);
+  const { context, contexts, namespace, namespaces, setContext, setNamespace } = useCluster();
   const [builtInConfigs, setBuiltInConfigs] = useState<Map<string, V1APIResource>>(new Map());
   const [crdConfigs, setCrdConfigs] = useState<V1APIResource[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
@@ -122,7 +120,7 @@ export function ResourceSidebar({
     const loadBuiltInConfigs = async () => {
       const configs = new Map<string, V1APIResource>();
       for (const item of builtInNavItems) {
-        const config = await getResourceConfig(item.kind);
+        const config = await getResourceConfig(context, item.kind);
         if (config) {
           configs.set(item.kind, config);
         }
@@ -130,11 +128,11 @@ export function ResourceSidebar({
       setBuiltInConfigs(configs);
     };
     loadBuiltInConfigs();
-  }, []);
+  }, [context]);
 
   // Load CRDs
   useEffect(() => {
-    getCustomResourceDefinitions()
+    getCustomResourceDefinitions(context)
       .then((crds) => {
         const configs = crds.map(crdToResourceConfig);
         configs.sort((a, b) => a.kind.localeCompare(b.kind));
@@ -143,7 +141,7 @@ export function ResourceSidebar({
       .catch((err) => {
         console.error('Failed to load CRDs:', err);
       });
-  }, []);
+  }, [context]);
 
   const toggleCategory = useCallback((category: string) => {
     setExpandedCategories((prev) => ({
@@ -151,16 +149,6 @@ export function ResourceSidebar({
       [category]: !prev[category],
     }));
   }, []);
-
-  const namespaces = namespacesData?.items || [];
-
-  // Transform namespaces to include labels
-  const namespacesWithLabels: Namespace[] = namespaces
-    .filter((ns): ns is typeof ns & { metadata: { name: string } } => !!ns.metadata?.name)
-    .map((ns) => ({
-      name: ns.metadata.name,
-      labels: ns.metadata.labels,
-    }));
 
   // Group built-in items by category
   const groupedBuiltIn = builtInNavItems.reduce((acc, item) => {
@@ -186,18 +174,24 @@ export function ResourceSidebar({
 
   return (
     <aside className="w-56 h-full shrink-0 bg-white dark:bg-black/40 backdrop-blur-xl flex flex-col rounded-xl border border-neutral-300/50 dark:border-neutral-700/50">
-      {/* Header with Namespace Selector */}
-      <div className="shrink-0 h-14 px-3 flex items-center">
-        <div className="flex-1">
-          <NamespaceSelector
-            namespaces={namespacesWithLabels}
-            selectedNamespace={selectedNamespace}
-            onSelectNamespace={onSelectNamespace}
-            disabled={selectedResource !== null && !selectedResource.namespaced}
-            spaceLabels={getConfig().platform?.spaces?.labels}
-            platformNamespaces={getConfig().platform?.namespaces}
-          />
-        </div>
+      {/* Header with Context & Namespace Selectors */}
+      <div className="shrink-0 px-3 pt-3 pb-2 space-y-2">
+        {/* Context selector - subtle, above namespace */}
+        <ContextSelector
+          contexts={contexts}
+          selectedContext={context}
+          onSelectContext={setContext}
+        />
+        
+        {/* Namespace selector - primary */}
+        <ScopeSelector
+          namespaces={namespaces}
+          selectedNamespace={namespace}
+          onSelectNamespace={setNamespace}
+          disabled={selectedResource !== null && !selectedResource.namespaced}
+          spaceLabels={getConfig().platform?.spaces?.labels}
+          platformNamespaces={getConfig().platform?.namespaces}
+        />
       </div>
 
       {/* Navigation */}

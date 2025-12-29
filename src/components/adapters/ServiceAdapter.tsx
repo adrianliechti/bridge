@@ -39,7 +39,7 @@ function getServiceTypeInfo(type?: string): { label: string; status: StatusLevel
 export const ServiceAdapter: ResourceAdapter<V1Service> = {
   kinds: ['Service', 'Services'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
 
@@ -300,7 +300,6 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
     if (status?.conditions && status.conditions.length > 0) {
       sections.push({
         id: 'conditions',
-        title: 'Conditions',
         data: {
           type: 'conditions',
           items: status.conditions.map(c => ({

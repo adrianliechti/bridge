@@ -9,20 +9,42 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/adrianliechti/bridge/pkg/server"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/adrianliechti/bridge/pkg/server"
 )
 
 func main() {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	configOverrides := &clientcmd.ConfigOverrides{}
 
-	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{})
 
-	config, err := kubeconfig.ClientConfig()
+	rawConfig, err := kubeconfig.RawConfig()
 
 	if err != nil {
 		panic(err)
+	}
+
+	contexts := make([]server.BridgeContext, 0)
+
+	for context := range rawConfig.Contexts {
+		contextConfig := clientcmd.NewNonInteractiveClientConfig(rawConfig, context, &clientcmd.ConfigOverrides{}, loadingRules)
+
+		restConfig, err := contextConfig.ClientConfig()
+
+		if err != nil {
+			fmt.Printf("Warning: failed to load context %q: %v\n", context, err)
+			continue
+		}
+
+		contexts = append(contexts, server.BridgeContext{
+			Name:   context,
+			Config: restConfig,
+		})
+	}
+
+	if len(contexts) == 0 {
+		panic("no valid kubernetes contexts found in kubeconfig")
 	}
 
 	port, err := getFreePort("localhost", 8888)
@@ -31,16 +53,13 @@ func main() {
 		panic(err)
 	}
 
-	options := &server.Options{}
+	options := &server.BridgeOptions{
+		DefaultContext: rawConfig.CurrentContext,
+	}
 
-	if cfg, err := kubeconfig.RawConfig(); err == nil {
-		if cfg.CurrentContext != "" {
-			options.DefaultContext = cfg.CurrentContext
-
-			if c, ok := cfg.Contexts[cfg.CurrentContext]; ok {
-				options.DefaultNamespace = c.Namespace
-			}
-		}
+	// Set default namespace from current context
+	if c, ok := rawConfig.Contexts[rawConfig.CurrentContext]; ok && c.Namespace != "" {
+		options.DefaultNamespace = c.Namespace
 	}
 
 	if val := os.Getenv("OPENAI_BASE_URL"); val != "" {
@@ -60,7 +79,7 @@ func main() {
 		options.OpenAIModel = val
 	}
 
-	s, err := server.New(config, options)
+	s, err := server.New(contexts, options)
 
 	if err != nil {
 		panic(err)

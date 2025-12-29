@@ -12,7 +12,8 @@ export { CapacityBarsSection, TaintsSection } from './NodeSection';
 export { RelatedReplicaSetsSection, RelatedPVCsSection, RelatedJobsSection } from './RelatedSection';
 export { VolumeClaimTemplatesSection, ScheduleSection, JobProgressSection, TimelineSection } from './JobSection';
 export { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSection } from './InfoSection';
-export { MetricsProgressBar, ContainerMetricsSection, WorkloadMetricsSection, NodeMetricsSection } from './MetricsSection';
+export { MetricsProgressBar, NodeMetricsSection } from './MetricsSection';
+export { ResourceQuotaSection } from './ResourceQuotaSection';
 export { SectionRenderer } from './SectionRenderer';
 
 // Manifest components
@@ -21,4 +22,4 @@ export { EventsView } from './EventsView';
 export { HelmReleaseView } from './HelmReleaseView';
 export { DockerConfigView } from './DockerConfigView';
 export { CertificateView, PrivateKeyView, PublicKeyView, CsrView, detectPemType } from './CertificateView';
-export { ManifestEditor, type ManifestEditorState } from './ManifestEditor';
+export { ManifestEditor } from './ManifestEditor';

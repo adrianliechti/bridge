@@ -4,12 +4,12 @@
 import { Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1ReplicaSet } from '@kubernetes/client-node';
-import { getContainerSections } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 
 export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
   kinds: ['ReplicaSet', 'ReplicaSets'],
 
-  adapt(resource): ResourceSections {
+  adapt(_context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
@@ -26,6 +26,13 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
     // Get owner reference (usually a Deployment)
     const ownerRef = metadata?.ownerReferences?.[0];
     const revision = metadata?.annotations?.['deployment.kubernetes.io/revision'];
+
+    // Calculate resource quota from template containers
+    const allContainers = [
+      ...(spec.template?.spec?.containers ?? []),
+      ...(spec.template?.spec?.initContainers ?? []),
+    ];
+    const quotaSection = getResourceQuotaSection(allContainers);
 
     return {
       sections: [
@@ -74,6 +81,9 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
           },
         },
 
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
+
         // Selector
         ...(spec.selector?.matchLabels ? [{
           id: 'selector',
@@ -93,7 +103,6 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
         // Conditions
         ...((status?.conditions ?? []).length > 0 ? [{
           id: 'conditions',
-          title: 'Conditions',
           data: {
             type: 'conditions' as const,
             items: (status?.conditions ?? []).map(c => ({

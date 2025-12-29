@@ -1,6 +1,7 @@
 // Kubernetes pod log streaming API
 
 export interface LogStreamOptions {
+  context: string;
   namespace: string;
   podNames: string[];
   container?: string;
@@ -39,6 +40,7 @@ function parseLogLine(line: string, podName: string, container?: string): LogEnt
 
 // Stream logs from a single pod
 async function streamPodLogs(
+  context: string,
   namespace: string,
   podName: string,
   options: {
@@ -66,7 +68,7 @@ async function streamPodLogs(
     params.set('timestamps', 'true');
   }
 
-  const url = `/api/v1/namespaces/${namespace}/pods/${podName}/log?${params.toString()}`;
+  const url = `/contexts/${context}/api/v1/namespaces/${namespace}/pods/${podName}/log?${params.toString()}`;
 
   try {
     const response = await fetch(url, { signal: options.signal });
@@ -119,7 +121,7 @@ export function streamCombinedLogs(options: LogStreamOptions): AbortController {
   
   // Start streaming from all pods in parallel
   for (const podName of options.podNames) {
-    streamPodLogs(options.namespace, podName, {
+    streamPodLogs(options.context, options.namespace, podName, {
       container: options.container,
       follow: options.follow,
       tailLines: options.tailLines,
@@ -134,8 +136,9 @@ export function streamCombinedLogs(options: LogStreamOptions): AbortController {
 }
 
 // Get available containers for a pod
-export async function getPodContainers(namespace: string, podName: string): Promise<string[]> {
-  const response = await fetch(`/api/v1/namespaces/${namespace}/pods/${podName}`);
+export async function getPodContainers(context: string, namespace: string, podName: string): Promise<string[]> {
+  const url = `/contexts/${context}/api/v1/namespaces/${namespace}/pods/${podName}`;
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch pod: ${response.status}`);
   }
@@ -162,6 +165,7 @@ export async function getPodContainers(namespace: string, podName: string): Prom
 
 // Get pods for a workload (deployment, daemonset, replicaset, etc.)
 export async function getWorkloadPods(
+  context: string,
   namespace: string,
   workloadKind: string,
   workloadName: string
@@ -188,7 +192,7 @@ export async function getWorkloadPods(
       throw new Error(`Unsupported workload kind: ${workloadKind}`);
   }
 
-  const workloadResponse = await fetch(apiPath);
+  const workloadResponse = await fetch(`/contexts/${context}${apiPath}`);
   if (!workloadResponse.ok) {
     throw new Error(`Failed to fetch ${workloadKind}: ${workloadResponse.status}`);
   }
@@ -207,7 +211,7 @@ export async function getWorkloadPods(
 
   // Fetch pods with matching labels
   const podsResponse = await fetch(
-    `/api/v1/namespaces/${namespace}/pods?labelSelector=${encodeURIComponent(labelSelector)}`
+    `/contexts/${context}/api/v1/namespaces/${namespace}/pods?labelSelector=${encodeURIComponent(labelSelector)}`
   );
   
   if (!podsResponse.ok) {
