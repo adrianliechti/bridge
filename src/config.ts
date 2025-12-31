@@ -18,6 +18,11 @@ export interface PlatformConfig {
   };
 }
 
+export interface DockerConfig {
+  /** Whether Docker is available */
+  available: boolean;
+}
+
 export interface AppConfig {
   contexts: Context[];
   
@@ -26,6 +31,7 @@ export interface AppConfig {
 
   ai?: AIConfig;
   platform?: PlatformConfig;
+  docker?: DockerConfig;
 }
 
 let config: AppConfig = { contexts: [] };

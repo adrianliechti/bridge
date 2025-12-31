@@ -10,6 +10,7 @@ type Config struct {
 
 	AI       *AIConfig       `json:"ai,omitempty"`
 	Platform *PlatformConfig `json:"platform,omitempty"`
+	Docker   *DockerConfig   `json:"docker,omitempty"`
 }
 
 type AIConfig struct {
@@ -24,4 +25,8 @@ type PlatformConfig struct {
 
 type PlatformSpacesConfig struct {
 	Labels []string `json:"labels,omitempty"`
+}
+
+type DockerConfig struct {
+	Available bool `json:"available"`
 }

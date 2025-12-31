@@ -10,10 +10,10 @@ import {
   updateResource,
   type V1APIResource,
   type KubernetesResource,
-} from '../api/kubernetes';
-import { getResourceTable } from '../api/kubernetesTable';
-import { preloadDiscovery, clearDiscoveryCache, getResourceConfig } from '../api/kubernetesDiscovery';
-import { resetMetricsCache } from '../api/kubernetesMetrics';
+} from '../api/kubernetes/kubernetes';
+import { getResourceTable } from '../api/kubernetes/kubernetesTable';
+import { preloadDiscovery, clearDiscoveryCache, getResourceConfig } from '../api/kubernetes/kubernetesDiscovery';
+import { resetMetricsCache } from '../api/kubernetes/kubernetesMetrics';
 import { getConfig } from '../config';
 
 // Helper to create a resource identifier

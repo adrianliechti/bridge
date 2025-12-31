@@ -1,19 +1,51 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
-import { ResourceSidebar, type V1APIResource } from './components/ResourceSidebar';
-import { ResourcePage } from './components/ResourcePage';
-import { ResourceOverview } from './components/ResourceOverview';
+import { Sidebar, type V1APIResource, type DockerResourceType } from './components/Sidebar';
+import { ResourcePage as KubernetesResourcePage } from './components/kubernetes/ResourcePage';
+import { ResourcePage as DockerResourcePage } from './components/docker/ResourcePage';
+import { ResourceOverview } from './components/kubernetes/ResourceOverview';
 import { WelcomePage } from './components/WelcomePage';
 import { CommandPalette } from './components/CommandPalette';
+import { createKubernetesAdapter } from './components/kubernetes/Commands';
+import { createDockerAdapter } from './components/docker/Commands';
 import { PanelProvider } from './context/PanelProvider';
 import { ClusterProvider } from './context/ClusterProvider';
+import { AppModeProvider } from './context/AppModeProvider';
 import { useCluster } from './hooks/useCluster';
+import { useAppMode } from './hooks/useAppMode';
 
 function AppContent() {
-  const { namespace, selectedResource, setSelectedResource } = useCluster();
+  const { mode } = useAppMode();
+  const { context, namespace, namespaces, setNamespace, selectedResource, setSelectedResource } = useCluster();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  
+  // Docker state
+  const [selectedDockerResource, setSelectedDockerResource] = useState<DockerResourceType>('containers');
 
-  // Handler for sidebar resource selection
+  // Close command palette handler
+  const closeCommandPalette = useCallback(() => {
+    setIsCommandPaletteOpen(false);
+  }, []);
+
+  // Create the appropriate adapter based on mode
+  const commandPaletteAdapter = useMemo(() => {
+    if (mode === 'docker') {
+      return createDockerAdapter({
+        onSelectResource: setSelectedDockerResource,
+        onClose: closeCommandPalette,
+      });
+    }
+    return createKubernetesAdapter({
+      context,
+      namespace,
+      namespaces,
+      setNamespace,
+      setSelectedResource,
+      onClose: closeCommandPalette,
+    });
+  }, [mode, context, namespace, namespaces, setNamespace, setSelectedResource, closeCommandPalette]);
+
+  // Handler for sidebar resource selection (Kubernetes)
   const handleSelectResource = useCallback((resource: V1APIResource | null) => {
     setSelectedResource(resource);
   }, [setSelectedResource]);
@@ -30,7 +62,7 @@ function AppContent() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Check if overview is selected
+  // Check if overview is selected (Kubernetes)
   const isOverview = selectedResource === null;
 
   // Create a key for MainContent to force remount when resource changes
@@ -38,16 +70,15 @@ function AppContent() {
     ? 'overview'
     : `${selectedResource.group || ''}/${selectedResource.name}`;
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <div className="py-2 pl-2 shrink-0 h-full">
-        <ResourceSidebar
-          selectedResource={selectedResource}
-          onSelectResource={handleSelectResource}
-          isOverviewSelected={isOverview}
-        />
-      </div>
-      {isOverview ? (
+  // Render main content based on mode
+  const renderMainContent = () => {
+    if (mode === 'docker') {
+      return <DockerResourcePage resourceType={selectedDockerResource} />;
+    }
+
+    // Kubernetes mode
+    if (isOverview) {
+      return (
         <main className="flex-1 flex flex-col h-full min-w-0">
           <header className="shrink-0 h-14 flex items-center justify-between px-5 mt-2">
             <div className="flex items-center gap-4">
@@ -76,14 +107,30 @@ function AppContent() {
             )}
           </section>
         </main>
-      ) : (
-        <ResourcePage key={resourceKey} resource={selectedResource} />
-      )}
+      );
+    }
+
+    return <KubernetesResourcePage key={resourceKey} resource={selectedResource} />;
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+      <div className="py-2 pl-2 shrink-0 h-full">
+        <Sidebar
+          selectedResource={selectedResource}
+          onSelectResource={handleSelectResource}
+          isOverviewSelected={isOverview}
+          selectedDockerResource={selectedDockerResource}
+          onSelectDockerResource={setSelectedDockerResource}
+        />
+      </div>
+      {renderMainContent()}
       
       {/* Command Palette */}
       <CommandPalette 
         isOpen={isCommandPaletteOpen} 
-        onClose={() => setIsCommandPaletteOpen(false)} 
+        onClose={closeCommandPalette}
+        adapter={commandPaletteAdapter}
       />
     </div>
   );
@@ -109,7 +156,9 @@ function AppWrapper() {
   return (
     <ClusterProvider>
       <PanelProvider>
-        <App />
+        <AppModeProvider>
+          <App />
+        </AppModeProvider>
       </PanelProvider>
     </ClusterProvider>
   );

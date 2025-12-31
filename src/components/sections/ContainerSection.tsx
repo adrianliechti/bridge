@@ -4,7 +4,7 @@ import {
   HardDrive, 
   Cpu,
 } from 'lucide-react';
-import type { ContainerData } from '../adapters/types';
+import type { ContainerData } from './types';
 
 // Get container state styling info
 function getContainerStateInfo(state?: string, reason?: string) {

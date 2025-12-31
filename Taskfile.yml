@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  kubernetes-proxy:
+    cmds:
+      - kubectl proxy --address=127.0.0.1 --port=8001
+
+  docker-proxy:
+    cmds:
+      - socat -4 TCP-LISTEN:2375,bind=127.0.0.1,fork UNIX-CONNECT:/var/run/docker.sock
+  

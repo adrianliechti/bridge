@@ -14,7 +14,11 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      // Simulate /contexts endpoint returning a single "default" context
+      '/docker/': {
+        target: 'http://localhost:2375',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/docker/, '')
+      },
       '/contexts': {
         target: 'http://127.0.0.1:8001',
         changeOrigin: true,

@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { V1APIResource, CoreV1Event, KubernetesResource } from '../api/kubernetes';
+import type { V1APIResource, CoreV1Event, KubernetesResource } from '../api/kubernetes/kubernetes';
 import type { TableResponse } from '../types/table';
 import type { V1Namespace } from '@kubernetes/client-node';
 import type { Context } from '../config';

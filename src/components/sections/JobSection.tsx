@@ -1,5 +1,5 @@
 import { HardDrive, Calendar } from 'lucide-react';
-import type { VolumeClaimTemplateData } from '../adapters/types';
+import type { VolumeClaimTemplateData } from './types';
 
 export function VolumeClaimTemplatesSection({ items }: { items: VolumeClaimTemplateData[] }) {
   return (

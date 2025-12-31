@@ -1,59 +1,73 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, Search } from 'lucide-react';
-import type { V1APIResource } from '../api/kubernetesTable';
-import type { TableColumnDefinition, TableRow } from '../types/table';
+import { Search } from 'lucide-react';
+import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { usePanels } from '../hooks/usePanelState';
-import { useCluster } from '../hooks/useCluster';
 import { ResourceTable } from './ResourceTable';
 import { ColumnFilter } from './ColumnFilter';
-import { ChatPanel } from './ChatPanel';
-import { ResourcePanel } from './ResourcePanel';
-import { getConfig } from '../config';
 
 // Panel IDs
-const PANEL_AI = 'ai';
 const PANEL_DETAIL = 'detail';
 
-function getDisplayName(resource: V1APIResource): string {
-  return resource.name.charAt(0).toUpperCase() + resource.name.slice(1);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface ResourcePageProps<T = any> {
+  // Resource config
+  config: ResourceConfig;
+  title: string;
+  namespace?: string;
+  // Data props (fetched by parent)
+  data: TableResponse<T> | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => void;
+  isRefetching?: boolean;
+  // Optional detail panel props
+  showDetailPanel?: boolean;
+  renderDetailPanel?: (item: TableRow<T>, onClose: () => void, otherPanelOpen: boolean) => React.ReactNode;
+  // Optional header actions (e.g., AI button)
+  renderHeaderActions?: (columns: TableColumnDefinition[]) => React.ReactNode;
+  // Optional extra panels (e.g., ChatPanel)
+  renderExtraPanels?: (selectedItem: TableRow<T> | null, isDetailPanelOpen: boolean) => React.ReactNode;
 }
 
-interface ResourcePageProps {
-  resource: V1APIResource;
-}
-
-export function ResourcePage({ resource }: ResourcePageProps) {
-  const { namespace } = useCluster();
-  const [title, setTitle] = useState(() => getDisplayName(resource));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function ResourcePage<T = any>({
+  config,
+  title,
+  namespace,
+  data,
+  loading,
+  error,
+  refetch,
+  isRefetching = false,
+  showDetailPanel = true,
+  renderDetailPanel,
+  renderHeaderActions,
+  renderExtraPanels,
+}: ResourcePageProps<T>) {
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
-  const [selectedItem, setSelectedItem] = useState<TableRow | null>(null);
+  const [selectedItem, setSelectedItem] = useState<TableRow<T> | null>(null);
   
   const { hiddenColumns, toggleColumn } = useColumnVisibility();
-  const { isOpen, open, close, toggle } = usePanels();
+  const { isOpen, open, close } = usePanels();
   
-  const isChatPanelOpen = isOpen(PANEL_AI);
   const isDetailPanelOpen = isOpen(PANEL_DETAIL);
 
-  useEffect(() => {
-    setTitle(getDisplayName(resource));
-  }, [resource]);
-
-  // Clear selected item and close detail panel when resource changes
+  // Clear selected item and close detail panel when config/namespace changes
   useEffect(() => {
     setSelectedItem(null);
     close(PANEL_DETAIL);
-  }, [resource, namespace, close]);
+  }, [config, namespace, close]);
 
   // Sync selected item with detail panel state
-  const handleSelectItem = useCallback((item: TableRow | null) => {
+  const handleSelectItem = useCallback((item: TableRow<T> | null) => {
     setSelectedItem(item);
-    if (item) {
+    if (item && showDetailPanel) {
       open(PANEL_DETAIL);
     } else {
       close(PANEL_DETAIL);
     }
-  }, [open, close]);
+  }, [open, close, showDetailPanel]);
 
   const handleColumnsLoaded = useCallback((cols: TableColumnDefinition[]) => {
     setColumns(cols);
@@ -61,9 +75,7 @@ export function ResourcePage({ resource }: ResourcePageProps) {
 
   // Calculate right padding for header actions based on which panels are open
   const getHeaderActionsPadding = () => {
-    const openPanelCount = [isDetailPanelOpen, isChatPanelOpen].filter(Boolean).length;
-    if (openPanelCount >= 2) return 'pr-[56rem]'; // 28rem + 28rem
-    if (openPanelCount === 1) return 'pr-[40rem]';
+    if (isDetailPanelOpen) return 'pr-[40rem]';
     return '';
   };
 
@@ -101,59 +113,34 @@ export function ResourcePage({ resource }: ResourcePageProps) {
               hiddenColumns={hiddenColumns}
               onToggleColumn={toggleColumn}
             />
-            {getConfig().ai && (
-              <button
-                onClick={() => toggle(PANEL_AI)}
-                className={`p-2 rounded-md transition-colors ${
-                  isChatPanelOpen 
-                    ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800' 
-                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
-                }`}
-                title="AI Assistant"
-              >
-                <Sparkles size={18} />
-              </button>
-            )}
+            {renderHeaderActions?.(columns)}
           </div>
         </header>
         <section className="flex-1 min-h-0 overflow-hidden">
           <ResourceTable
-            config={resource}
+            config={config}
+            data={data}
+            loading={loading}
+            error={error}
+            refetch={refetch}
+            isRefetching={isRefetching}
             hiddenColumns={hiddenColumns}
             onColumnsLoaded={handleColumnsLoaded}
             selectedItem={selectedItem}
             onSelectItem={handleSelectItem}
+            namespace={namespace}
           />
         </section>
       </main>
-      <ChatPanel 
-        isOpen={isChatPanelOpen}
-        onClose={() => close(PANEL_AI)}
-        otherPanelOpen={isDetailPanelOpen}
-        environment={{
-          currentNamespace: selectedItem?.object.metadata.namespace || namespace || 'all namespaces',
-          selectedResourceKind: resource.group 
-            ? `${resource.kind} (${resource.group}/${resource.version})` 
-            : `${resource.kind} (${resource.version})`,
-          selectedResourceName: selectedItem?.object.metadata.name,
-        }}
-      />
-      <ResourcePanel
-        isOpen={isDetailPanelOpen}
-        onClose={() => {
+      {/* Extra panels (e.g., ChatPanel) */}
+      {renderExtraPanels?.(selectedItem, isDetailPanelOpen)}
+      {/* Detail panel */}
+      {renderDetailPanel && selectedItem && (
+        renderDetailPanel(selectedItem, () => {
           setSelectedItem(null);
           close(PANEL_DETAIL);
-        }}
-        otherPanelOpen={isChatPanelOpen}
-        resource={selectedItem ? {
-          name: selectedItem.object.metadata.name,
-          namespace: selectedItem.object.metadata.namespace,
-          uid: selectedItem.object.metadata.uid,
-          resourceVersion: selectedItem.object.metadata.resourceVersion,
-          kind: resource.kind,
-          apiVersion: resource.group ? `${resource.group}/${resource.version}` : resource.version,
-        } : null}
-      />
+        }, false)
+      )}
     </>
   );
 }

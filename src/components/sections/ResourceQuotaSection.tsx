@@ -2,7 +2,7 @@
 // Displays aggregated CPU and Memory requests/limits
 
 import { Cpu, HardDrive } from 'lucide-react';
-import type { ResourceQuotaData } from '../adapters/types';
+import type { ResourceQuotaData } from './types';
 
 interface ResourceQuotaSectionProps {
   data: ResourceQuotaData;

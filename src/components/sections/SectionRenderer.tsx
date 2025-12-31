@@ -1,4 +1,4 @@
-import type { Section, SectionData } from '../adapters/types';
+import type { Section, SectionData } from './types';
 import { StatusCardsSection, GaugesSection } from './StatusSection';
 import { ContainersSection } from './ContainerSection';
 import { VolumesSection } from './VolumeSection';

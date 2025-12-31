@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, X, Loader2, Trash2 } from 'lucide-react';
-import { chat, type ChatEnvironment } from '../api/kubernetesChat';
-import type { Message as APIMessage } from '../api/openai';
+import { Role, complete, type Message as APIMessage } from '../api/openai/openai';
+import type { ChatAdapter, ChatEnvironment } from '../types/chat';
 import { Markdown } from './Markdown';
 import { getConfig } from '../config';
-import { useCluster } from '../hooks/useCluster';
 
 interface Message {
   id: string;
@@ -17,17 +16,29 @@ interface ChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
-  environment: Omit<ChatEnvironment, 'currentContext'>;
+  adapter: ChatAdapter;
+  environment: ChatEnvironment;
 }
 
-export function ChatPanel({ isOpen, onClose, otherPanelOpen = false, environment: chatEnvironment }: ChatPanelProps) {
-  const { context: kubernetesContext } = useCluster();
+export function ChatPanel({ isOpen, onClose, otherPanelOpen = false, adapter, environment }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationHistory, setConversationHistory] = useState<APIMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Track adapter changes to reset chat
+  const prevAdapterIdRef = useRef(adapter.id);
+
+  // Reset chat when adapter changes
+  useEffect(() => {
+    if (prevAdapterIdRef.current !== adapter.id) {
+      setMessages([]);
+      setConversationHistory([]);
+      prevAdapterIdRef.current = adapter.id;
+    }
+  }, [adapter.id]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -69,16 +80,29 @@ export function ChatPanel({ isOpen, onClose, otherPanelOpen = false, environment
     ]);
 
     try {
-      const { response, history } = await chat(
-        userMessage.content,
-        conversationHistory,
-        {
-          environment: {
-            currentContext: kubernetesContext,
-            ...chatEnvironment,
-          },
-          model: getConfig().ai?.model || '',
-          onStream: (_delta, snapshot) => {
+      const model = getConfig().ai?.model || '';
+      const instructions = adapter.buildInstructions(environment);
+      
+      // Add user message to history
+      const newHistory: APIMessage[] = [
+        ...conversationHistory,
+        { role: Role.User, content: userMessage.content },
+      ];
+
+      // Keep processing until we get a final response (no tool calls)
+      let currentHistory = newHistory;
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      while (attempts < maxAttempts) {
+        attempts++;
+
+        const response = await complete(
+          model,
+          instructions,
+          currentHistory,
+          adapter.tools,
+          (_delta, snapshot) => {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantMessageId
@@ -86,24 +110,36 @@ export function ChatPanel({ isOpen, onClose, otherPanelOpen = false, environment
                   : m
               )
             );
-          },
-          onToolCall: (toolName, args) => {
-            console.log('Tool call:', toolName, args);
-          },
+          }
+        );
+
+        // If no tool calls, we're done
+        if (!response.toolCalls || response.toolCalls.length === 0) {
+          setConversationHistory([...currentHistory, response]);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId
+                ? { ...m, content: response.content, isStreaming: false }
+                : m
+            )
+          );
+          break;
         }
-      );
 
-      // Update conversation history for context
-      setConversationHistory(history);
+        // Execute tool calls
+        currentHistory = [...currentHistory, response];
 
-      // Finalize the assistant message
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantMessageId
-            ? { ...m, content: response.content, isStreaming: false }
-            : m
-        )
-      );
+        for (const toolCall of response.toolCalls) {
+          console.log('Tool call:', toolCall.name, JSON.parse(toolCall.arguments));
+          
+          const result = await adapter.executeTool(toolCall, environment);
+          currentHistory.push({
+            role: Role.Tool,
+            content: '',
+            toolResult: result,
+          });
+        }
+      }
     } catch (error) {
       console.error('Chat error:', error);
       setMessages((prev) =>
@@ -145,7 +181,7 @@ export function ChatPanel({ isOpen, onClose, otherPanelOpen = false, environment
     >
       {/* Header */}
       <div className="shrink-0 h-16 px-4 flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
-        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">AI Assistant</h3>
+        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">{adapter.name}</h3>
         <div className="flex items-center gap-1">
           <button
             onClick={handleClearChat}
@@ -203,7 +239,7 @@ export function ChatPanel({ isOpen, onClose, otherPanelOpen = false, environment
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about your resources..."
+            placeholder={adapter.placeholder}
             rows={1}
             disabled={isLoading}
             className="flex-1 px-4 py-2.5 bg-neutral-50 border border-neutral-300 dark:bg-neutral-800 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 text-sm placeholder-neutral-500 resize-none focus:outline-none focus:ring-2 focus:ring-sky-600 focus:border-transparent disabled:opacity-50"

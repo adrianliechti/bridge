@@ -1,5 +1,5 @@
 import { Box, Tag } from 'lucide-react';
-import type { InfoRowData } from '../adapters/types';
+import type { InfoRowData } from './types';
 
 export function InfoGridSection({ items, columns = 2 }: { items: InfoRowData[]; columns?: 1 | 2 | 3 }) {
   const filteredItems = items.filter(item => item.value !== undefined && item.value !== null);

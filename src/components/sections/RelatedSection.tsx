@@ -8,8 +8,8 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
-import type { ReplicaSetData, PVCData, JobData } from '../adapters/types';
-import { formatTimeAgo } from '../adapters/utils';
+import type { ReplicaSetData, PVCData, JobData } from './types';
+import { formatTimeAgo } from './utils';
 
 export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Promise<ReplicaSetData[]>; title?: string }) {
   const [items, setItems] = useState<ReplicaSetData[]>([]);

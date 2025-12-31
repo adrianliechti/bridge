@@ -1,9 +1,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { AlertTriangle, ChevronUp, ChevronDown, ChevronsUpDown, RefreshCw } from 'lucide-react';
-import { useKubernetesQuery } from '../hooks/useKubernetesQuery';
-import { useCluster } from '../hooks/useCluster';
-import { getResourceTable, type V1APIResource } from '../api/kubernetesTable';
-import type { TableColumnDefinition, TableRow } from '../types/table';
+import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } from '../types/table';
+import { getObjectId as getIdHelper, getObjectNamespace as getNamespaceHelper } from '../types/table';
 
 // Sort direction type
 type SortDirection = 'asc' | 'desc' | null;
@@ -58,28 +56,36 @@ function isStatusColumn(column: TableColumnDefinition): boolean {
   return name === 'status' || name === 'phase' || name === 'ready' || name === 'condition';
 }
 
-interface ResourceTableProps {
-  config: V1APIResource;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface ResourceTableProps<T = any> {
+  config: ResourceConfig;
+  data: TableResponse<T> | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => void;
+  isRefetching?: boolean;
   hiddenColumns: Set<string>;
   onColumnsLoaded?: (columns: TableColumnDefinition[]) => void;
-  selectedItem?: TableRow | null;
-  onSelectItem?: (item: TableRow | null) => void;
+  selectedItem?: TableRow<T> | null;
+  onSelectItem?: (item: TableRow<T> | null) => void;
+  namespace?: string; // Current namespace filter (undefined = all namespaces)
 }
 
-export function ResourceTable({ 
-  config, 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function ResourceTable<T = any>({
+  config,
+  data,
+  loading,
+  error,
+  refetch,
+  isRefetching = false,
   hiddenColumns,
   onColumnsLoaded,
   selectedItem,
-  onSelectItem
-}: ResourceTableProps) {
-  const { context, namespace } = useCluster();
+  onSelectItem,
+  namespace,
+}: ResourceTableProps<T>) {
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
-  
-  const { data, loading, error, refetch, isRefetching } = useKubernetesQuery(
-    () => getResourceTable(context, config, namespace),
-    [context, config, namespace]
-  );
 
   // Check if we should show the namespace column (when all namespaces is selected and resource is namespaced)
   const showNamespaceColumn = namespace === undefined && config.namespaced === true;
@@ -124,8 +130,8 @@ export function ResourceTable({
     
     if (isSortingNamespace) {
       return [...data.rows].sort((a, b) => {
-        const aVal = a.object.metadata.namespace || '';
-        const bVal = b.object.metadata.namespace || '';
+        const aVal = getNamespaceHelper(a.object) || '';
+        const bVal = getNamespaceHelper(b.object) || '';
         const comparison = aVal.localeCompare(bVal);
         return sortState.direction === 'asc' ? comparison : -comparison;
       });
@@ -272,12 +278,14 @@ export function ResourceTable({
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((row: TableRow, rowIndex: number) => {
-              const isSelected = selectedItem?.object.metadata.uid === row.object.metadata.uid;
+            {sortedRows.map((row: TableRow<T>, rowIndex: number) => {
+              const rowId = getIdHelper(row.object);
+              const selectedId = selectedItem ? getIdHelper(selectedItem.object) : null;
+              const isSelected = selectedId === rowId;
               const isOdd = rowIndex % 2 === 1;
               return (
               <tr 
-                key={row.object.metadata.uid} 
+                key={rowId} 
                 onClick={() => onSelectItem?.(isSelected ? null : row)}
                 className={`transition-colors cursor-pointer ${
                   isSelected 
@@ -294,7 +302,7 @@ export function ResourceTable({
                     ? -1 
                     : data!.columnDefinitions.findIndex((c) => c.name === col.name);
                   const cellValue = isNamespaceColumn 
-                    ? row.object.metadata.namespace 
+                    ? getNamespaceHelper(row.object) 
                     : row.cells[cellIndex];
                   const formatted = formatCell(cellValue, col);
                   const isNameColumn = col.name.toLowerCase() === 'name';

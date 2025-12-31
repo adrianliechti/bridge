@@ -1,115 +1,49 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Search,
-  Box,
-  Rocket,
-  Layers,
-  Ghost,
-  Database,
-  Zap,
-  Clock,
-  FileText,
-  KeyRound,
-  Plug,
-  Globe,
-  HardDrive,
-  Disc,
-  FolderOpen,
-  Server,
-  Network,
-  ShieldCheck,
-  FileCheck,
-  AppWindow,
-  LayoutGrid,
-  type LucideIcon,
-} from 'lucide-react';
-import { useCluster } from '../hooks/useCluster';
-import { getResourceConfig } from '../api/kubernetesDiscovery';
-import { getResourceTable, type V1APIResource } from '../api/kubernetesTable';
-
-// Resource type definitions with icons (matching ResourceSidebar)
-interface ResourceTypeItem {
-  kind: string;
-  label: string;
-  icon: LucideIcon;
-  category: string;
-}
-
-const resourceTypes: ResourceTypeItem[] = [
-  // Workloads
-  { kind: 'pods', label: 'Pods', icon: Box, category: 'Workloads' },
-  { kind: 'deployments', label: 'Deployments', icon: Rocket, category: 'Workloads' },
-  { kind: 'daemonsets', label: 'DaemonSets', icon: Ghost, category: 'Workloads' },
-  { kind: 'statefulsets', label: 'StatefulSets', icon: Database, category: 'Workloads' },
-  { kind: 'replicasets', label: 'ReplicaSets', icon: Layers, category: 'Workloads' },
-  { kind: 'jobs', label: 'Jobs', icon: Zap, category: 'Workloads' },
-  { kind: 'cronjobs', label: 'CronJobs', icon: Clock, category: 'Workloads' },
-  // Config
-  { kind: 'secrets', label: 'Secrets', icon: KeyRound, category: 'Config' },
-  { kind: 'configmaps', label: 'ConfigMaps', icon: FileText, category: 'Config' },
-  { kind: 'applications', label: 'Applications', icon: AppWindow, category: 'Config' },
-  { kind: 'applicationsets', label: 'ApplicationSets', icon: LayoutGrid, category: 'Config' },
-  { kind: 'certificates', label: 'Certificates', icon: ShieldCheck, category: 'Config' },
-  { kind: 'certificaterequests', label: 'CertificateRequests', icon: FileCheck, category: 'Config' },
-  // Network
-  { kind: 'services', label: 'Services', icon: Plug, category: 'Network' },
-  { kind: 'ingresses', label: 'Ingresses', icon: Globe, category: 'Network' },
-  { kind: 'gateways', label: 'Gateways', icon: Network, category: 'Network' },
-  { kind: 'httproutes', label: 'HTTPRoutes', icon: Globe, category: 'Network' },
-  { kind: 'grpcroutes', label: 'GRPCRoutes', icon: Globe, category: 'Network' },
-  { kind: 'tcproutes', label: 'TCPRoutes', icon: Network, category: 'Network' },
-  { kind: 'udproutes', label: 'UDPRoutes', icon: Network, category: 'Network' },
-  { kind: 'tlsroutes', label: 'TLSRoutes', icon: Network, category: 'Network' },
-  // Storage
-  { kind: 'persistentvolumes', label: 'PersistentVolumes', icon: HardDrive, category: 'Storage' },
-  { kind: 'persistentvolumeclaims', label: 'PersistentVolumeClaims', icon: Disc, category: 'Storage' },
-  // Cluster
-  { kind: 'namespaces', label: 'Namespaces', icon: FolderOpen, category: 'Cluster' },
-  { kind: 'nodes', label: 'Nodes', icon: Server, category: 'Cluster' },
-  // { kind: 'events', label: 'Events', icon: Newspaper, category: 'Cluster' },
-];
+import { Search } from 'lucide-react';
+import type { CommandPaletteAdapter, SearchResult, SearchMode } from '../types/commandPalette';
 
 // Normalize string for fuzzy matching (remove hyphens, underscores, dots)
 function normalizeForSearch(str: string): string {
   return str.toLowerCase().replace(/[-_.]/g, '');
 }
 
-// Search modes
-type SearchMode = 'default' | 'resources' | 'namespaces' | 'search' | 'searchAll';
-
-interface SearchResult {
-  id: string;
-  type: 'resource-type' | 'namespace' | 'resource';
-  label: string;
-  sublabel?: string;
-  icon: LucideIcon;
-  category?: string;
-  data: {
-    resourceConfig?: V1APIResource;
-    namespace?: string;
-    resourceName?: string;
-  };
-}
-
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  adapter: CommandPaletteAdapter;
 }
 
-export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
-  const { context, namespace, namespaces, setNamespace, setSelectedResource } = useCluster();
+export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [asyncResults, setAsyncResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [resourceConfigCache, setResourceConfigCache] = useState<Map<string, V1APIResource>>(new Map());
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const adapterIdRef = useRef(adapter.id);
 
-  // Reset query when palette opens (using callback form to avoid effect warnings)
+  // Initialize adapter when it changes
+  useEffect(() => {
+    setIsInitialized(false);
+    adapterIdRef.current = adapter.id;
+    
+    if (adapter.initialize) {
+      adapter.initialize().then(() => {
+        // Only set initialized if adapter hasn't changed
+        if (adapterIdRef.current === adapter.id) {
+          setIsInitialized(true);
+        }
+      });
+    } else {
+      setIsInitialized(true);
+    }
+  }, [adapter]);
+
+  // Reset query when palette opens
   const handleOpen = useCallback(() => {
     setQuery('');
     setFocusedIndex(0);
@@ -126,157 +60,62 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   }, [isOpen, handleOpen]);
 
   // Determine search mode from query prefix
-  const { mode, searchQuery } = useMemo(() => {
-    if (query.startsWith('@@')) {
-      return { mode: 'searchAll' as SearchMode, searchQuery: query.slice(2).trim() };
-    }
-    if (query.startsWith('>')) {
-      return { mode: 'resources' as SearchMode, searchQuery: query.slice(1).trim() };
-    }
-    if (query.startsWith('@')) {
-      return { mode: 'namespaces' as SearchMode, searchQuery: query.slice(1).trim() };
-    }
-    // Default is now search in current namespace
-    return { mode: 'search' as SearchMode, searchQuery: query.trim() };
-  }, [query]);
-
-  // Load resource configs on mount
-  useEffect(() => {
-    const loadConfigs = async () => {
-      const configs = new Map<string, V1APIResource>();
-      for (const rt of resourceTypes) {
-        try {
-          const config = await getResourceConfig(context, rt.kind);
-          if (config) {
-            configs.set(rt.kind, config);
-          }
-        } catch {
-          // Resource type not available in cluster
-        }
+  const { searchMode, searchQuery } = useMemo(() => {
+    // Check prefixes in order (longer prefixes first, e.g., @@ before @)
+    const sortedPrefixes = [...adapter.searchModePrefixes].sort(
+      (a, b) => b.prefix.length - a.prefix.length
+    );
+    
+    for (const { prefix, mode } of sortedPrefixes) {
+      if (query.startsWith(prefix)) {
+        return { searchMode: mode, searchQuery: query.slice(prefix.length).trim() };
       }
-      setResourceConfigCache(configs);
-    };
-    if (context) {
-      loadConfigs();
     }
-  }, [context]);
+    
+    return { searchMode: 'search' as SearchMode, searchQuery: query.trim() };
+  }, [query, adapter.searchModePrefixes]);
+
+  // Get available resource types from adapter
+  const availableResourceTypes = useMemo(() => {
+    if (!isInitialized) return [];
+    return adapter.getAvailableResourceTypes();
+  }, [adapter, isInitialized]);
 
   // Filter resource types (synchronous)
   const filteredResourceTypes = useMemo(() => {
     const q = normalizeForSearch(searchQuery);
-    return resourceTypes
-      .filter(rt => resourceConfigCache.has(rt.kind)) // Only show available resources
-      .filter(rt => 
-        normalizeForSearch(rt.label).includes(q) ||
-        normalizeForSearch(rt.kind).includes(q) ||
-        normalizeForSearch(rt.category).includes(q)
-      );
-  }, [searchQuery, resourceConfigCache]);
+    return availableResourceTypes.filter(rt => 
+      normalizeForSearch(rt.label).includes(q) ||
+      normalizeForSearch(rt.kind).includes(q) ||
+      normalizeForSearch(rt.category).includes(q)
+    );
+  }, [searchQuery, availableResourceTypes]);
 
   // Filter namespaces (synchronous)
   const filteredNamespaces = useMemo(() => {
+    if (!adapter.supportsNamespaces) return [];
     const q = normalizeForSearch(searchQuery);
-    return namespaces.filter(ns => 
-      normalizeForSearch(ns.metadata?.name || '').includes(q)
+    return adapter.getNamespaces().filter(ns => 
+      normalizeForSearch(ns.name).includes(q)
     );
-  }, [searchQuery, namespaces]);
+  }, [searchQuery, adapter]);
 
   // Compute synchronous results based on mode
   const syncResults = useMemo((): SearchResult[] => {
-    if (mode === 'resources') {
-      return filteredResourceTypes.map(rt => ({
-        id: `type-${rt.kind}`,
-        type: 'resource-type' as const,
-        label: rt.label,
-        sublabel: rt.category,
-        icon: rt.icon,
-        category: rt.category,
-        data: { resourceConfig: resourceConfigCache.get(rt.kind) },
-      }));
+    if (searchMode === 'resources') {
+      return filteredResourceTypes.map(rt => adapter.resourceTypeToSearchResult(rt));
     }
     
-    if (mode === 'namespaces') {
-      return filteredNamespaces.map(ns => ({
-        id: `ns-${ns.metadata?.name}`,
-        type: 'namespace' as const,
-        label: ns.metadata?.name || '',
-        icon: FolderOpen,
-        data: { namespace: ns.metadata?.name },
-      }));
+    if (searchMode === 'namespaces' && adapter.supportsNamespaces && adapter.namespaceToSearchResult) {
+      return filteredNamespaces.map(ns => adapter.namespaceToSearchResult!(ns));
     }
     
     // search and searchAll modes use async results
     return [];
-  }, [mode, filteredResourceTypes, filteredNamespaces, resourceConfigCache]);
+  }, [searchMode, filteredResourceTypes, filteredNamespaces, adapter]);
 
   // Final results: sync results or async results depending on mode
-  const results = (mode === 'search' || mode === 'searchAll') ? asyncResults : syncResults;
-
-  // Search for resources using Table API (async)
-  const searchResources = useCallback(async (searchTerm: string, allNamespaces: boolean): Promise<SearchResult[]> => {
-    if (!searchTerm || searchTerm.length < 2) {
-      return [];
-    }
-
-    const searchResults: SearchResult[] = [];
-    const searchNormalized = normalizeForSearch(searchTerm);
-    const targetNamespace = allNamespaces ? undefined : namespace;
-
-    // Search across all sidebar resource types in parallel
-    const searchPromises = resourceTypes
-      .filter(rt => resourceConfigCache.has(rt.kind))
-      .map(async (rt) => {
-        const config = resourceConfigCache.get(rt.kind);
-        if (!config) return [];
-
-        try {
-          const table = await getResourceTable(context, config, targetNamespace);
-          const matches: SearchResult[] = [];
-          
-          for (const row of table.rows) {
-            const name = row.object.metadata.name;
-            const rowNamespace = row.object.metadata.namespace;
-            
-            if (normalizeForSearch(name).includes(searchNormalized)) {
-              matches.push({
-                id: `${rt.kind}/${rowNamespace || ''}/${name}`,
-                type: 'resource',
-                label: name,
-                sublabel: rowNamespace ? `${rt.label} in ${rowNamespace}` : rt.label,
-                icon: rt.icon,
-                category: rt.category,
-                data: {
-                  resourceConfig: config,
-                  namespace: rowNamespace,
-                  resourceName: name,
-                },
-              });
-            }
-          }
-          
-          return matches;
-        } catch {
-          // Resource type may not be available or permission denied
-          return [];
-        }
-      });
-
-    const allResults = await Promise.all(searchPromises);
-    for (const matches of allResults) {
-      searchResults.push(...matches);
-    }
-
-    // Sort by relevance (exact match first, then alphabetically)
-    searchResults.sort((a, b) => {
-      const aExact = normalizeForSearch(a.label) === searchNormalized;
-      const bExact = normalizeForSearch(b.label) === searchNormalized;
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      return a.label.localeCompare(b.label);
-    });
-
-    return searchResults.slice(0, 50); // Limit results
-  }, [context, namespace, resourceConfigCache]);
+  const results = (searchMode === 'search' || searchMode === 'searchAll') ? asyncResults : syncResults;
 
   // Trigger async search when in search mode
   useEffect(() => {
@@ -284,15 +123,15 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       clearTimeout(searchTimeoutRef.current);
     }
 
-    if ((mode === 'search' || mode === 'searchAll') && searchQuery.length >= 2) {
+    if ((searchMode === 'search' || searchMode === 'searchAll') && searchQuery.length >= 2 && isInitialized) {
       setIsSearching(true);
       searchTimeoutRef.current = setTimeout(async () => {
-        const results = await searchResources(searchQuery, mode === 'searchAll');
+        const results = await adapter.searchResources(searchQuery, searchMode === 'searchAll');
         setAsyncResults(results);
         setFocusedIndex(0);
         setIsSearching(false);
       }, 300);
-    } else if (mode === 'search' || mode === 'searchAll') {
+    } else if (searchMode === 'search' || searchMode === 'searchAll') {
       setAsyncResults([]);
       setIsSearching(false);
     }
@@ -302,35 +141,19 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [mode, searchQuery, searchResources]);
+  }, [searchMode, searchQuery, adapter, isInitialized]);
 
   // Reset focused index when sync results change
   useEffect(() => {
-    if (mode !== 'search' && mode !== 'searchAll') {
+    if (searchMode !== 'search' && searchMode !== 'searchAll') {
       setFocusedIndex(0);
     }
-  }, [mode, syncResults]);
+  }, [searchMode, syncResults]);
 
   // Handle selection
   const handleSelect = useCallback((result: SearchResult) => {
-    if (result.type === 'resource-type') {
-      if (result.data.resourceConfig) {
-        setSelectedResource(result.data.resourceConfig);
-      }
-    } else if (result.type === 'namespace') {
-      setNamespace(result.data.namespace);
-    } else if (result.type === 'resource') {
-      // Navigate to the resource type and potentially select the specific resource
-      if (result.data.resourceConfig) {
-        // If the resource is in a different namespace, switch to it
-        if (result.data.namespace && result.data.namespace !== namespace) {
-          setNamespace(result.data.namespace);
-        }
-        setSelectedResource(result.data.resourceConfig);
-      }
-    }
-    onClose();
-  }, [setSelectedResource, setNamespace, namespace, onClose]);
+    adapter.handleSelect(result);
+  }, [adapter]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -371,15 +194,13 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     }
   }, [focusedIndex]);
 
-  // Get placeholder based on mode
+  // Get placeholder from adapter
   const placeholder = useMemo(() => {
-    switch (mode) {
-      case 'resources': return 'Search resource types...';
-      case 'namespaces': return 'Search namespaces...';
-      case 'searchAll': return 'Search resources across all namespaces...';
-      default: return `Search resources in ${namespace || 'current namespace'}... (> types, @ ns, @@ all)`;
-    }
-  }, [mode, namespace]);
+    return adapter.getPlaceholder(searchMode, adapter.getCurrentScopeLabel?.() ?? undefined);
+  }, [adapter, searchMode]);
+
+  // Get help items from adapter
+  const helpItems = useMemo(() => adapter.getHelpItems(), [adapter]);
 
   if (!isOpen) return null;
 
@@ -422,7 +243,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             <div className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400">
               {isSearching ? (
                 'Searching...'
-              ) : searchQuery.length > 0 && (mode === 'search' || mode === 'searchAll') && searchQuery.length < 2 ? (
+              ) : searchQuery.length > 0 && (searchMode === 'search' || searchMode === 'searchAll') && searchQuery.length < 2 ? (
                 'Type at least 2 characters to search'
               ) : searchQuery.length > 0 ? (
                 'No results found'
@@ -430,9 +251,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 <div className="space-y-2">
                   <p>Type to search or use prefixes:</p>
                   <div className="text-sm space-y-1">
-                    <p><kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-xs">&gt;</kbd> Resource types</p>
-                    <p><kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-xs">@</kbd> Namespaces</p>
-                    <p><kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-xs">@@</kbd> Search all namespaces</p>
+                    {helpItems.map(item => (
+                      <p key={item.prefix}>
+                        <kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-xs">{item.prefix}</kbd> {item.label}
+                      </p>
+                    ))}
                   </div>
                 </div>
               )}
@@ -493,8 +316,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">↵</kbd> Select</span>
             <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">esc</kbd> Close</span>
           </div>
-          {namespace && mode === 'search' && (
-            <span>Scope: {namespace}</span>
+          {adapter.getCurrentScopeLabel?.() && searchMode === 'search' && (
+            <span>Scope: {adapter.getCurrentScopeLabel()}</span>
           )}
         </div>
       </div>

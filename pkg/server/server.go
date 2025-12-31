@@ -142,8 +142,41 @@ func New(cfg *config.Config) (*Server, error) {
 			}
 		}
 
+		if cfg.Docker != nil {
+			config.Docker = &DockerConfig{
+				Available: true,
+			}
+		}
+
 		json.NewEncoder(w).Encode(config)
 	})
+
+	// Docker API proxy
+	if cfg.Docker != nil {
+		dockerHost, err := cfg.Docker.GetAPIHost()
+		if err != nil {
+			return nil, err
+		}
+
+		dockerTarget, err := url.Parse(dockerHost)
+		if err != nil {
+			return nil, err
+		}
+
+		dockerProxy := &httputil.ReverseProxy{
+			Transport: cfg.Docker.Transport,
+			ErrorLog:  log.New(io.Discard, "", 0),
+
+			Rewrite: func(r *httputil.ProxyRequest) {
+				r.Out.URL.Path = strings.TrimPrefix(r.Out.URL.Path, "/docker")
+				r.SetURL(dockerTarget)
+				r.Out.Host = dockerTarget.Host
+			},
+		}
+
+		// Docker API proxy
+		mux.Handle("/docker/", dockerProxy)
+	}
 
 	mux.Handle("/", http.FileServerFS(bridge.DistFS))
 

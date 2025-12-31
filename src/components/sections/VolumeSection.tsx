@@ -12,7 +12,7 @@ import {
   Box,
   Database,
 } from 'lucide-react';
-import type { VolumeData } from '../adapters/types';
+import type { VolumeData } from './types';
 
 export function VolumesSection({ items }: { items: VolumeData[] }) {
   if (items.length === 0) return null;
