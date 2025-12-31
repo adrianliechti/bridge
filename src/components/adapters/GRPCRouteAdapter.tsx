@@ -5,7 +5,6 @@
 import React from 'react';
 import { Network, GitBranch, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
-import { getConditionDescription } from './utils';
 
 interface GRPCRule {
   matches?: Array<{
@@ -143,27 +142,6 @@ export const GRPCRouteAdapter: ResourceAdapter<GRPCRoute> = {
                         <GRPCRuleCard key={rule.matches?.[0]?.method?.service || `rule-${idx}`} rule={rule} index={idx} />
                       ))}
                     </div>
-                  ),
-                },
-              },
-            ]
-          : []),
-
-        ...(status?.parents?.some((p) => p.conditions && p.conditions.length > 0)
-          ? [
-              {
-                id: 'parent-conditions',
-                title: 'Parent Status',
-                data: {
-                  type: 'conditions' as const,
-                  items: status.parents.flatMap((parent) =>
-                    (parent.conditions || []).map((condition) => ({
-                      type: `${parent.parentRef.name}: ${condition.type}`,
-                      status: condition.status,
-                      reason: condition.reason,
-                      message: condition.message,
-                      description: getConditionDescription('GRPCRoute', condition.type, condition.status),
-                    }))
                   ),
                 },
               },

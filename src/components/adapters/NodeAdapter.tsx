@@ -3,7 +3,7 @@
 
 import { Server, Cpu, HardDrive, Box, CheckCircle2, XCircle } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, NodeMetricsData } from './types';
-import { formatMemory, mapConditions } from './utils';
+import { formatMemory } from './utils';
 import type { V1Node } from '@kubernetes/client-node';
 import { 
   getNodeMetrics, 
@@ -174,15 +174,6 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
               value: t.value,
               effect: t.effect || '',
             })),
-          },
-        }] : []),
-
-        // Conditions
-        ...(conditions.length > 0 ? [{
-          id: 'conditions',
-          data: {
-            type: 'conditions' as const,
-            items: mapConditions('Node', conditions),
           },
         }] : []),
       ],

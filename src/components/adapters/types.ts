@@ -41,16 +41,6 @@ export interface GaugeData {
   color: GaugeColor;
 }
 
-/** Condition from status.conditions */
-export interface ConditionData {
-  type: string;
-  status: string;
-  reason?: string;
-  message?: string;
-  /** Human-friendly description of what this condition means */
-  description?: string;
-}
-
 /** Visual pod/replica grid */
 export interface PodGridData {
   total: number;
@@ -226,7 +216,6 @@ export interface ResourceQuotaData {
 export type SectionData =
   | { type: 'status-cards'; items: StatusCardData[] }
   | { type: 'gauges'; items: GaugeData[]; showPodGrid?: PodGridData }
-  | { type: 'conditions'; items: ConditionData[] }
   | { type: 'info-grid'; items: InfoRowData[]; columns?: 1 | 2 | 3 }
   | { type: 'containers'; items: ContainerData[]; metricsLoader?: () => Promise<Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }> | null>; title?: string }
   | { type: 'volumes'; items: VolumeData[] }

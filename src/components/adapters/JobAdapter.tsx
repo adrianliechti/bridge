@@ -4,7 +4,7 @@
 import { Play, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1Job } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection, mapConditions } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 
 export const JobAdapter: ResourceAdapter<V1Job> = {
   kinds: ['Job', 'Jobs'],
@@ -117,15 +117,6 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
           spec.template?.spec?.containers,
           spec.template?.spec?.initContainers,
         ),
-
-        // Conditions
-        ...(status?.conditions?.length ? [{
-          id: 'conditions',
-          data: {
-            type: 'conditions' as const,
-            items: mapConditions('Job', status?.conditions),
-          },
-        }] : []),
       ],
     };
   },

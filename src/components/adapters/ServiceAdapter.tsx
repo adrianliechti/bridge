@@ -3,7 +3,6 @@
 
 import { Globe, Network, Server, ExternalLink, Lock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './types';
-import { mapConditions } from './utils';
 import type { V1Service } from '@kubernetes/client-node';
 
 // Get service type display info
@@ -293,17 +292,6 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
               )}
             </div>
           ),
-        },
-      });
-    }
-
-    // Conditions (for Gateway API services)
-    if (status?.conditions && status.conditions.length > 0) {
-      sections.push({
-        id: 'conditions',
-        data: {
-          type: 'conditions',
-          items: mapConditions('Service', status.conditions),
         },
       });
     }

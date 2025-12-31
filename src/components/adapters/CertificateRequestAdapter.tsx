@@ -3,7 +3,6 @@
 
 import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
-import { mapConditions } from './utils';
 import { CertificateView, CsrView } from '../sections/CertificateView';
 
 
@@ -414,17 +413,6 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
               )}
             </div>
           ),
-        },
-      });
-    }
-
-    // Conditions
-    if (status?.conditions && status.conditions.length > 0) {
-      sections.push({
-        id: 'conditions',
-        data: {
-          type: 'conditions' as const,
-          items: mapConditions('CertificateRequest', status.conditions),
         },
       });
     }

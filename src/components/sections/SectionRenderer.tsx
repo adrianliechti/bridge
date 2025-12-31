@@ -1,6 +1,5 @@
 import type { Section, SectionData } from '../adapters/types';
 import { StatusCardsSection, GaugesSection } from './StatusSection';
-import { ConditionsView } from './ConditionsView';
 import { ContainersSection } from './ContainerSection';
 import { VolumesSection } from './VolumeSection';
 import { CapacityBarsSection, TaintsSection } from './NodeSection';
@@ -36,9 +35,6 @@ function renderSectionData(data: SectionData): React.ReactNode {
 
     case 'gauges':
       return <GaugesSection items={data.items} podGrid={data.showPodGrid} />;
-
-    case 'conditions':
-      return <ConditionsView conditions={data.items} />;
 
     case 'info-grid':
       return <InfoGridSection items={data.items} columns={data.columns} />;

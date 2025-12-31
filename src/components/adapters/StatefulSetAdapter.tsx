@@ -4,7 +4,7 @@
 import type { ResourceAdapter, ResourceSections, PVCData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1StatefulSet } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection, mapConditions } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
@@ -175,15 +175,6 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
 
         // Resource Quota
         ...(quotaSection ? [quotaSection] : []),
-
-        // Conditions
-        ...((status?.conditions ?? []).length > 0 ? [{
-          id: 'conditions',
-          data: {
-            type: 'conditions' as const,
-            items: mapConditions('StatefulSet', status?.conditions),
-          },
-        }] : []),
       ],
     };
   },

@@ -11,7 +11,7 @@ import {
   formatCpu,
   formatBytes,
 } from '../../api/kubernetesMetrics';
-import { getResourceQuotaSection, mapConditions } from './utils';
+import { getResourceQuotaSection } from './utils';
 
 export const PodAdapter: ResourceAdapter<V1Pod> = {
   kinds: ['Pod', 'Pods'],
@@ -112,15 +112,6 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
           data: {
             type: 'volumes' as const,
             items: spec.volumes.map(v => mapVolume(v, [...containers, ...initContainers])),
-          },
-        }] : []),
-
-        // Conditions
-        ...((status?.conditions ?? []).length > 0 ? [{
-          id: 'conditions',
-          data: {
-            type: 'conditions' as const,
-            items: mapConditions('Pod', status?.conditions),
           },
         }] : []),
       ],

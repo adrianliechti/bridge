@@ -3,7 +3,6 @@
 
 import { CheckCircle2, XCircle, RefreshCw, HelpCircle, Layers, GitBranch, FolderTree, List, Server, Cloud, Package } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel } from './types';
-import { mapConditions } from './utils';
 
 
 // ApplicationSet types
@@ -360,9 +359,6 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
     // Count generated applications
     const applicationCount = status?.applicationStatus?.length || 0;
 
-    // Parse conditions for display
-    const conditions = mapConditions('ApplicationSet', status?.conditions);
-
     return {
       sections: [
         // Main status overview
@@ -586,15 +582,6 @@ export const ApplicationSetAdapter: ResourceAdapter<ArgoCDApplicationSet> = {
               },
             ],
             columns: 1 as const,
-          },
-        }] : []),
-
-        // Conditions
-        ...(conditions.length > 0 ? [{
-          id: 'conditions',
-          data: {
-            type: 'conditions' as const,
-            items: conditions,
           },
         }] : []),
       ],

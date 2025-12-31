@@ -5,7 +5,6 @@
 import React from 'react';
 import { Radio, Globe } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
-import { mapConditions } from './utils';
 
 interface Listener {
   name: string;
@@ -121,18 +120,6 @@ export const GatewayAdapter: ResourceAdapter<Gateway> = {
             ),
           },
         },
-
-        ...((status?.conditions ?? []).length > 0
-          ? [
-              {
-                id: 'conditions',
-                data: {
-                  type: 'conditions' as const,
-                  items: mapConditions('Gateway', status?.conditions),
-                },
-              },
-            ]
-          : []),
       ],
     };
   },

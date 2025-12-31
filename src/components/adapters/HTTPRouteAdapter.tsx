@@ -5,7 +5,6 @@
 import React from 'react';
 import { Route, GitBranch, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
-import { getConditionDescription } from './utils';
 
 interface HTTPRule {
   matches?: Array<{
@@ -143,27 +142,6 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                         <HTTPRuleCard key={rule.matches?.[0]?.path?.value || `rule-${idx}`} rule={rule} index={idx} />
                       ))}
                     </div>
-                  ),
-                },
-              },
-            ]
-          : []),
-
-        ...(status?.parents?.some((p) => p.conditions && p.conditions.length > 0)
-          ? [
-              {
-                id: 'parent-conditions',
-                title: 'Parent Status',
-                data: {
-                  type: 'conditions' as const,
-                  items: status.parents.flatMap((parent) =>
-                    (parent.conditions || []).map((condition) => ({
-                      type: `${parent.parentRef.name}: ${condition.type}`,
-                      status: condition.status,
-                      reason: condition.reason,
-                      message: condition.message,
-                      description: getConditionDescription('HTTPRoute', condition.type, condition.status),
-                    }))
                   ),
                 },
               },

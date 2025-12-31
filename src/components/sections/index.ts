@@ -5,7 +5,6 @@ export { ActionBar } from './ActionBar';
 
 // Section components
 export { StatusCardsSection, GaugesSection, PodGridSection } from './StatusSection';
-export { ConditionsView } from './ConditionsView';
 export { ContainersSection, ContainerCard } from './ContainerSection';
 export { VolumesSection, VolumeCard } from './VolumeSection';
 export { CapacityBarsSection, TaintsSection } from './NodeSection';
