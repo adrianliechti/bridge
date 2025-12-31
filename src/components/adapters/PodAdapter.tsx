@@ -218,6 +218,31 @@ function getContainerState(status?: V1ContainerStatus): { state?: 'running' | 'w
   return {};
 }
 
+// Format a decimal mode number as human-readable permissions (e.g., 420 -> "rw-r--r--")
+function formatOctalMode(mode: number): string {
+  const octal = mode.toString(8).padStart(4, '0');
+  
+  // Parse special bits (first digit) and permission bits (last 3 digits)
+  const special = parseInt(octal[octal.length - 4] || '0', 10);
+  const user = parseInt(octal[octal.length - 3], 10);
+  const group = parseInt(octal[octal.length - 2], 10);
+  const other = parseInt(octal[octal.length - 1], 10);
+  
+  const setuid = (special & 4) !== 0;
+  const setgid = (special & 2) !== 0;
+  const sticky = (special & 1) !== 0;
+  
+  const r = (n: number) => (n & 4) ? 'r' : '-';
+  const w = (n: number) => (n & 2) ? 'w' : '-';
+  
+  // Execute bit can be modified by special bits
+  const userX = (user & 1) ? (setuid ? 's' : 'x') : (setuid ? 'S' : '-');
+  const groupX = (group & 1) ? (setgid ? 's' : 'x') : (setgid ? 'S' : '-');
+  const otherX = (other & 1) ? (sticky ? 't' : 'x') : (sticky ? 'T' : '-');
+  
+  return r(user) + w(user) + userX + r(group) + w(group) + groupX + r(other) + w(other) + otherX;
+}
+
 function getVolumeInfo(volume: V1Volume): { type: string; detail: string; extra?: Record<string, string> } {
   if (volume.configMap) {
     return { 
@@ -225,7 +250,7 @@ function getVolumeInfo(volume: V1Volume): { type: string; detail: string; extra?
       detail: volume.configMap.name || '',
       extra: {
         ...(volume.configMap.optional !== undefined && { optional: String(volume.configMap.optional) }),
-        ...(volume.configMap.defaultMode !== undefined && { defaultMode: String(volume.configMap.defaultMode).padStart(4, '0') }),
+        ...(volume.configMap.defaultMode !== undefined && { mode: formatOctalMode(volume.configMap.defaultMode) }),
       }
     };
   }
@@ -235,7 +260,7 @@ function getVolumeInfo(volume: V1Volume): { type: string; detail: string; extra?
       detail: volume.secret.secretName || '',
       extra: {
         ...(volume.secret.optional !== undefined && { optional: String(volume.secret.optional) }),
-        ...(volume.secret.defaultMode !== undefined && { defaultMode: String(volume.secret.defaultMode).padStart(4, '0') }),
+        ...(volume.secret.defaultMode !== undefined && { mode: formatOctalMode(volume.secret.defaultMode) }),
       }
     };
   }
@@ -280,7 +305,7 @@ function getVolumeInfo(volume: V1Volume): { type: string; detail: string; extra?
       detail: `${sources.length} sources`,
       extra: {
         sources: sourceTypes.join(', '),
-        ...(volume.projected.defaultMode !== undefined && { defaultMode: String(volume.projected.defaultMode).padStart(4, '0') }),
+        ...(volume.projected.defaultMode !== undefined && { mode: formatOctalMode(volume.projected.defaultMode) }),
       }
     };
   }
@@ -289,7 +314,7 @@ function getVolumeInfo(volume: V1Volume): { type: string; detail: string; extra?
       type: 'DownwardAPI', 
       detail: `${volume.downwardAPI.items?.length || 0} items`,
       extra: {
-        ...(volume.downwardAPI.defaultMode !== undefined && { defaultMode: String(volume.downwardAPI.defaultMode).padStart(4, '0') }),
+        ...(volume.downwardAPI.defaultMode !== undefined && { mode: formatOctalMode(volume.downwardAPI.defaultMode) }),
       }
     };
   }
