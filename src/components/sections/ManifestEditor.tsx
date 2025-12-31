@@ -59,7 +59,7 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
     if (!model) return setEditorReady(true);
 
     const lines = model.getValue().split('\n');
-    const fieldRegex = /^(\s*)(managedFields|ownerReferences|kubectl\.kubernetes\.io\/last-applied-configuration|status):/;
+    const fieldRegex = /^(\s*)(managedFields|ownerReferences|kubectl\.kubernetes\.io\/last-applied-configuration):/;
 
     // Find all ranges to collapse
     const ranges = lines.flatMap((line, i) => {

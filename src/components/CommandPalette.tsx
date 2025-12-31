@@ -17,7 +17,6 @@ import {
   Disc,
   FolderOpen,
   Server,
-  Newspaper,
   Network,
   ShieldCheck,
   FileCheck,
