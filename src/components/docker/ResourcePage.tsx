@@ -1,8 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { DockerContainer, DockerImage } from '../../api/docker/docker';
-import { listContainers, listImages, dockerContainersToTable, dockerImagesToTable, formatContainerName } from '../../api/docker/docker';
-import type { TableRow, ResourceConfig } from '../../types/table';
+import type { DockerContainer, DockerImage, DockerVolume, DockerNetwork, DockerNetworkInspect } from '../../api/docker/docker';
+import { 
+  listContainers, listImages, listVolumes, listNetworks,
+  dockerContainersToTable, dockerImagesToTable, dockerVolumesToTable, dockerNetworksToTable,
+  formatContainerName 
+} from '../../api/docker/docker';
+import type { TableRow, ResourceConfig, TableResponse } from '../../types/table';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
 import { ChatPanel } from '../ChatPanel';
 import { createDockerChatAdapter, type DockerEnvironment } from './Chat';
@@ -10,19 +14,42 @@ import { ResourcePanel } from './ResourcePanel';
 import { usePanels } from '../../hooks/usePanelState';
 import { getConfig } from '../../config';
 
-export type DockerResourceType = 'containers' | 'images';
+export type DockerResourceType = 'containers' | 'images' | 'volumes' | 'networks';
+
+type DockerResourceObject = DockerContainer | DockerImage | DockerVolume | DockerNetwork | DockerNetworkInspect;
 
 // Panel IDs
 const PANEL_AI = 'ai';
+
+// Refresh interval
+const REFRESH_INTERVAL = 5000;
+
+// Get stable sort key for each resource type
+function getResourceSortKey(resource: DockerResourceObject, resourceType: DockerResourceType): string {
+  switch (resourceType) {
+    case 'containers':
+      return (resource as DockerContainer).Id ?? '';
+    case 'images':
+      return (resource as DockerImage).Id ?? '';
+    case 'volumes':
+      return (resource as DockerVolume).Name ?? '';
+    case 'networks':
+      return (resource as DockerNetwork).Id ?? '';
+    default:
+      return '';
+  }
+}
 
 interface ResourcePageProps {
   resourceType: DockerResourceType;
 }
 
 export function ResourcePage({ resourceType }: ResourcePageProps) {
-  const [data, setData] = useState<TableRow<DockerContainer | DockerImage>[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<TableRow<DockerResourceObject>[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isRefetching, setIsRefetching] = useState(false);
+  const isFirstFetch = useRef(true);
   const { isOpen, toggle, close } = usePanels();
   const isChatPanelOpen = isOpen(PANEL_AI);
 
@@ -30,36 +57,78 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
   const chatAdapter = createDockerChatAdapter();
 
   // Fetch Docker data
-  const fetchData = useCallback(async () => {
-    try {
+  const fetchData = useCallback(async (isBackground = false) => {
+    // Only show loading on initial fetch
+    if (!isBackground) {
       setLoading(true);
-      setError(null);
-      if (resourceType === 'containers') {
-        const containers = await listContainers(true);
-        const tableData = dockerContainersToTable(containers);
-        setData(tableData.rows);
-      } else {
-        const images = await listImages();
-        const tableData = dockerImagesToTable(images);
-        setData(tableData.rows);
+    }
+    if (isBackground) {
+      setIsRefetching(true);
+    }
+
+    try {
+      let tableData: TableResponse<DockerResourceObject>;
+      switch (resourceType) {
+        case 'containers': {
+          const containers = await listContainers(true);
+          tableData = dockerContainersToTable(containers) as TableResponse<DockerResourceObject>;
+          break;
+        }
+        case 'images': {
+          const images = await listImages();
+          tableData = dockerImagesToTable(images) as TableResponse<DockerResourceObject>;
+          break;
+        }
+        case 'volumes': {
+          const volumes = await listVolumes();
+          tableData = dockerVolumesToTable(volumes) as TableResponse<DockerResourceObject>;
+          break;
+        }
+        case 'networks': {
+          const networks = await listNetworks();
+          tableData = dockerNetworksToTable(networks) as TableResponse<DockerResourceObject>;
+          break;
+        }
+      }
+      // Sort rows by stable key to prevent order changes on refresh
+      const sortedRows = [...tableData.rows].sort((a, b) => {
+        const keyA = getResourceSortKey(a.object, resourceType);
+        const keyB = getResourceSortKey(b.object, resourceType);
+        return keyA.localeCompare(keyB);
+      });
+      setData(sortedRows);
+      // Only clear error on initial fetch success
+      if (!isBackground) {
+        setError(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch Docker data'));
+      // Only set error on initial fetch
+      if (!isBackground) {
+        setError(err instanceof Error ? err : new Error('Failed to fetch Docker data'));
+      }
     } finally {
       setLoading(false);
+      setIsRefetching(false);
     }
   }, [resourceType]);
 
   // Fetch data on mount and when resource type changes
   useEffect(() => {
-    fetchData();
+    isFirstFetch.current = true;
+    fetchData(false);
   }, [fetchData]);
 
   // Auto-refresh every 5 seconds
   useEffect(() => {
-    const interval = setInterval(fetchData, 5000);
+    const interval = setInterval(() => {
+      // Only poll if initial fetch succeeded
+      if (!isFirstFetch.current || data.length > 0) {
+        fetchData(true);
+      }
+      isFirstFetch.current = false;
+    }, REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, data.length]);
 
   // Build config and table data
   const config: ResourceConfig = useMemo(() => ({
@@ -67,22 +136,34 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
     namespaced: false,
   }), [resourceType]);
 
-  const tableData = useMemo(() => 
-    resourceType === 'containers'
-      ? dockerContainersToTable(data.map(row => row.object as DockerContainer))
-      : dockerImagesToTable(data.map(row => row.object as DockerImage)),
-    [resourceType, data]
-  );
+  const tableData = useMemo(() => {
+    switch (resourceType) {
+      case 'containers':
+        return dockerContainersToTable(data.map(row => row.object as DockerContainer));
+      case 'images':
+        return dockerImagesToTable(data.map(row => row.object as DockerImage));
+      case 'volumes':
+        return dockerVolumesToTable(data.map(row => row.object as DockerVolume));
+      case 'networks':
+        return dockerNetworksToTable(data.map(row => row.object as DockerNetwork));
+    }
+  }, [resourceType, data]);
 
-  const title = resourceType === 'containers' ? 'Containers' : 'Images';
+  const titleMap: Record<DockerResourceType, string> = {
+    containers: 'Containers',
+    images: 'Images',
+    volumes: 'Volumes',
+    networks: 'Networks',
+  };
+  const title = titleMap[resourceType];
 
   // Environment info for AI chat
-  const getEnvironmentInfo = useCallback((item: TableRow<DockerContainer | DockerImage> | null): DockerEnvironment => {
+  const getEnvironmentInfo = useCallback((item: TableRow<DockerResourceObject> | null): DockerEnvironment => {
     const container = item?.object as DockerContainer | undefined;
     return {
       selectedResourceType: resourceType,
-      selectedContainerId: container?.Id?.substring(0, 12),
-      selectedContainerName: container?.Names ? formatContainerName(container.Names) : undefined,
+      selectedContainerId: resourceType === 'containers' ? container?.Id?.substring(0, 12) : undefined,
+      selectedContainerName: resourceType === 'containers' && container?.Names ? formatContainerName(container.Names) : undefined,
     };
   }, [resourceType]);
 
@@ -105,7 +186,7 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
   }, [isChatPanelOpen, toggle]);
 
   // Render chat panel
-  const renderExtraPanels = useCallback((selectedItem: TableRow<DockerContainer | DockerImage> | null, isDetailPanelOpen: boolean) => {
+  const renderExtraPanels = useCallback((selectedItem: TableRow<DockerResourceObject> | null, isDetailPanelOpen: boolean) => {
     const environmentInfo = getEnvironmentInfo(selectedItem);
 
     return (
@@ -119,31 +200,39 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
     );
   }, [isChatPanelOpen, close, chatAdapter, getEnvironmentInfo]);
 
-  // Custom detail panel for Docker containers using the new ResourcePanel
-  const renderDetailPanel = useMemo(() => resourceType === 'containers'
-    ? (item: TableRow<DockerContainer | DockerImage>, onClose: () => void, otherPanelOpen: boolean) => {
-        const container = item.object as DockerContainer;
+  // Custom detail panel for Docker resources using the new ResourcePanel
+  const showDetailPanel = resourceType === 'containers' || resourceType === 'images' || resourceType === 'volumes' || resourceType === 'networks';
+  
+  const renderDetailPanel = useMemo(() => showDetailPanel
+    ? (item: TableRow<DockerResourceObject>, onClose: () => void, otherPanelOpen: boolean) => {
         return (
           <ResourcePanel
             isOpen={true}
             onClose={onClose}
             otherPanelOpen={otherPanelOpen || isChatPanelOpen}
-            resource={container}
+            resource={item.object}
+            resourceType={resourceType}
           />
         );
       }
     : undefined,
-  [resourceType, isChatPanelOpen]);
+  [showDetailPanel, resourceType, isChatPanelOpen]);
+
+  // Manual refetch (triggered by user)
+  const refetch = useCallback(() => {
+    fetchData(false);
+  }, [fetchData]);
 
   return (
     <BaseResourcePage
       config={config}
       title={title}
-      data={tableData}
+      data={tableData as TableResponse<DockerResourceObject>}
       loading={loading}
       error={error}
-      refetch={fetchData}
-      showDetailPanel={resourceType === 'containers'}
+      refetch={refetch}
+      isRefetching={isRefetching}
+      showDetailPanel={showDetailPanel}
       renderDetailPanel={renderDetailPanel}
       renderHeaderActions={renderHeaderActions}
       renderExtraPanels={renderExtraPanels}

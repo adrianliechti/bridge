@@ -74,10 +74,35 @@ export function ContextSelector({
       {isOpen && (
         <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-neutral-950 rounded-lg shadow-xl max-h-64 overflow-y-auto border border-neutral-200 dark:border-neutral-700">
           <div className="py-1">
+            {/* Docker */}
+            {dockerAvailable && (
+              <>
+                <div className="px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
+                  Local
+                </div>
+                <div
+                  onClick={() => handleSelect(DOCKER_CONTEXT)}
+                  className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-sm flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
+                    isDockerMode
+                      ? 'text-neutral-900 dark:text-neutral-100'
+                      : 'text-neutral-600 dark:text-neutral-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Container size={14} className="opacity-50 shrink-0" />
+                    <span className="truncate">docker</span>
+                  </div>
+                  {isDockerMode && (
+                    <Check size={14} className="text-neutral-500 dark:text-neutral-400 shrink-0" />
+                  )}
+                </div>
+              </>
+            )}
+
             {/* Kubernetes clusters */}
             {contexts.length > 0 && (
               <>
-                <div className="px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
+                <div className={`px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider ${dockerAvailable ? 'mt-1' : ''}`}>
                   Clusters
                 </div>
                 {contexts.map((ctx) => {
@@ -103,31 +128,6 @@ export function ContextSelector({
                     </div>
                   );
                 })}
-              </>
-            )}
-            
-            {/* Docker */}
-            {dockerAvailable && (
-              <>
-                <div className="px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mt-1">
-                  Local
-                </div>
-                <div
-                  onClick={() => handleSelect(DOCKER_CONTEXT)}
-                  className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-sm flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                    isDockerMode
-                      ? 'text-neutral-900 dark:text-neutral-100'
-                      : 'text-neutral-600 dark:text-neutral-400'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <Container size={14} className="opacity-50 shrink-0" />
-                    <span className="truncate">docker</span>
-                  </div>
-                  {isDockerMode && (
-                    <Check size={14} className="text-neutral-500 dark:text-neutral-400 shrink-0" />
-                  )}
-                </div>
               </>
             )}
           </div>

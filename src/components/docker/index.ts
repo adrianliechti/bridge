@@ -1,16 +1,21 @@
 // Docker Adapter Registry
 // Maps Docker resource types to their adapters for data extraction
 
-import type { DockerAdapter, ResourceSections, ResourceAction } from './adapters/types';
-import type { ContainerInspectResponse } from '../../api/docker/docker';
+import type { DockerAdapter, ResourceSections, ResourceAction, DockerResource } from './adapters/types';
 
 // Import all adapters
 import { ContainerAdapter } from './adapters/ContainerAdapter';
+import { ImageAdapter } from './adapters/ImageAdapter';
+import { VolumeAdapter } from './adapters/VolumeAdapter';
+import { NetworkAdapter } from './adapters/NetworkAdapter';
 
 // All registered adapters
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const adapters: DockerAdapter<any>[] = [
   ContainerAdapter,
+  ImageAdapter,
+  VolumeAdapter,
+  NetworkAdapter,
 ];
 
 // Build lookup map (type -> adapter)
@@ -38,9 +43,8 @@ export function hasAdapter(type: string): boolean {
 /**
  * Adapt a Docker resource to display sections using the appropriate adapter
  */
-export function adaptResource(resource: ContainerInspectResponse): ResourceSections | null {
-  // For now, we only support containers
-  const adapter = getAdapter('container');
+export function adaptResource(resource: DockerResource, type: string): ResourceSections | null {
+  const adapter = getAdapter(type);
   if (!adapter) return null;
   return adapter.adapt(resource);
 }
@@ -48,8 +52,8 @@ export function adaptResource(resource: ContainerInspectResponse): ResourceSecti
 /**
  * Get actions available for a Docker resource
  */
-export function getResourceActions(resource: ContainerInspectResponse): ResourceAction[] {
-  const adapter = getAdapter('container');
+export function getResourceActions(resource: DockerResource, type = 'container'): ResourceAction[] {
+  const adapter = getAdapter(type);
   if (!adapter?.actions) return [];
   
   // Filter actions based on visibility

@@ -3,7 +3,7 @@
 
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1DaemonSet } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, getContainerImagesSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
 
 export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
@@ -107,6 +107,15 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
             title: 'Node Selector',
           },
         }] : []),
+
+        // Container images at a glance
+        ...(getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        ) ? [getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        )!] : []),
 
         // Containers with live metrics
         ...getContainerSections(

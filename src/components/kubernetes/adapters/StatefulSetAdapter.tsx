@@ -4,7 +4,7 @@
 import type { ResourceAdapter, ResourceSections, PVCData } from './types';
 import { getResourceList, getResourceConfig } from '../../../api/kubernetes/kubernetes';
 import type { V1StatefulSet } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, getContainerImagesSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
 
 export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
@@ -165,6 +165,15 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
             },
           },
         },
+
+        // Container images at a glance
+        ...(getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        ) ? [getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        )!] : []),
 
         // Containers with live metrics
         ...getContainerSections(

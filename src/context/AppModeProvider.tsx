@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AppModeContext, type AppMode } from './appModeContext';
 import { getConfig } from '../config';
 
@@ -33,14 +33,17 @@ export function AppModeProvider({ children }: AppModeProviderProps) {
   };
 
   // If docker becomes unavailable, switch back to kubernetes
-  useEffect(() => {
-    if (mode === 'docker' && !dockerAvailable) {
-      setModeState('kubernetes');
-    }
-  }, [mode, dockerAvailable]);
+  // Detect changes during render to avoid synchronous setState in effects
+  // Compute effective mode: if docker mode is set but docker not available, use kubernetes
+  const effectiveMode: AppMode = (mode === 'docker' && !dockerAvailable) ? 'kubernetes' : mode;
+  
+  // Sync the state if there's a mismatch (will cause one extra render)
+  if (mode !== effectiveMode) {
+    setModeState(effectiveMode);
+  }
 
   return (
-    <AppModeContext.Provider value={{ mode, setMode, dockerAvailable }}>
+    <AppModeContext.Provider value={{ mode: effectiveMode, setMode, dockerAvailable }}>
       {children}
     </AppModeContext.Provider>
   );

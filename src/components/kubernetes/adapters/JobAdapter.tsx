@@ -4,7 +4,7 @@
 import { Play, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1Job } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, getContainerImagesSection } from './utils';
 
 export const JobAdapter: ResourceAdapter<V1Job> = {
   kinds: ['Job', 'Jobs'],
@@ -111,6 +111,15 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
             completionTime,
           },
         }] : []),
+
+        // Container images at a glance
+        ...(getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        ) ? [getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        )!] : []),
 
         // Containers
         ...getContainerSections(

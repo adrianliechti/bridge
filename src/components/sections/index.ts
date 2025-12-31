@@ -41,12 +41,15 @@ export { CapacityBarsSection, TaintsSection } from './NodeSection';
 export { RelatedReplicaSetsSection, RelatedPVCsSection, RelatedJobsSection } from './RelatedSection';
 export { VolumeClaimTemplatesSection, ScheduleSection, JobProgressSection, TimelineSection } from './JobSection';
 export { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSection } from './InfoSection';
-export { MetricsProgressBar, NodeMetricsSection } from './MetricsSection';
+export { NodeMetricsSection } from './MetricsSection';
 export { ResourceQuotaSection } from './ResourceQuotaSection';
 export { SectionRenderer } from './SectionRenderer';
 
 // Manifest components
 export { MetadataView } from './MetadataView';
 export { HelmReleaseView } from './HelmReleaseView';
+
+// Log viewer
+export { LogViewer, type LogEntry, type LogViewerProps } from './LogViewer';
 export { DockerConfigView } from './DockerConfigView';
 export { CertificateView, PrivateKeyView, PublicKeyView, CsrView, detectPemType } from './CertificateView';

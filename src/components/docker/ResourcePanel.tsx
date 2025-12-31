@@ -1,26 +1,34 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Loader2, RefreshCw } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import {
   inspectContainer,
+  inspectVolume,
+  inspectNetwork,
   type DockerContainer,
   type ContainerInspect,
+  type DockerImage,
+  type DockerVolume,
+  type DockerNetwork,
+  type DockerNetworkInspect,
   formatContainerName,
-  getContainerStateColor,
 } from '../../api/docker/docker';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
-import { LogViewer } from './LogViewer';
-import type { ResourceAction } from './adapters/types';
+import { DockerLogViewer } from './LogViewer';
+import type { ResourceAction, DockerResource } from './adapters/types';
+
+type ResourceType = 'containers' | 'images' | 'volumes' | 'networks';
 
 interface ResourcePanelProps {
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
-  resource: DockerContainer | null;
+  resource: DockerResource | null;
+  resourceType?: ResourceType;
 }
 
-export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resource }: ResourcePanelProps) {
-  const [fullObject, setFullObject] = useState<ContainerInspect | null>(null);
+export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resource, resourceType = 'containers' }: ResourcePanelProps) {
+  const [fullObject, setFullObject] = useState<ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'logs'>('overview');
@@ -31,38 +39,85 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   // Auto-refresh interval (5 seconds)
   const REFRESH_INTERVAL = 5000;
 
-  const containerId = resource?.Id ?? '';
-  const containerName = resource ? formatContainerName(resource.Names ?? []) : '';
+  // Get resource ID based on type
+  const getResourceId = useCallback((res: DockerResource | null): string => {
+    if (!res) return '';
+    if (resourceType === 'containers') return (res as DockerContainer).Id ?? '';
+    if (resourceType === 'images') return (res as DockerImage).Id ?? '';
+    if (resourceType === 'volumes') return (res as DockerVolume).Name ?? '';
+    if (resourceType === 'networks') return (res as DockerNetwork).Id ?? '';
+    return '';
+  }, [resourceType]);
+
+  const resourceId = getResourceId(resource);
+
+  // Get display name based on type
+  const getDisplayName = useCallback((res: DockerResource | null): string => {
+    if (!res) return '';
+    if (resourceType === 'containers') {
+      const container = res as DockerContainer;
+      return formatContainerName(container.Names ?? []);
+    }
+    if (resourceType === 'images') {
+      const image = res as DockerImage;
+      const tag = image.RepoTags?.[0];
+      if (tag) return tag;
+      return image.Id?.replace('sha256:', '').substring(0, 12) ?? '';
+    }
+    if (resourceType === 'volumes') return (res as DockerVolume).Name ?? '';
+    if (resourceType === 'networks') return (res as DockerNetwork).Name ?? '';
+    return '';
+  }, [resourceType]);
+
+  const displayName = getDisplayName(resource);
 
   const fetchResourceData = useCallback(async () => {
-    if (!containerId) return;
+    if (!resourceId) return;
     
     try {
-      const data = await inspectContainer(containerId);
-      setFullObject(data);
+      let data;
+      if (resourceType === 'containers') {
+        data = await inspectContainer(resourceId);
+      } else if (resourceType === 'images') {
+        // Images don't need separate inspect - use the resource directly
+        return;
+      } else if (resourceType === 'volumes') {
+        data = await inspectVolume(resourceId);
+      } else if (resourceType === 'networks') {
+        data = await inspectNetwork(resourceId);
+      }
+      if (data) setFullObject(data);
     } catch {
       // Silent fail for background refreshes
     }
-  }, [containerId]);
+  }, [resourceId, resourceType]);
 
   // Auto-refresh polling
   useEffect(() => {
-    if (!isOpen || !containerId || !fullObject) return;
+    if (!isOpen || !resourceId || !fullObject) return;
+    // No auto-refresh for images since they don't change
+    if (resourceType === 'images') return;
 
     const interval = setInterval(() => {
       fetchResourceData();
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [isOpen, containerId, fullObject, fetchResourceData]);
+  }, [isOpen, resourceId, fullObject, fetchResourceData, resourceType]);
 
-  // Fetch the resource when container changes
+  // Fetch the resource when it changes
   useEffect(() => {
     setActiveTab('overview');
     
-    if (!containerId) {
+    if (!resourceId) {
       setFullObject(null);
       setError(null);
+      return;
+    }
+
+    // For images, use the resource directly (no inspect needed)
+    if (resourceType === 'images') {
+      setFullObject(resource as DockerImage);
       return;
     }
 
@@ -71,20 +126,33 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       setError(null);
       
       try {
-        const data = await inspectContainer(containerId);
-        setFullObject(data);
+        let data;
+        if (resourceType === 'containers') {
+          data = await inspectContainer(resourceId);
+        } else if (resourceType === 'volumes') {
+          data = await inspectVolume(resourceId);
+        } else if (resourceType === 'networks') {
+          data = await inspectNetwork(resourceId);
+        }
+        if (data) setFullObject(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch container details');
+        setError(err instanceof Error ? err.message : 'Failed to fetch resource details');
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [containerId]);
+  }, [resourceId, resourceType, resource]);
+
+  // Determine adapter type based on resource type
+  const adapterType = resourceType === 'containers' ? 'container' 
+    : resourceType === 'images' ? 'image'
+    : resourceType === 'volumes' ? 'volume' 
+    : 'network';
 
   // Get actions for the resource
-  const resourceActions = fullObject ? getResourceActions(fullObject).filter(action => {
+  const resourceActions = fullObject ? getResourceActions(fullObject, adapterType).filter(action => {
     // Filter by visibility
     if (action.isVisible && !action.isVisible(fullObject)) return false;
     return true;
@@ -118,18 +186,25 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
 
   if (!isOpen) return null;
 
-  const tabs: { id: 'overview' | 'logs'; label: string }[] = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'logs', label: 'Logs' },
-  ];
+  // Only show logs tab for containers
+  const showLogsTab = resourceType === 'containers';
+  
+  const tabs: { id: 'overview' | 'logs'; label: string }[] = showLogsTab
+    ? [
+        { id: 'overview', label: 'Overview' },
+        { id: 'logs', label: 'Logs' },
+      ]
+    : [
+        { id: 'overview', label: 'Overview' },
+      ];
 
   // Only show overview tab if we have an adapter
-  const showOverviewTab = hasAdapter('container');
+  const showOverviewTab = hasAdapter(adapterType);
 
   return (
     <div 
       className={`fixed right-0 top-0 h-full bg-white dark:bg-neutral-900 border-l border-neutral-200 dark:border-neutral-700 shadow-xl z-30 flex flex-col transition-all duration-300 ${
-        otherPanelOpen ? 'w-[28rem]' : 'w-[36rem]'
+        otherPanelOpen ? 'w-md' : 'w-xl'
       }`}
     >
       {/* Header */}
@@ -137,29 +212,16 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
             <h2 className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 truncate">
-              {containerName || 'Container'}
+              {displayName || 'Resource'}
             </h2>
             {resource && (
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-xs font-medium ${getContainerStateColor(resource.State ?? '')}`}>
-                  {resource.State ?? 'unknown'}
-                </span>
-                <span className="text-xs text-neutral-400 font-mono">
-                  {containerId.substring(0, 12)}
-                </span>
-              </div>
+              <span className="text-xs text-neutral-400 font-mono mt-0.5">
+                {resourceId.substring(0, 12)}
+              </span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => fetchResourceData()}
-            className="p-2 rounded-lg text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
-            title="Refresh"
-            disabled={loading}
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
           <button
             onClick={onClose}
             className="p-2 rounded-lg text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
@@ -221,7 +283,6 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
                 ) : (
                   action.icon
                 )}
-                <span>{action.label}</span>
               </button>
             );
           })}
@@ -271,7 +332,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
         ) : error ? (
           <div className="p-4 text-red-500 text-sm">{error}</div>
         ) : !resource ? (
-          <div className="p-4 text-neutral-500 text-sm">No container selected</div>
+          <div className="p-4 text-neutral-500 text-sm">No resource selected</div>
         ) : (
           <>
             {activeTab === 'overview' && fullObject && (
@@ -283,8 +344,8 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
                 />
               </div>
             )}
-            {activeTab === 'logs' && resource && (
-              <LogViewer container={resource} />
+            {activeTab === 'logs' && resourceType === 'containers' && resource && (
+              <DockerLogViewer container={resource as DockerContainer} toolbarRef={toolbarRef} />
             )}
           </>
         )}

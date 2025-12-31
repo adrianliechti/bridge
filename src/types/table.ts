@@ -47,15 +47,16 @@ export interface KubernetesTableResponse extends TableResponse<KubernetesObject>
 // Helper to get unique ID from any object
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getObjectId(obj: any): string {
-  // Kubernetes objects
   if (obj?.metadata?.uid) {
     return obj.metadata.uid;
   }
-  // Docker objects
   if (obj?.Id) {
     return obj.Id;
   }
-  // Fallback
+  if (obj?.Name) {
+    return obj.Name;
+  }
+  
   return JSON.stringify(obj);
 }
 

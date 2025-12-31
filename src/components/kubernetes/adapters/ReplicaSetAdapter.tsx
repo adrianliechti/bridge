@@ -4,7 +4,7 @@
 import { Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1ReplicaSet } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, getContainerImagesSection } from './utils';
 
 export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
   kinds: ['ReplicaSet', 'ReplicaSets'],
@@ -93,6 +93,15 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
             title: 'Selector',
           },
         }] : []),
+
+        // Container images at a glance
+        ...(getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        ) ? [getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        )!] : []),
 
         // Containers
         ...getContainerSections(

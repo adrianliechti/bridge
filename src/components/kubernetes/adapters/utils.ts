@@ -333,3 +333,42 @@ export function getResourceQuotaSection(containers?: V1Container[]): Section | n
     },
   };
 }
+
+/**
+ * Create a container-images section showing all container images at a glance
+ * Useful for quickly seeing what images a workload uses without expanding containers
+ */
+export function getContainerImagesSection(
+  containers?: V1Container[],
+  initContainers?: V1Container[],
+): Section | null {
+  const allContainers = [
+    ...(initContainers ?? []),
+    ...(containers ?? []),
+  ];
+  
+  if (allContainers.length === 0) return null;
+  
+  // Deduplicate by image while preserving container names
+  const seen = new Set<string>();
+  const uniqueContainers: Array<{ name: string; image?: string }> = [];
+  
+  for (const container of allContainers) {
+    if (!seen.has(container.image ?? '')) {
+      seen.add(container.image ?? '');
+      uniqueContainers.push({
+        name: container.name,
+        image: container.image,
+      });
+    }
+  }
+  
+  return {
+    id: 'images',
+    title: 'Container Images',
+    data: {
+      type: 'container-images' as const,
+      containers: uniqueContainers,
+    },
+  };
+}

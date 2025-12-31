@@ -6,7 +6,7 @@ import { listContainers, listImages, inspectContainer, getContainerLogs, formatC
 export interface DockerEnvironment extends ChatEnvironment {
   selectedContainerId?: string;
   selectedContainerName?: string;
-  selectedResourceType?: 'containers' | 'images';
+  selectedResourceType?: 'containers' | 'images' | 'volumes' | 'networks';
 }
 
 // Docker API tools

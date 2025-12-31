@@ -136,28 +136,41 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       data: { type: 'containers', items: containerData },
     });
 
-    // Network section
+    // Network section - use addresses section for IP addresses
     if (networkSettings?.Networks && Object.keys(networkSettings.Networks).length > 0) {
+      const addresses: Array<{ type: string; address: string }> = [];
       const networkInfo: InfoRowData[] = [];
       
       for (const [name, network] of Object.entries(networkSettings.Networks)) {
-        networkInfo.push({ label: 'Network', value: name });
+        // Add IP addresses to addresses section
         if (network.IPAddress) {
-          networkInfo.push({ label: 'IP Address', value: network.IPAddress });
+          addresses.push({ type: `${name} IP`, address: network.IPAddress });
         }
         if (network.Gateway) {
-          networkInfo.push({ label: 'Gateway', value: network.Gateway });
+          addresses.push({ type: `${name} Gateway`, address: network.Gateway });
         }
+        // Keep MAC in info-grid as it's not really an "address" in the network sense
         if (network.MacAddress) {
-          networkInfo.push({ label: 'MAC', value: network.MacAddress });
+          networkInfo.push({ label: `${name} MAC`, value: network.MacAddress });
         }
       }
 
-      sections.push({
-        id: 'network',
-        title: 'Network',
-        data: { type: 'info-grid', items: networkInfo, columns: 2 },
-      });
+      // Add addresses section if there are any
+      if (addresses.length > 0) {
+        sections.push({
+          id: 'network-addresses',
+          title: 'Network',
+          data: { type: 'addresses', addresses },
+        });
+      }
+
+      // Add additional network info (MAC addresses) if any
+      if (networkInfo.length > 0) {
+        sections.push({
+          id: 'network-info',
+          data: { type: 'info-grid', items: networkInfo, columns: 2 },
+        });
+      }
     }
 
     // Ports section

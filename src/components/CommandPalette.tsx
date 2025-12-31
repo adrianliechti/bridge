@@ -21,43 +21,42 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   const [isSearching, setIsSearching] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   
+  // Track adapter.id and isOpen in state to detect changes during render
+  const [trackedAdapterId, setTrackedAdapterId] = useState(adapter.id);
+  const [wasOpen, setWasOpen] = useState(false);
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const adapterIdRef = useRef(adapter.id);
 
-  // Initialize adapter when it changes
+  // Detect adapter change during render and reset initialization state
+  // Also set initialized immediately if adapter has no initialize function
+  if (adapter.id !== trackedAdapterId) {
+    setTrackedAdapterId(adapter.id);
+    // Set to true immediately if no initialize function, false otherwise
+    setIsInitialized(!adapter.initialize);
+  }
+
+  // Initialize adapter when it changes (async part only)
   useEffect(() => {
-    setIsInitialized(false);
-    adapterIdRef.current = adapter.id;
-    
     if (adapter.initialize) {
       adapter.initialize().then(() => {
-        // Only set initialized if adapter hasn't changed
-        if (adapterIdRef.current === adapter.id) {
-          setIsInitialized(true);
-        }
+        // Only set initialized if we haven't reinitialized
+        setIsInitialized(prev => !prev ? true : prev);
       });
-    } else {
-      setIsInitialized(true);
     }
+    // Note: synchronous initialization is handled during render above
   }, [adapter]);
 
-  // Reset query when palette opens
-  const handleOpen = useCallback(() => {
+  // Detect palette opening during render and reset state
+  if (isOpen && !wasOpen) {
+    setWasOpen(true);
     setQuery('');
     setFocusedIndex(0);
     setAsyncResults([]);
-  }, []);
-
-  // Track open state changes
-  const prevIsOpenRef = useRef(false);
-  useEffect(() => {
-    if (isOpen && !prevIsOpenRef.current) {
-      handleOpen();
-    }
-    prevIsOpenRef.current = isOpen;
-  }, [isOpen, handleOpen]);
+  } else if (!isOpen && wasOpen) {
+    setWasOpen(false);
+  }
 
   // Determine search mode from query prefix
   const { searchMode, searchQuery } = useMemo(() => {
@@ -116,6 +115,35 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
 
   // Final results: sync results or async results depending on mode
   const results = (searchMode === 'search' || searchMode === 'searchAll') ? asyncResults : syncResults;
+  
+  // Compute isSearching synchronously based on search state changes
+  const shouldStartSearching = (searchMode === 'search' || searchMode === 'searchAll') && 
+    searchQuery.length >= 2 && isInitialized;
+  
+  // Track previous searchMode and syncResults for focusedIndex reset using state
+  const [trackedSearchMode, setTrackedSearchMode] = useState(searchMode);
+  const [trackedSyncResultsLength, setTrackedSyncResultsLength] = useState(syncResults.length);
+  
+  // Reset focused index during render when search mode or sync results change
+  if (searchMode !== trackedSearchMode) {
+    setTrackedSearchMode(searchMode);
+    setTrackedSyncResultsLength(syncResults.length);
+    if (searchMode !== 'search' && searchMode !== 'searchAll') {
+      setFocusedIndex(0);
+    }
+  } else if (searchMode !== 'search' && searchMode !== 'searchAll' && syncResults.length !== trackedSyncResultsLength) {
+    setTrackedSyncResultsLength(syncResults.length);
+    setFocusedIndex(0);
+  }
+  
+  // Track whether we're starting a new search to set isSearching during render
+  const [trackedShouldSearch, setTrackedShouldSearch] = useState(shouldStartSearching);
+  if (shouldStartSearching && !trackedShouldSearch) {
+    setTrackedShouldSearch(true);
+    setIsSearching(true);
+  } else if (!shouldStartSearching && trackedShouldSearch) {
+    setTrackedShouldSearch(false);
+  }
 
   // Trigger async search when in search mode
   useEffect(() => {
@@ -123,17 +151,14 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
       clearTimeout(searchTimeoutRef.current);
     }
 
-    if ((searchMode === 'search' || searchMode === 'searchAll') && searchQuery.length >= 2 && isInitialized) {
-      setIsSearching(true);
+    if (shouldStartSearching) {
+      // isSearching is set during render, not here
       searchTimeoutRef.current = setTimeout(async () => {
         const results = await adapter.searchResources(searchQuery, searchMode === 'searchAll');
         setAsyncResults(results);
         setFocusedIndex(0);
         setIsSearching(false);
       }, 300);
-    } else if (searchMode === 'search' || searchMode === 'searchAll') {
-      setAsyncResults([]);
-      setIsSearching(false);
     }
 
     return () => {
@@ -141,14 +166,15 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchMode, searchQuery, adapter, isInitialized]);
-
-  // Reset focused index when sync results change
-  useEffect(() => {
-    if (searchMode !== 'search' && searchMode !== 'searchAll') {
-      setFocusedIndex(0);
-    }
-  }, [searchMode, syncResults]);
+  }, [shouldStartSearching, searchMode, searchQuery, adapter]);
+  
+  // Clear async state synchronously when search mode changes or query is too short
+  const shouldClearSearch = (searchMode === 'search' || searchMode === 'searchAll') && 
+    searchQuery.length < 2 && asyncResults.length > 0;
+  if (shouldClearSearch) {
+    setAsyncResults([]);
+    setIsSearching(false);
+  }
 
   // Handle selection
   const handleSelect = useCallback((result: SearchResult) => {

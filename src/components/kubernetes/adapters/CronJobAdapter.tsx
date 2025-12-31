@@ -3,7 +3,7 @@
 
 import { Play, Pause, Clock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, JobData } from './types';
-import { parseCronSchedule, formatTimeAgo, getContainerSections, getResourceQuotaSection } from './utils';
+import { parseCronSchedule, formatTimeAgo, getContainerSections, getResourceQuotaSection, getContainerImagesSection } from './utils';
 import { getResourceList, getResourceConfig } from '../../../api/kubernetes/kubernetes';
 import type { V1CronJob } from '@kubernetes/client-node';
 
@@ -180,6 +180,15 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
             },
           },
         },
+
+        // Container images at a glance
+        ...(getContainerImagesSection(
+          spec.jobTemplate?.spec?.template?.spec?.containers,
+          spec.jobTemplate?.spec?.template?.spec?.initContainers,
+        ) ? [getContainerImagesSection(
+          spec.jobTemplate?.spec?.template?.spec?.containers,
+          spec.jobTemplate?.spec?.template?.spec?.initContainers,
+        )!] : []),
 
         // Containers
         ...getContainerSections(

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Search } from 'lucide-react';
 import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
@@ -48,16 +48,23 @@ export function ResourcePage<T = any>({
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   const [selectedItem, setSelectedItem] = useState<TableRow<T> | null>(null);
   
+  // Track config and namespace to detect changes during render
+  const [trackedConfig, setTrackedConfig] = useState(config);
+  const [trackedNamespace, setTrackedNamespace] = useState(namespace);
+  
   const { hiddenColumns, toggleColumn } = useColumnVisibility();
   const { isOpen, open, close } = usePanels();
   
   const isDetailPanelOpen = isOpen(PANEL_DETAIL);
 
   // Clear selected item and close detail panel when config/namespace changes
-  useEffect(() => {
+  // Detect changes during render to avoid synchronous setState in effects
+  if (config !== trackedConfig || namespace !== trackedNamespace) {
+    setTrackedConfig(config);
+    setTrackedNamespace(namespace);
     setSelectedItem(null);
     close(PANEL_DETAIL);
-  }, [config, namespace, close]);
+  }
 
   // Sync selected item with detail panel state
   const handleSelectItem = useCallback((item: TableRow<T> | null) => {

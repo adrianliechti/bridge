@@ -4,7 +4,7 @@
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
 import { getResourceList, getResourceConfig } from '../../../api/kubernetes/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, getContainerImagesSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
@@ -144,6 +144,15 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
             },
           },
         },
+
+        // Container images at a glance
+        ...(getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        ) ? [getContainerImagesSection(
+          spec.template?.spec?.containers,
+          spec.template?.spec?.initContainers,
+        )!] : []),
 
         // Containers with live metrics
         ...getContainerSections(

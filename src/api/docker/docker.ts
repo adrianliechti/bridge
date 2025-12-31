@@ -7,6 +7,10 @@ import type {
   ImageSummary,
   SystemInfo,
   PortSummary,
+  Volume,
+  VolumeListResponse,
+  Network,
+  NetworkInspect,
 } from '@docker/node-sdk';
 
 // Re-export SDK types for convenience
@@ -22,6 +26,10 @@ export type {
   ContainerConfig,
   HostConfig,
   NetworkSettings,
+  Volume,
+  VolumeListResponse,
+  Network,
+  NetworkInspect,
 } from '@docker/node-sdk';
 
 // Type aliases for backward compatibility
@@ -30,6 +38,9 @@ export type ContainerInspect = ContainerInspectResponse;
 export type DockerImage = ImageSummary;
 export type DockerInfo = SystemInfo;
 export type DockerPort = PortSummary;
+export type DockerVolume = Volume;
+export type DockerNetwork = Network;
+export type DockerNetworkInspect = NetworkInspect;
 
 // Base fetch helper for Docker API calls
 async function fetchDockerApi<T>(path: string): Promise<T> {
@@ -55,9 +66,45 @@ export async function listImages(): Promise<DockerImage[]> {
   return fetchDockerApi<DockerImage[]>('/images/json');
 }
 
+// Remove an image
+export async function removeImage(id: string, force = false): Promise<void> {
+  return deleteDockerApi(`/images/${id}?force=${force}`);
+}
+
 // Get Docker daemon info
 export async function getInfo(): Promise<DockerInfo> {
   return fetchDockerApi<DockerInfo>('/info');
+}
+
+// List all volumes
+export async function listVolumes(): Promise<DockerVolume[]> {
+  const response = await fetchDockerApi<VolumeListResponse>('/volumes');
+  return response.Volumes ?? [];
+}
+
+// Get volume details
+export async function inspectVolume(name: string): Promise<DockerVolume> {
+  return fetchDockerApi<DockerVolume>(`/volumes/${encodeURIComponent(name)}`);
+}
+
+// Remove a volume
+export async function removeVolume(name: string, force = false): Promise<void> {
+  return deleteDockerApi(`/volumes/${encodeURIComponent(name)}?force=${force}`);
+}
+
+// List all networks
+export async function listNetworks(): Promise<DockerNetwork[]> {
+  return fetchDockerApi<DockerNetwork[]>('/networks');
+}
+
+// Get network details
+export async function inspectNetwork(id: string): Promise<DockerNetworkInspect> {
+  return fetchDockerApi<DockerNetworkInspect>(`/networks/${id}`);
+}
+
+// Remove a network
+export async function removeNetwork(id: string): Promise<void> {
+  return deleteDockerApi(`/networks/${id}`);
 }
 
 // Container control functions
@@ -259,6 +306,38 @@ export function formatContainerName(names: string[]): string {
   return names[0].replace(/^\//, '');
 }
 
+// Parse Docker image reference into repository and tag
+// Handles: nginx:latest, registry.com:5000/image:tag, image@sha256:..., etc.
+export function parseImageRef(ref: string): { repository: string; tag: string } {
+  if (!ref || ref === '<none>:<none>') {
+    return { repository: '<none>', tag: '<none>' };
+  }
+
+  // Handle digest references (image@sha256:...)
+  if (ref.includes('@')) {
+    const [repo, digest] = ref.split('@');
+    return { repository: repo, tag: digest };
+  }
+
+  // Find the last colon that's part of the tag (not port)
+  // The tag portion starts after the last '/' or the beginning
+  const lastSlash = ref.lastIndexOf('/');
+  const afterSlash = lastSlash >= 0 ? ref.substring(lastSlash + 1) : ref;
+  const colonInName = afterSlash.lastIndexOf(':');
+  
+  if (colonInName >= 0) {
+    // There's a tag
+    const tagStart = lastSlash >= 0 ? lastSlash + 1 + colonInName : colonInName;
+    return {
+      repository: ref.substring(0, tagStart),
+      tag: ref.substring(tagStart + 1),
+    };
+  }
+  
+  // No tag, just repository
+  return { repository: ref, tag: 'latest' };
+}
+
 // Helper to format image size
 export function formatImageSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -306,6 +385,7 @@ function formatPortsForTable(ports: DockerPort[]): string {
 
 // Helper to format created timestamp as age
 function formatAgeFromUnix(timestamp: number): string {
+  if (!timestamp || timestamp <= 0) return '-';
   const date = new Date(timestamp * 1000);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -328,7 +408,7 @@ export function dockerContainersToTable(containers: DockerContainer[]): TableRes
     { name: 'Status', type: 'string', format: '', description: 'Container status', priority: 0 },
     { name: 'State', type: 'string', format: '', description: 'Container state', priority: 1 },
     { name: 'Ports', type: 'string', format: '', description: 'Published ports', priority: 1 },
-    { name: 'Age', type: 'string', format: 'date-time', description: 'Time since created', priority: 1 },
+    { name: 'Age', type: 'string', format: '', description: 'Time since created', priority: 1 },
   ];
 
   const rows = containers.map(container => ({
@@ -353,24 +433,68 @@ export function dockerImagesToTable(images: DockerImage[]): TableResponse<Docker
     { name: 'Tag', type: 'string', format: '', description: 'Image tag', priority: 0 },
     { name: 'Image ID', type: 'string', format: '', description: 'Image identifier', priority: 0 },
     { name: 'Size', type: 'string', format: '', description: 'Image size', priority: 1 },
-    { name: 'Age', type: 'string', format: 'date-time', description: 'Time since created', priority: 1 },
+    { name: 'Age', type: 'string', format: '', description: 'Time since created', priority: 1 },
   ];
 
   const rows = images.map(image => {
     const repoTag = image.RepoTags?.[0] || '<none>:<none>';
-    const [repository, tag] = repoTag.split(':');
+    const { repository, tag } = parseImageRef(repoTag);
 
     return {
       cells: [
         repository || '<none>',
         tag || '<none>',
-        image.Id.replace('sha256:', '').substring(0, 12),
+        image.Id?.replace('sha256:', '').substring(0, 12) ?? '<none>',
         formatImageSize(image.Size),
-        formatAgeFromUnix(image.Created),
+        formatAgeFromUnix(image.Created ?? 0),
       ],
       object: image,
     };
   });
+
+  return { columnDefinitions, rows };
+}
+
+// Convert Docker volumes to table format
+export function dockerVolumesToTable(volumes: DockerVolume[]): TableResponse<DockerVolume> {
+  const columnDefinitions: TableColumnDefinition[] = [
+    { name: 'Name', type: 'string', format: '', description: 'Volume name', priority: 0 },
+    { name: 'Driver', type: 'string', format: '', description: 'Volume driver', priority: 0 },
+    { name: 'Scope', type: 'string', format: '', description: 'Volume scope', priority: 1 },
+    { name: 'Mountpoint', type: 'string', format: '', description: 'Mount location', priority: 2 },
+  ];
+
+  const rows = volumes.map(volume => ({
+    cells: [
+      volume.Name ?? '',
+      volume.Driver ?? 'local',
+      volume.Scope ?? 'local',
+      volume.Mountpoint ?? '',
+    ],
+    object: volume,
+  }));
+
+  return { columnDefinitions, rows };
+}
+
+// Convert Docker networks to table format
+export function dockerNetworksToTable(networks: DockerNetwork[]): TableResponse<DockerNetwork> {
+  const columnDefinitions: TableColumnDefinition[] = [
+    { name: 'Name', type: 'string', format: '', description: 'Network name', priority: 0 },
+    { name: 'Driver', type: 'string', format: '', description: 'Network driver', priority: 0 },
+    { name: 'Scope', type: 'string', format: '', description: 'Network scope', priority: 1 },
+    { name: 'ID', type: 'string', format: '', description: 'Network identifier', priority: 2 },
+  ];
+
+  const rows = networks.map(network => ({
+    cells: [
+      network.Name ?? '',
+      network.Driver ?? 'bridge',
+      network.Scope ?? 'local',
+      network.Id?.substring(0, 12) ?? '',
+    ],
+    object: network,
+  }));
 
   return { columnDefinitions, rows };
 }

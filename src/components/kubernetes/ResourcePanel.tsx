@@ -7,7 +7,7 @@ import { useCluster } from '../../hooks/useCluster';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
 import type { ResourceAction } from './adapters/types';
-import { LogViewer } from './LogViewer';
+import { KubernetesLogViewer } from './LogViewer';
 import { TerminalViewer } from './TerminalViewer';
 import { MetadataView } from '../sections';
 import { EventsView } from './EventsView';
@@ -468,7 +468,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
 
       {activeTab === 'logs' && supportsLogs && fullObject && (
         <div className="flex-1 overflow-hidden">
-          <LogViewer
+          <KubernetesLogViewer
             resource={fullObject}
             toolbarRef={toolbarRef}
           />
