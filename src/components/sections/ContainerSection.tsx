@@ -136,6 +136,49 @@ export function ContainerCard({
 
       {expanded && (
         <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 space-y-3">
+          {/* Current Termination State (with full details) */}
+          {container.currentTermination && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded p-2">
+              <div className="text-xs text-red-400 font-medium mb-1">Terminated</div>
+              <div className="text-xs space-y-1">
+                {container.currentTermination.reason && (
+                  <div className="text-neutral-700 dark:text-neutral-400">
+                    <span className="text-neutral-600 dark:text-neutral-500">Reason:</span> {container.currentTermination.reason}
+                  </div>
+                )}
+                {container.currentTermination.exitCode !== undefined && (
+                  <div className="text-neutral-700 dark:text-neutral-400">
+                    <span className="text-neutral-600 dark:text-neutral-500">Exit Code:</span> {container.currentTermination.exitCode}
+                  </div>
+                )}
+                {container.currentTermination.signal !== undefined && (
+                  <div className="text-neutral-700 dark:text-neutral-400">
+                    <span className="text-neutral-600 dark:text-neutral-500">Signal:</span> {container.currentTermination.signal}
+                  </div>
+                )}
+                {container.currentTermination.finishedAt && (
+                  <div className="text-neutral-700 dark:text-neutral-400">
+                    <span className="text-neutral-600 dark:text-neutral-500">Finished:</span> {new Date(container.currentTermination.finishedAt).toLocaleString()}
+                  </div>
+                )}
+                {container.currentTermination.message && (
+                  <div className="mt-2 p-2 bg-neutral-900/50 rounded">
+                    <div className="text-neutral-600 dark:text-neutral-500 mb-1">Message:</div>
+                    <div className="text-red-300 text-[11px] font-mono break-all whitespace-pre-wrap">{container.currentTermination.message}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Waiting state message */}
+          {container.state === 'waiting' && container.stateMessage && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded p-2">
+              <div className="text-xs text-amber-400 font-medium mb-1">Waiting: {container.stateReason}</div>
+              <div className="text-amber-300 text-[11px] font-mono break-all whitespace-pre-wrap">{container.stateMessage}</div>
+            </div>
+          )}
+
           {/* Image */}
           <div>
             <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Image</div>
@@ -149,6 +192,35 @@ export function ContainerCard({
               <code className="text-xs text-neutral-900 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded block">
                 {[...(container.command || []), ...(container.args || [])].join(' ')}
               </code>
+            </div>
+          )}
+
+          {/* Last Termination State */}
+          {container.lastTermination && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded p-2">
+              <div className="text-xs text-red-400 font-medium mb-1">Last Termination</div>
+              <div className="text-xs space-y-0.5">
+                {container.lastTermination.reason && (
+                  <div className="text-neutral-700 dark:text-neutral-400">
+                    <span className="text-neutral-600 dark:text-neutral-500">Reason:</span> {container.lastTermination.reason}
+                  </div>
+                )}
+                {container.lastTermination.exitCode !== undefined && (
+                  <div className="text-neutral-700 dark:text-neutral-400">
+                    <span className="text-neutral-600 dark:text-neutral-500">Exit Code:</span> {container.lastTermination.exitCode}
+                  </div>
+                )}
+                {container.lastTermination.signal !== undefined && (
+                  <div className="text-neutral-700 dark:text-neutral-400">
+                    <span className="text-neutral-600 dark:text-neutral-500">Signal:</span> {container.lastTermination.signal}
+                  </div>
+                )}
+                {container.lastTermination.finishedAt && (
+                  <div className="text-neutral-700 dark:text-neutral-400">
+                    <span className="text-neutral-600 dark:text-neutral-500">Finished:</span> {new Date(container.lastTermination.finishedAt).toLocaleString()}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

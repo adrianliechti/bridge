@@ -5,6 +5,7 @@
 import React from 'react';
 import { Route, GitBranch, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
+import { getConditionDescription } from './utils';
 
 interface HTTPRule {
   matches?: Array<{
@@ -161,6 +162,7 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                       status: condition.status,
                       reason: condition.reason,
                       message: condition.message,
+                      description: getConditionDescription('HTTPRoute', condition.type, condition.status),
                     }))
                   ),
                 },

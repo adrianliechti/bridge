@@ -9,6 +9,7 @@ export interface ConditionItem {
   status: string;
   reason?: string;
   message?: string;
+  description?: string;
   lastTransitionTime?: string | Date;
 }
 
@@ -104,10 +105,18 @@ export function ConditionsView({ conditions }: ConditionsViewProps) {
                 <Icon size={14} className={iconColor} />
               </div>
 
-              {/* Reason as title, fallback to type */}
-              <span className={`text-sm font-medium flex-1 ${typeColor}`}>
-                {formatConditionType(condition.reason || condition.type)}
-              </span>
+              {/* Type as title */}
+              <div className="flex-1 min-w-0">
+                <span className={`text-sm font-medium ${typeColor}`}>
+                  {formatConditionType(condition.type)}
+                </span>
+                {/* Human-friendly description */}
+                {condition.description && (
+                  <div className="text-xs text-neutral-500 dark:text-neutral-500">
+                    {condition.description}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Message - always shown */}

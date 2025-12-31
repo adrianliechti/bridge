@@ -3,6 +3,7 @@
 
 import { Shield, Clock, Key, Lock, CheckCircle2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
+import { mapConditions } from './utils';
 
 
 // cert-manager Certificate types
@@ -527,12 +528,7 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
         id: 'conditions',
         data: {
           type: 'conditions' as const,
-          items: status.conditions.map(c => ({
-            type: c.type ?? '',
-            status: c.status ?? 'Unknown',
-            reason: c.reason,
-            message: c.message,
-          })),
+          items: mapConditions('Certificate', status.conditions),
         },
       });
     }

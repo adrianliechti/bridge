@@ -4,7 +4,7 @@
 import { Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1ReplicaSet } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, mapConditions } from './utils';
 
 export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
   kinds: ['ReplicaSet', 'ReplicaSets'],
@@ -105,12 +105,7 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
           id: 'conditions',
           data: {
             type: 'conditions' as const,
-            items: (status?.conditions ?? []).map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-            })),
+            items: mapConditions('ReplicaSet', status?.conditions),
           },
         }] : []),
       ],

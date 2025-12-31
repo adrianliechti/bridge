@@ -3,7 +3,7 @@
 
 import { HardDrive, Database, ExternalLink, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section } from './types';
-import { getAccessModeStyle, formatAccessMode } from './utils';
+import { getAccessModeStyle, formatAccessMode, mapConditions } from './utils';
 import type { V1PersistentVolumeClaim } from '@kubernetes/client-node';
 
 export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeClaim> = {
@@ -142,12 +142,7 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
         id: 'conditions',
         data: {
           type: 'conditions',
-          items: status.conditions.map(c => ({
-            type: c.type ?? '',
-            status: c.status ?? 'Unknown',
-            reason: c.reason,
-            message: c.message,
-          })),
+          items: mapConditions('PersistentVolumeClaim', status.conditions),
         },
       });
     }

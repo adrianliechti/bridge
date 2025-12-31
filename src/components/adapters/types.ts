@@ -47,6 +47,8 @@ export interface ConditionData {
   status: string;
   reason?: string;
   message?: string;
+  /** Human-friendly description of what this condition means */
+  description?: string;
 }
 
 /** Visual pod/replica grid */
@@ -74,8 +76,23 @@ export interface ContainerData {
   image: string;
   state?: 'running' | 'waiting' | 'terminated';
   stateReason?: string;
+  stateMessage?: string;
   ready?: boolean;
   restartCount?: number;
+  currentTermination?: {
+    reason?: string;
+    message?: string;
+    exitCode?: number;
+    signal?: number;
+    startedAt?: string;
+    finishedAt?: string;
+  };
+  lastTermination?: {
+    reason?: string;
+    exitCode?: number;
+    signal?: number;
+    finishedAt?: string;
+  };
   resources?: {
     requests?: Record<string, string>;
     limits?: Record<string, string>;

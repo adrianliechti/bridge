@@ -4,7 +4,7 @@
 import type { ResourceAdapter, ResourceSections, PVCData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1StatefulSet } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, mapConditions } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
@@ -181,12 +181,7 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
           id: 'conditions',
           data: {
             type: 'conditions' as const,
-            items: (status?.conditions ?? []).map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-            })),
+            items: mapConditions('StatefulSet', status?.conditions),
           },
         }] : []),
       ],

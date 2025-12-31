@@ -11,7 +11,7 @@ import {
   formatCpu,
   formatBytes,
 } from '../../api/kubernetesMetrics';
-import { getResourceQuotaSection } from './utils';
+import { getResourceQuotaSection, mapConditions } from './utils';
 
 export const PodAdapter: ResourceAdapter<V1Pod> = {
   kinds: ['Pod', 'Pods'],
@@ -120,12 +120,7 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
           id: 'conditions',
           data: {
             type: 'conditions' as const,
-            items: (status?.conditions ?? []).map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-            })),
+            items: mapConditions('Pod', status?.conditions),
           },
         }] : []),
       ],
@@ -136,14 +131,31 @@ export const PodAdapter: ResourceAdapter<V1Pod> = {
 function mapContainer(container: V1Container, statuses: V1ContainerStatus[]): ContainerData {
   const status = statuses.find(s => s.name === container.name);
   const state = getContainerState(status);
+  const lastTerminated = status?.lastState?.terminated;
+  const currentTerminated = status?.state?.terminated;
   
   return {
     name: container.name,
     image: container.image || '',
     state: state.state,
     stateReason: state.reason,
+    stateMessage: state.message,
     ready: status?.ready,
     restartCount: status?.restartCount,
+    currentTermination: currentTerminated ? {
+      reason: currentTerminated.reason,
+      message: currentTerminated.message,
+      exitCode: currentTerminated.exitCode,
+      signal: currentTerminated.signal,
+      startedAt: currentTerminated.startedAt?.toISOString?.() ?? currentTerminated.startedAt as unknown as string,
+      finishedAt: currentTerminated.finishedAt?.toISOString?.() ?? currentTerminated.finishedAt as unknown as string,
+    } : undefined,
+    lastTermination: lastTerminated ? {
+      reason: lastTerminated.reason,
+      exitCode: lastTerminated.exitCode,
+      signal: lastTerminated.signal,
+      finishedAt: lastTerminated.finishedAt?.toISOString?.() ?? lastTerminated.finishedAt as unknown as string,
+    } : undefined,
     resources: container.resources ? {
       requests: container.resources.requests as Record<string, string> | undefined,
       limits: container.resources.limits as Record<string, string> | undefined,
@@ -203,17 +215,17 @@ function getPhaseStatus(phase?: string): 'success' | 'warning' | 'error' | 'neut
   }
 }
 
-function getContainerState(status?: V1ContainerStatus): { state?: 'running' | 'waiting' | 'terminated'; reason?: string } {
+function getContainerState(status?: V1ContainerStatus): { state?: 'running' | 'waiting' | 'terminated'; reason?: string; message?: string } {
   if (!status?.state) return {};
 
   if (status.state.running) {
     return { state: 'running' };
   }
   if (status.state.waiting) {
-    return { state: 'waiting', reason: status.state.waiting.reason };
+    return { state: 'waiting', reason: status.state.waiting.reason, message: status.state.waiting.message };
   }
   if (status.state.terminated) {
-    return { state: 'terminated', reason: status.state.terminated.reason };
+    return { state: 'terminated', reason: status.state.terminated.reason, message: status.state.terminated.message };
   }
   return {};
 }

@@ -4,7 +4,7 @@
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
 import { getResourceList, getResourceConfig } from '../../api/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, mapConditions } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
@@ -160,12 +160,7 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
           id: 'conditions',
           data: {
             type: 'conditions' as const,
-            items: (status?.conditions ?? []).map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-            })),
+            items: mapConditions('Deployment', status?.conditions),
           },
         }] : []),
       ],

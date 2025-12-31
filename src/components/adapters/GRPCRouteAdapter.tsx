@@ -5,6 +5,7 @@
 import React from 'react';
 import { Network, GitBranch, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
+import { getConditionDescription } from './utils';
 
 interface GRPCRule {
   matches?: Array<{
@@ -161,6 +162,7 @@ export const GRPCRouteAdapter: ResourceAdapter<GRPCRoute> = {
                       status: condition.status,
                       reason: condition.reason,
                       message: condition.message,
+                      description: getConditionDescription('GRPCRoute', condition.type, condition.status),
                     }))
                   ),
                 },

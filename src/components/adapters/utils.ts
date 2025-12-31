@@ -1,6 +1,6 @@
 // Utility functions for visualizers
 
-import type { Section, ContainerData, ResourceQuotaData } from './types';
+import type { Section, ContainerData, ResourceQuotaData, ConditionData } from './types';
 import type { V1Container } from '@kubernetes/client-node';
 import { 
   parseCpuToNanoCores, 
@@ -8,6 +8,233 @@ import {
   formatCpu, 
   formatBytes 
 } from '../../api/kubernetesMetrics';
+
+// =============================================================================
+// CONDITION DESCRIPTIONS
+// Human-friendly descriptions for common Kubernetes conditions
+// =============================================================================
+
+interface ConditionDescriptions {
+  [type: string]: { true: string; false: string };
+}
+
+// Pod conditions
+const POD_CONDITIONS: ConditionDescriptions = {
+  'PodScheduled': {
+    true: 'Pod has been assigned to a node',
+    false: 'Pod is waiting to be scheduled to a node',
+  },
+  'PodReadyToStartContainers': {
+    true: 'Pod sandbox and networking are configured',
+    false: 'Pod sandbox or networking is being set up',
+  },
+  'Initialized': {
+    true: 'All init containers have completed successfully',
+    false: 'Init containers are still running or failed',
+  },
+  'ContainersReady': {
+    true: 'All containers in the pod are ready',
+    false: 'One or more containers are not ready',
+  },
+  'Ready': {
+    true: 'Pod is ready to serve requests',
+    false: 'Pod is not ready to serve requests',
+  },
+  'DisruptionTarget': {
+    true: 'Pod is about to be terminated due to disruption',
+    false: 'Pod is not targeted for disruption',
+  },
+};
+
+// Deployment conditions
+const DEPLOYMENT_CONDITIONS: ConditionDescriptions = {
+  'Available': {
+    true: 'Deployment has minimum availability',
+    false: 'Deployment does not have minimum availability',
+  },
+  'Progressing': {
+    true: 'Deployment is making progress',
+    false: 'Deployment has stalled or failed to progress',
+  },
+  'ReplicaFailure': {
+    true: 'One or more replicas failed to be created',
+    false: 'All replicas are healthy',
+  },
+};
+
+// ReplicaSet conditions
+const REPLICASET_CONDITIONS: ConditionDescriptions = {
+  'ReplicaFailure': {
+    true: 'One or more pods failed to be created',
+    false: 'All pods are healthy',
+  },
+};
+
+// StatefulSet conditions (same as ReplicaSet)
+const STATEFULSET_CONDITIONS: ConditionDescriptions = {
+  ...REPLICASET_CONDITIONS,
+};
+
+// DaemonSet conditions
+const DAEMONSET_CONDITIONS: ConditionDescriptions = {
+  ...REPLICASET_CONDITIONS,
+};
+
+// Job conditions
+const JOB_CONDITIONS: ConditionDescriptions = {
+  'Complete': {
+    true: 'Job has completed successfully',
+    false: 'Job has not completed yet',
+  },
+  'Failed': {
+    true: 'Job has failed',
+    false: 'Job has not failed',
+  },
+  'Suspended': {
+    true: 'Job is suspended',
+    false: 'Job is not suspended',
+  },
+  'FailureTarget': {
+    true: 'Job is about to fail',
+    false: 'Job is not targeted for failure',
+  },
+  'SuccessCriteriaMet': {
+    true: 'Job success criteria have been met',
+    false: 'Job success criteria have not been met yet',
+  },
+};
+
+// Node conditions
+const NODE_CONDITIONS: ConditionDescriptions = {
+  'Ready': {
+    true: 'Node is healthy and ready to accept pods',
+    false: 'Node is not ready to accept pods',
+  },
+  'MemoryPressure': {
+    true: 'Node is running low on memory',
+    false: 'Node has sufficient memory',
+  },
+  'DiskPressure': {
+    true: 'Node is running low on disk space',
+    false: 'Node has sufficient disk space',
+  },
+  'PIDPressure': {
+    true: 'Node is running too many processes',
+    false: 'Node has sufficient process capacity',
+  },
+  'NetworkUnavailable': {
+    true: 'Node network is not configured correctly',
+    false: 'Node network is configured correctly',
+  },
+};
+
+// PersistentVolumeClaim conditions
+const PVC_CONDITIONS: ConditionDescriptions = {
+  'Resizing': {
+    true: 'Volume is being resized',
+    false: 'Volume is not being resized',
+  },
+  'FileSystemResizePending': {
+    true: 'Filesystem resize is pending (requires pod restart)',
+    false: 'No filesystem resize pending',
+  },
+};
+
+// Certificate (cert-manager) conditions
+const CERTIFICATE_CONDITIONS: ConditionDescriptions = {
+  'Ready': {
+    true: 'Certificate is valid and up to date',
+    false: 'Certificate is not ready',
+  },
+  'Issuing': {
+    true: 'Certificate is being issued or renewed',
+    false: 'Certificate is not being issued',
+  },
+};
+
+// Gateway API conditions
+const GATEWAY_CONDITIONS: ConditionDescriptions = {
+  'Accepted': {
+    true: 'Gateway configuration has been accepted',
+    false: 'Gateway configuration has not been accepted',
+  },
+  'Programmed': {
+    true: 'Gateway is programmed and ready to route traffic',
+    false: 'Gateway is not yet programmed',
+  },
+  'Ready': {
+    true: 'Gateway is ready to route traffic',
+    false: 'Gateway is not ready',
+  },
+};
+
+// HTTPRoute/GRPCRoute conditions
+const ROUTE_CONDITIONS: ConditionDescriptions = {
+  'Accepted': {
+    true: 'Route has been accepted by the gateway',
+    false: 'Route has not been accepted',
+  },
+  'ResolvedRefs': {
+    true: 'All references in the route have been resolved',
+    false: 'Some references could not be resolved',
+  },
+};
+
+// Map of resource kinds to their condition descriptions
+const CONDITION_MAPS: Record<string, ConditionDescriptions> = {
+  'Pod': POD_CONDITIONS,
+  'Deployment': DEPLOYMENT_CONDITIONS,
+  'ReplicaSet': REPLICASET_CONDITIONS,
+  'StatefulSet': STATEFULSET_CONDITIONS,
+  'DaemonSet': DAEMONSET_CONDITIONS,
+  'Job': JOB_CONDITIONS,
+  'CronJob': JOB_CONDITIONS,
+  'Node': NODE_CONDITIONS,
+  'PersistentVolumeClaim': PVC_CONDITIONS,
+  'Certificate': CERTIFICATE_CONDITIONS,
+  'CertificateRequest': CERTIFICATE_CONDITIONS,
+  'Gateway': GATEWAY_CONDITIONS,
+  'HTTPRoute': ROUTE_CONDITIONS,
+  'GRPCRoute': ROUTE_CONDITIONS,
+};
+
+/**
+ * Get a human-friendly description for a condition
+ * @param kind - The Kubernetes resource kind (e.g., 'Pod', 'Deployment')
+ * @param type - The condition type (e.g., 'Ready', 'Available')
+ * @param status - The condition status ('True', 'False', 'Unknown')
+ */
+export function getConditionDescription(kind: string, type: string, status: string): string | undefined {
+  const isTrue = status === 'True';
+  
+  // Try to find specific descriptions for this kind
+  const kindMap = CONDITION_MAPS[kind];
+  if (kindMap && kindMap[type]) {
+    return isTrue ? kindMap[type].true : kindMap[type].false;
+  }
+  
+  // Fallback: convert PascalCase to readable format
+  const readable = type.replace(/([A-Z])/g, ' $1').trim();
+  return `${readable} is ${status}`;
+}
+
+/**
+ * Map raw conditions to ConditionData with descriptions
+ */
+export function mapConditions(
+  kind: string,
+  conditions: Array<{ type?: string; status?: string; reason?: string; message?: string }> | undefined
+): ConditionData[] {
+  if (!conditions) return [];
+  
+  return conditions.map(c => ({
+    type: c.type || '',
+    status: c.status || '',
+    reason: c.reason,
+    message: c.message,
+    description: getConditionDescription(kind, c.type || '', c.status || ''),
+  }));
+}
 
 export function formatDuration(ms: number): string {
   const seconds = Math.floor(ms / 1000);

@@ -3,7 +3,7 @@
 
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1DaemonSet } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getContainerSections, getResourceQuotaSection, mapConditions } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../api/kubernetesMetrics';
 
 export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
@@ -123,12 +123,7 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
           id: 'conditions',
           data: {
             type: 'conditions' as const,
-            items: (status?.conditions ?? []).map(c => ({
-              type: c.type || '',
-              status: c.status || '',
-              reason: c.reason,
-              message: c.message,
-            })),
+            items: mapConditions('DaemonSet', status?.conditions),
           },
         }] : []),
       ],

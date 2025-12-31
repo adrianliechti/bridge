@@ -3,6 +3,7 @@
 
 import { Globe, Network, Server, ExternalLink, Lock } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './types';
+import { mapConditions } from './utils';
 import type { V1Service } from '@kubernetes/client-node';
 
 // Get service type display info
@@ -302,12 +303,7 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
         id: 'conditions',
         data: {
           type: 'conditions',
-          items: status.conditions.map(c => ({
-            type: c.type,
-            status: c.status,
-            reason: c.reason,
-            message: c.message,
-          })),
+          items: mapConditions('Service', status.conditions),
         },
       });
     }

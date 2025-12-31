@@ -3,6 +3,7 @@
 
 import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
+import { mapConditions } from './utils';
 import { CertificateView, CsrView } from '../sections/CertificateView';
 
 
@@ -423,12 +424,7 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
         id: 'conditions',
         data: {
           type: 'conditions' as const,
-          items: status.conditions.map(c => ({
-            type: c.type ?? '',
-            status: c.status ?? 'Unknown',
-            reason: c.reason,
-            message: c.message,
-          })),
+          items: mapConditions('CertificateRequest', status.conditions),
         },
       });
     }
