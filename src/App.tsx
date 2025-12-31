@@ -1,19 +1,34 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
+import { Search } from 'lucide-react';
 import { ResourceSidebar, type V1APIResource } from './components/ResourceSidebar';
 import { ResourcePage } from './components/ResourcePage';
 import { ResourceOverview } from './components/ResourceOverview';
 import { WelcomePage } from './components/WelcomePage';
+import { CommandPalette } from './components/CommandPalette';
 import { PanelProvider } from './context/PanelProvider';
 import { ClusterProvider } from './context/ClusterProvider';
 import { useCluster } from './hooks/useCluster';
 
 function AppContent() {
   const { namespace, selectedResource, setSelectedResource } = useCluster();
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   // Handler for sidebar resource selection
   const handleSelectResource = useCallback((resource: V1APIResource | null) => {
     setSelectedResource(resource);
   }, [setSelectedResource]);
+
+  // Global keyboard shortcut for command palette (Cmd/Ctrl + K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Check if overview is selected
   const isOverview = selectedResource === null;
@@ -43,6 +58,15 @@ function AppContent() {
                 </span>
               )}
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsCommandPaletteOpen(true)}
+                className="p-2 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
+                title="Command Palette (⌘K)"
+              >
+                <Search size={18} />
+              </button>
+            </div>
           </header>
           <section className="flex-1 overflow-hidden min-h-0">
             {namespace ? (
@@ -55,6 +79,12 @@ function AppContent() {
       ) : (
         <ResourcePage key={resourceKey} resource={selectedResource} />
       )}
+      
+      {/* Command Palette */}
+      <CommandPalette 
+        isOpen={isCommandPaletteOpen} 
+        onClose={() => setIsCommandPaletteOpen(false)} 
+      />
     </div>
   );
 }

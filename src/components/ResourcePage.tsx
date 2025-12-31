@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Search } from 'lucide-react';
 import type { V1APIResource } from '../api/kubernetesTable';
 import type { TableColumnDefinition, TableRow } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
@@ -81,6 +81,21 @@ export function ResourcePage({ resource }: ResourcePageProps) {
           </div>
           {/* Actions */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const event = new KeyboardEvent('keydown', {
+                  key: 'k',
+                  metaKey: true,
+                  ctrlKey: true,
+                  bubbles: true
+                });
+                document.dispatchEvent(event);
+              }}
+              className="p-2 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
+              title="Command Palette (⌘K)"
+            >
+              <Search size={18} />
+            </button>
             <ColumnFilter
               columns={columns}
               hiddenColumns={hiddenColumns}
