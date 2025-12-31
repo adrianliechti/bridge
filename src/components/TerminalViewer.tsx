@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { ChevronDown, PlugZap, Unplug } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { ExecSession } from '../api/kubernetesExec';
 import { useCluster } from '../hooks/useCluster';
 import type { KubernetesResource } from '../api/kubernetes';
@@ -261,25 +261,7 @@ export function TerminalViewer({
             </div>
           )}
           
-          {/* Connect/Disconnect button */}
-          {isConnected ? (
-            <button
-              onClick={disconnect}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
-              title="Disconnect"
-            >
-              <Unplug size={12} />
-            </button>
-          ) : (
-            <button
-              onClick={connect}
-              disabled={isConnecting || !selectedContainer}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Connect"
-            >
-              <PlugZap size={12} />
-            </button>
-          )}
+
         </ToolbarPortal>
       )}
 
