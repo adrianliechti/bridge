@@ -81,16 +81,54 @@ export function ResourceTable({
     [context, config, namespace]
   );
 
+  // Check if we should show the namespace column (when all namespaces is selected and resource is namespaced)
+  const showNamespaceColumn = namespace === undefined && config.namespaced === true;
+
+  // Namespace column definition for "all namespaces" view
+  const namespaceColumn: TableColumnDefinition = useMemo(() => ({
+    name: 'Namespace',
+    type: 'string',
+    format: '',
+    description: 'Namespace of the resource',
+    priority: 0,
+  }), []);
+
   // Get visible columns
   const visibleColumns = useMemo(() => {
     if (!data?.columnDefinitions) return [];
-    return data.columnDefinitions.filter((col) => !hiddenColumns.has(col.name.toLowerCase()));
-  }, [data, hiddenColumns]);
+    const columns = data.columnDefinitions.filter((col) => !hiddenColumns.has(col.name.toLowerCase()));
+    
+    // Insert namespace column after Name column when showing all namespaces
+    if (showNamespaceColumn && !hiddenColumns.has('namespace')) {
+      const nameIndex = columns.findIndex(col => col.name.toLowerCase() === 'name');
+      if (nameIndex !== -1) {
+        return [
+          ...columns.slice(0, nameIndex + 1),
+          namespaceColumn,
+          ...columns.slice(nameIndex + 1),
+        ];
+      }
+    }
+    
+    return columns;
+  }, [data, hiddenColumns, showNamespaceColumn, namespaceColumn]);
 
   // Sort rows
   const sortedRows = useMemo(() => {
     if (!data?.rows || !sortState.column || !sortState.direction) {
       return data?.rows ?? [];
+    }
+
+    // Handle synthetic Namespace column
+    const isSortingNamespace = sortState.column === 'Namespace' && showNamespaceColumn;
+    
+    if (isSortingNamespace) {
+      return [...data.rows].sort((a, b) => {
+        const aVal = a.object.metadata.namespace || '';
+        const bVal = b.object.metadata.namespace || '';
+        const comparison = aVal.localeCompare(bVal);
+        return sortState.direction === 'asc' ? comparison : -comparison;
+      });
     }
 
     const columnIndex = data.columnDefinitions.findIndex(
@@ -128,7 +166,7 @@ export function ResourceTable({
       
       return sortState.direction === 'asc' ? comparison : -comparison;
     });
-  }, [data, sortState]);
+  }, [data, sortState, showNamespaceColumn]);
 
   // Handle column header click for sorting
   const handleSort = (columnName: string) => {
@@ -250,10 +288,14 @@ export function ResourceTable({
                 }`}
               >
                 {visibleColumns.map((col, idx) => {
-                  const cellIndex = data!.columnDefinitions.findIndex(
-                    (c) => c.name === col.name
-                  );
-                  const cellValue = row.cells[cellIndex];
+                  // Handle the synthetic Namespace column
+                  const isNamespaceColumn = col.name === 'Namespace' && showNamespaceColumn;
+                  const cellIndex = isNamespaceColumn 
+                    ? -1 
+                    : data!.columnDefinitions.findIndex((c) => c.name === col.name);
+                  const cellValue = isNamespaceColumn 
+                    ? row.object.metadata.namespace 
+                    : row.cells[cellIndex];
                   const formatted = formatCell(cellValue, col);
                   const isNameColumn = col.name.toLowerCase() === 'name';
 
