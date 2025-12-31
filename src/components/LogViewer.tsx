@@ -391,24 +391,6 @@ export function LogViewer({
         </ToolbarPortal>
       )}
 
-      {/* Pod legend */}
-      {podNames.length > 1 && (
-        <div className="shrink-0 px-4 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900/30">
-          <div className="flex flex-wrap gap-2">
-            {podNames.map((name: string) => (
-              <span
-                key={name}
-                className={`text-xs ${getPodColor(name, podNames)} flex items-center gap-1`}
-                title={name}
-              >
-                <span className="w-2 h-2 rounded-full bg-current" />
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Logs content */}
       <div 
         ref={logsContainerRef}
