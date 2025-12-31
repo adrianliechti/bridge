@@ -208,7 +208,7 @@ export function ScopeSelector({
           ref={inputRef}
           type="text"
           className="w-full px-3 py-1.5 pr-8 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg text-sm text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-neutral-400/50 dark:focus:ring-neutral-500/50 cursor-default placeholder:text-neutral-400"
-          value={isOpen ? query : (selectedNamespace || 'All Namespaces')}
+          value={isOpen ? query : (disabled ? 'Cluster' : (selectedNamespace || 'All Namespaces'))}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => !disabled && setIsOpen(true)}
           onKeyDown={handleKeyDown}
