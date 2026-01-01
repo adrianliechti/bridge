@@ -1,4 +1,4 @@
-import type { CapacityBarData, TaintData } from '../adapters/types';
+import type { CapacityBarData, TaintData } from './types';
 
 export function CapacityBarsSection({ items }: { items: CapacityBarData[] }) {
   if (items.length === 0) return null;

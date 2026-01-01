@@ -7,7 +7,7 @@ import type {
   StatusCardData,
   GaugeData,
   PodGridData,
-} from '../adapters/types';
+} from './types';
 
 export function StatusCardsSection({ items }: { items: StatusCardData[] }) {
   const statusColors = {

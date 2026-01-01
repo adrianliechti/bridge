@@ -1,4 +1,4 @@
-import type { Section, SectionData } from '../adapters/types';
+import type { Section, SectionData } from './types';
 import { StatusCardsSection, GaugesSection } from './StatusSection';
 import { ContainersSection } from './ContainerSection';
 import { VolumesSection } from './VolumeSection';
@@ -16,7 +16,7 @@ export function SectionRenderer({ section }: { section: Section }) {
   // Don't render empty sections
   if (content === null) return null;
 
-  if (!title) return <>{content}</>;
+  if (!title) return <div>{content}</div>;
 
   return (
     <div>

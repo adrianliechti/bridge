@@ -273,7 +273,8 @@ interface CertificateViewProps {
 }
 
 export function CertificateView({ name, pem }: CertificateViewProps) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const toggleExpanded = () => setExpanded(prev => !prev);
   const [copied, setCopied] = useState(false);
   
   const metadata = parseCertificate(pem);
@@ -318,7 +319,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
   return (
     <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={toggleExpanded}
         className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
       >
         <div className="flex items-center gap-2">
@@ -492,6 +493,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
 // Component for displaying private key info with optional reveal
 export function PrivateKeyView({ name, pem }: { name: string; pem: string }) {
   const [expanded, setExpanded] = useState(false);
+  const toggleExpanded = () => setExpanded(prev => !prev);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -503,7 +505,7 @@ export function PrivateKeyView({ name, pem }: { name: string; pem: string }) {
   return (
     <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={toggleExpanded}
         className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
       >
         <div className="flex items-center gap-2">
@@ -549,6 +551,7 @@ export function PrivateKeyView({ name, pem }: { name: string; pem: string }) {
 // Component for displaying CSR info
 export function CsrView({ name, pem }: { name: string; pem: string }) {
   const [expanded, setExpanded] = useState(false);
+  const toggleExpanded = () => setExpanded(prev => !prev);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -560,7 +563,7 @@ export function CsrView({ name, pem }: { name: string; pem: string }) {
   return (
     <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={toggleExpanded}
         className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
       >
         <div className="flex items-center gap-2">

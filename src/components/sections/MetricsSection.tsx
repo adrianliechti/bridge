@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 import type { 
   NodeMetricsData,
-} from '../adapters/types';
-import { calculatePercentage } from '../../api/kubernetesMetrics';
+} from './types';
+import { calculatePercentage } from './utils';
 
 const METRICS_REFRESH_INTERVAL = 15000; // 15 seconds
 
@@ -87,8 +87,8 @@ export function NodeMetricsSection({ loader, title }: { loader: () => Promise<No
     return null;
   }
 
-  const cpuPercentage = calculatePercentage(data.cpu.usageNanoCores, data.cpu.allocatableNanoCores);
-  const memoryPercentage = calculatePercentage(data.memory.usageBytes, data.memory.allocatableBytes);
+  const cpuPercentage = calculatePercentage(data.cpu.usageNanoCores, data.cpu.allocatableNanoCores ?? 0);
+  const memoryPercentage = calculatePercentage(data.memory.usageBytes, data.memory.allocatableBytes ?? 0);
 
   return (
     <div>

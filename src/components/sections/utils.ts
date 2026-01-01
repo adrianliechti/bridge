@@ -1,4 +1,37 @@
-// Utility functions for panels
+// Utility functions for sections
+
+/**
+ * Calculate percentage of usage relative to limit.
+ * Returns 0 if limit is 0 or negative, caps at 100%.
+ */
+export function calculatePercentage(usage: number, limit: number): number {
+  if (limit <= 0) return 0;
+  return Math.min(100, Math.round((usage / limit) * 100));
+}
+
+export function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
+}
+
+export function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 // Get container state styling info
 export function getContainerStateInfo(state?: string, reason?: string) {

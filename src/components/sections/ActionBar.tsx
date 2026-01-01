@@ -1,24 +1,22 @@
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import type { ResourceAction } from '../adapters/types';
-import type { KubernetesResource } from '../../api/kubernetes';
-import { useCluster } from '../../hooks/useCluster';
+import type { ResourceAction } from './types';
 
-export interface ActionBarProps {
-  actions: ResourceAction[];
-  resource: KubernetesResource;
+export interface ActionBarProps<T> {
+  context: string;
+  actions: ResourceAction<T>[];
+  resource: T;
   onActionComplete?: () => void;
 }
 
-export function ActionBar({ actions, resource, onActionComplete }: ActionBarProps) {
-  const { context } = useCluster();
+export function ActionBar<T>({ context, actions, resource, onActionComplete }: ActionBarProps<T>) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ResourceAction<T> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (actions.length === 0) return null;
 
-  const executeAction = async (action: ResourceAction) => {
+  const executeAction = async (action: ResourceAction<T>) => {
     setError(null);
     setLoadingAction(action.id);
     try {
@@ -32,7 +30,7 @@ export function ActionBar({ actions, resource, onActionComplete }: ActionBarProp
     }
   };
 
-  const handleActionClick = (action: ResourceAction) => {
+  const handleActionClick = (action: ResourceAction<T>) => {
     if (action.confirm) {
       setConfirmAction(action);
     } else {
@@ -40,7 +38,7 @@ export function ActionBar({ actions, resource, onActionComplete }: ActionBarProp
     }
   };
 
-  const getVariantClasses = (variant: ResourceAction['variant'] = 'secondary') => {
+  const getVariantClasses = (variant: ResourceAction<T>['variant'] = 'secondary') => {
     switch (variant) {
       case 'primary':
         return 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600';

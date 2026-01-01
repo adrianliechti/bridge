@@ -14,28 +14,20 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      // Simulate /contexts endpoint returning a single "default" context
-      '/contexts': {
-        target: 'http://127.0.0.1:8001',
-        changeOrigin: true,
-        rewrite: (path) => {
-          return path.replace(/^\/contexts\/[^/]+/, '');
-        },
-        bypass: (req, res) => {
-          if (req.method === 'GET' && req.url === '/contexts' && res) {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify([
-              { name: 'default' },
-            ]));
-            return false;
-          }
-          return null;
-        },
-      },
       '/openai': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/openai/, '')
+      },
+      '/contexts/local-docker': {
+        target: 'http://localhost:2375',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/contexts\/local-docker/, '')
+      },
+      '/contexts/local-cluster': {
+        target: 'http://127.0.0.1:8001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/contexts\/local-cluster/, '')
       }
     },
   },

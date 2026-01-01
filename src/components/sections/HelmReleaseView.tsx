@@ -115,6 +115,9 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
   const [showValues, setShowValues] = useState(false);
   const [showManifest, setShowManifest] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const toggleValues = () => setShowValues(prev => !prev);
+  const toggleManifest = () => setShowManifest(prev => !prev);
+  const toggleNotes = () => setShowNotes(prev => !prev);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
@@ -205,7 +208,7 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
       {release.config && Object.keys(release.config).length > 0 && (
         <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
           <button
-            onClick={() => setShowValues(!showValues)}
+            onClick={toggleValues}
             className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
           >
             <div className="flex items-center gap-2">
@@ -248,7 +251,7 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
       {info?.notes && (
         <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
           <button
-            onClick={() => setShowNotes(!showNotes)}
+            onClick={toggleNotes}
             className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
           >
             <div className="flex items-center gap-2">
@@ -291,7 +294,7 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
       {release.manifest && (
         <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
           <button
-            onClick={() => setShowManifest(!showManifest)}
+            onClick={toggleManifest}
             className="w-full flex items-center justify-between p-3 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 transition-colors text-left"
           >
             <div className="flex items-center gap-2">
