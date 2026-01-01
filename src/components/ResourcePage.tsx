@@ -64,6 +64,10 @@ export function ResourcePage<T = any>({
   
   const isDetailPanelOpen = isOpen(PANEL_DETAIL);
 
+  // Track previous selectedItemName to detect changes
+  const prevSelectedItemNameRef = useRef<string | undefined>(undefined);
+  const initialSyncDoneRef = useRef(false);
+
   // Clear selected item and close detail panel when config/namespace changes
   // Detect changes during render to avoid synchronous setState in effects
   if (config !== trackedConfig || namespace !== trackedNamespace) {
@@ -71,10 +75,8 @@ export function ResourcePage<T = any>({
     setTrackedNamespace(namespace);
     setSelectedItem(null);
     close(PANEL_DETAIL);
+    initialSyncDoneRef.current = false;
   }
-
-  // Track previous selectedItemName to detect changes
-  const prevSelectedItemNameRef = useRef(selectedItemName);
   
   // Sync selected item from URL when data changes or selectedItemName changes
   useEffect(() => {
@@ -85,7 +87,10 @@ export function ResourcePage<T = any>({
     queueMicrotask(() => {
       if (selectedItemName && data?.rows && getItemName) {
         const item = data.rows.find(row => getItemName(row) === selectedItemName);
-        if (item && prevName !== selectedItemName) {
+        // Open panel if: name changed, or this is the initial sync with a name in URL
+        const shouldOpenPanel = item && (prevName !== selectedItemName || !initialSyncDoneRef.current);
+        if (shouldOpenPanel) {
+          initialSyncDoneRef.current = true;
           setSelectedItem(item);
           if (showDetailPanel) {
             open(PANEL_DETAIL);

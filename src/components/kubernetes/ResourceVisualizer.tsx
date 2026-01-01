@@ -3,6 +3,7 @@
 // This component renders the sections produced by resource adapters.
 // It provides a consistent look and feel across all resource kinds.
 
+import { useMemo } from 'react';
 import type { KubernetesResource } from '../../api/kubernetes/kubernetes';
 import { adaptResource, getResourceActions } from './index';
 import { ActionBar } from '../sections/ActionBar';
@@ -20,8 +21,16 @@ interface ResourceVisualizerProps {
 }
 
 export function ResourceVisualizer({ context, resource, onActionComplete, hideActions = false }: ResourceVisualizerProps) {
-  const sections = adaptResource(context, resource);
-  const actions = getResourceActions(resource);
+  // Memoize sections based on resource version to avoid recreating section objects on every render
+  // This helps prevent unnecessary re-renders of child components when data hasn't changed
+  const sections = useMemo(
+    () => adaptResource(context, resource),
+    [context, resource]
+  );
+  const actions = useMemo(
+    () => getResourceActions(resource),
+    [resource]
+  );
 
   // Get kubernetes.io/description annotation if present
   const description = resource.metadata?.annotations?.['kubernetes.io/description'];
@@ -35,7 +44,7 @@ export function ResourceVisualizer({ context, resource, onActionComplete, hideAc
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {!hideActions && (
         <ActionBar 
           context={context}

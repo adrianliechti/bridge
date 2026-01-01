@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from '@tanstack/react-router';
 import { 
   Layers, 
   HardDrive, 
@@ -36,35 +37,50 @@ export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Pro
     <div>
       {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
       <div className="space-y-2">
-        {items.map(rs => (
-          <div key={rs.name} className={`border rounded-lg p-3 ${
-            rs.isCurrent 
-              ? 'border-blue-500/30 bg-blue-500/5' 
-              : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50 opacity-60'
-          }`}>
-            <div className="flex items-center gap-3">
-              <Layers size={16} className={rs.isCurrent ? 'text-blue-400' : 'text-neutral-600 dark:text-neutral-500'} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={rs.name}>
-                    {rs.name}
-                  </span>
-                </div>
-                {rs.images.length > 0 && (
-                  <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">
-                    {rs.images.join(', ')}
+        {items.map(rs => {
+          const content = (
+            <div className={`border rounded-lg p-3 ${
+              rs.isCurrent 
+                ? 'border-blue-500/30 bg-blue-500/5' 
+                : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50 opacity-60'
+            } ${rs.context && rs.namespace ? 'hover:border-blue-500/50 transition-colors cursor-pointer' : ''}`}>
+              <div className="flex items-center gap-3">
+                <Layers size={16} className={rs.isCurrent ? 'text-blue-400' : 'text-neutral-600 dark:text-neutral-500'} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={rs.name}>
+                      {rs.name}
+                    </span>
                   </div>
-                )}
-              </div>
-              <div className="text-xs">
-                <span className={rs.readyReplicas === rs.replicas ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-                  {rs.readyReplicas}/{rs.replicas}
-                </span>
-                <span className="text-neutral-600 dark:text-neutral-500 ml-1">ready</span>
+                  {rs.images.length > 0 && (
+                    <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">
+                      {rs.images.join(', ')}
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs">
+                  <span className={rs.readyReplicas === rs.replicas ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                    {rs.readyReplicas}/{rs.replicas}
+                  </span>
+                  <span className="text-neutral-600 dark:text-neutral-500 ml-1">ready</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+          
+          return rs.context && rs.namespace ? (
+            <Link
+              key={rs.name}
+              to="/cluster/$context/$resourceType/$name"
+              params={{ context: rs.context, resourceType: 'replicasets', name: rs.name }}
+              search={(prev) => ({ ...prev, namespace: rs.namespace })}
+            >
+              {content}
+            </Link>
+          ) : (
+            <div key={rs.name}>{content}</div>
+          );
+        })}
       </div>
     </div>
   );
@@ -95,33 +111,48 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
     <div>
       {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
       <div className="space-y-2">
-        {items.map(pvc => (
-          <div key={pvc.name} className={`border rounded-lg p-3 ${
-            pvc.status === 'Bound' 
-              ? 'border-emerald-500/30 bg-emerald-500/5'
-              : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50'
-          }`}>
-            <div className="flex items-center gap-3">
-              <HardDrive size={16} className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-600 dark:text-neutral-500'} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{pvc.name}</span>
+        {items.map(pvc => {
+          const content = (
+            <div className={`border rounded-lg p-3 ${
+              pvc.status === 'Bound' 
+                ? 'border-emerald-500/30 bg-emerald-500/5'
+                : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50'
+            } ${pvc.context && pvc.namespace ? 'hover:border-emerald-500/50 transition-colors cursor-pointer' : ''}`}>
+              <div className="flex items-center gap-3">
+                <HardDrive size={16} className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-600 dark:text-neutral-500'} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{pvc.name}</span>
+                  </div>
+                  <div className="text-xs text-neutral-600 dark:text-neutral-500">
+                    {pvc.storageClass || 'default'} storage class
+                  </div>
                 </div>
-                <div className="text-xs text-neutral-600 dark:text-neutral-500">
-                  {pvc.storageClass || 'default'} storage class
+                <div className="flex items-center gap-3 text-xs">
+                  {pvc.capacity && (
+                    <span className="text-cyan-600 dark:text-cyan-400">{pvc.capacity}</span>
+                  )}
+                  <span className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                    {pvc.status}
+                  </span>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 text-xs">
-                {pvc.capacity && (
-                  <span className="text-cyan-600 dark:text-cyan-400">{pvc.capacity}</span>
-                )}
-                <span className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-                  {pvc.status}
-                </span>
               </div>
             </div>
-          </div>
-        ))}
+          );
+
+          return pvc.context && pvc.namespace ? (
+            <Link
+              key={pvc.name}
+              to="/cluster/$context/$resourceType/$name"
+              params={{ context: pvc.context, resourceType: 'persistentvolumeclaims', name: pvc.name }}
+              search={(prev) => ({ ...prev, namespace: pvc.namespace })}
+            >
+              {content}
+            </Link>
+          ) : (
+            <div key={pvc.name}>{content}</div>
+          );
+        })}
       </div>
     </div>
   );
@@ -130,7 +161,8 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
 export function RelatedJobsSection({ loader, title }: { loader: () => Promise<JobData[]>; title?: string }) {
   const [items, setItems] = useState<JobData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const toggleExpanded = () => setExpanded(prev => !prev);
 
   useEffect(() => {
     loader().then(setItems).finally(() => setLoading(false));
@@ -155,47 +187,61 @@ export function RelatedJobsSection({ loader, title }: { loader: () => Promise<Jo
     <div>
       {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
       <div className="space-y-2">
-        {displayJobs.map(job => (
-          <div 
-            key={job.name} 
-            className={`border rounded-lg p-3 ${
-              job.status === 'Complete' 
-                ? 'border-emerald-500/30 bg-emerald-500/5' 
-                : job.status === 'Failed'
-                ? 'border-red-500/30 bg-red-500/5'
-                : 'border-amber-500/30 bg-amber-500/5'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              {job.status === 'Complete' ? (
-                <CheckCircle2 size={16} className="text-emerald-400" />
-              ) : job.status === 'Failed' ? (
-                <XCircle size={16} className="text-red-400" />
-              ) : (
-                <Clock size={16} className="text-amber-400" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={job.name}>{job.name}</span>
-                </div>
-                {job.startTime && (
-                  <div className="text-xs text-neutral-600 dark:text-neutral-500">
-                    Started {formatTimeAgo(new Date(job.startTime))}
-                  </div>
+        {displayJobs.map(job => {
+          const content = (
+            <div 
+              className={`border rounded-lg p-3 ${
+                job.status === 'Complete' 
+                  ? 'border-emerald-500/30 bg-emerald-500/5' 
+                  : job.status === 'Failed'
+                  ? 'border-red-500/30 bg-red-500/5'
+                  : 'border-amber-500/30 bg-amber-500/5'
+              } ${job.context && job.namespace ? 'hover:border-blue-500/50 transition-colors cursor-pointer' : ''}`}
+            >
+              <div className="flex items-center gap-3">
+                {job.status === 'Complete' ? (
+                  <CheckCircle2 size={16} className="text-emerald-400" />
+                ) : job.status === 'Failed' ? (
+                  <XCircle size={16} className="text-red-400" />
+                ) : (
+                  <Clock size={16} className="text-amber-400" />
                 )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={job.name}>{job.name}</span>
+                  </div>
+                  {job.startTime && (
+                    <div className="text-xs text-neutral-600 dark:text-neutral-500">
+                      Started {formatTimeAgo(new Date(job.startTime))}
+                    </div>
+                  )}
+                </div>
+                <span className={`text-xs ${
+                  job.status === 'Complete' ? 'text-emerald-600 dark:text-emerald-400' :
+                  job.status === 'Failed' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+                }`}>
+                  {job.status}
+                </span>
               </div>
-              <span className={`text-xs ${
-                job.status === 'Complete' ? 'text-emerald-600 dark:text-emerald-400' :
-                job.status === 'Failed' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
-              }`}>
-                {job.status}
-              </span>
             </div>
-          </div>
-        ))}
+          );
+
+          return job.context && job.namespace ? (
+            <Link
+              key={job.name}
+              to="/cluster/$context/$resourceType/$name"
+              params={{ context: job.context, resourceType: 'jobs', name: job.name }}
+              search={(prev) => ({ ...prev, namespace: job.namespace })}
+            >
+              {content}
+            </Link>
+          ) : (
+            <div key={job.name}>{content}</div>
+          );
+        })}
         {items.length > 3 && (
           <button
-            onClick={() => setExpanded(!expanded)}
+            onClick={toggleExpanded}
             className="flex items-center gap-1 text-xs text-neutral-600 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-300 transition-colors mt-2"
           >
             {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}

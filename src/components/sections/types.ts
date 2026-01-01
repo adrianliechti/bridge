@@ -146,6 +146,8 @@ export interface JobData {
   completionTime?: string;
   succeeded?: number;
   failed?: number;
+  namespace?: string;
+  context?: string;
 }
 
 /** ReplicaSet display data */
@@ -155,6 +157,8 @@ export interface ReplicaSetData {
   readyReplicas: number;
   images: string[];
   isCurrent: boolean;
+  namespace?: string;
+  context?: string;
 }
 
 /** PVC display data */
@@ -163,6 +167,8 @@ export interface PVCData {
   status: string;
   capacity?: string;
   storageClass?: string;
+  namespace?: string;
+  context?: string;
 }
 
 /** Volume Claim Template data */

@@ -121,7 +121,6 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
                     const meta = rs.metadata as Record<string, unknown>;
                     const rsSpec = rs.spec as { template?: { spec?: { containers?: Array<{ image: string }> } } };
                     const rsStatus = rs.status as { replicas?: number; readyReplicas?: number };
-                    const annotations = meta.annotations as Record<string, string> | undefined;
                     
                     return {
                       name: meta.name as string,
@@ -129,6 +128,8 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
                       readyReplicas: rsStatus?.readyReplicas ?? 0,
                       images: rsSpec?.template?.spec?.containers?.map(c => c.image) ?? [],
                       isCurrent: (rsStatus?.replicas ?? 0) > 0,
+                      namespace,
+                      context,
                     };
                   })
                   .sort((a, b) => {

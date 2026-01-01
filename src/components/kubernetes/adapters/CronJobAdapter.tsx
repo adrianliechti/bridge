@@ -165,6 +165,8 @@ export const CronJobAdapter: ResourceAdapter<V1CronJob> = {
                       completionTime: jobStatus?.completionTime as string | undefined,
                       succeeded: jobStatus?.succeeded as number | undefined,
                       failed: jobStatus?.failed as number | undefined,
+                      namespace,
+                      context,
                     };
                   })
                   .sort((a, b) => {

@@ -156,6 +156,8 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
                       status: pvcStatus?.phase as string ?? 'Unknown',
                       capacity: (pvcStatus?.capacity as Record<string, string>)?.storage,
                       storageClass: pvcSpec?.storageClassName as string,
+                      namespace,
+                      context,
                     };
                   });
               } catch (error) {

@@ -102,13 +102,13 @@ export function ContainerCard({
   metrics?: ContainerMetrics;
 }) {
   const [expanded, setExpanded] = useState(false);
-
+  const toggleExpanded = () => setExpanded(prev => !prev);
   const stateInfo = getContainerStateInfo(container.state, container.stateReason);
 
   return (
     <div className={`border rounded-lg overflow-hidden ${stateInfo.borderClass}`}>
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={toggleExpanded}
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
       >
         <Box size={16} className={stateInfo.iconClass} />

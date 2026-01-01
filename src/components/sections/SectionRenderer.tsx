@@ -16,7 +16,7 @@ export function SectionRenderer({ section }: { section: Section }) {
   // Don't render empty sections
   if (content === null) return null;
 
-  if (!title) return <>{content}</>;
+  if (!title) return <div>{content}</div>;
 
   return (
     <div>

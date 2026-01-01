@@ -1,7 +1,8 @@
 // CertificateRequest Adapter (cert-manager.io/v1)
 // Extracts display data from cert-manager CertificateRequest resources
 
-import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link } from 'lucide-react';
+import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link as LinkIcon } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
 import { CertificateView, CsrView } from '../../sections/CertificateView';
 
@@ -181,10 +182,11 @@ function decodeBase64(encoded?: string): string | null {
 export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
   kinds: ['CertificateRequest', 'CertificateRequests'],
 
-  adapt(_context: string, resource): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
     const metadata = resource.metadata;
+    const namespace = metadata?.namespace;
 
     if (!spec) {
       return { sections: [] };
@@ -242,14 +244,32 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
         title: 'Parent Certificate',
         data: {
           type: 'custom',
-          render: () => (
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Link size={14} className="text-blue-400" />
-                <span className="text-sm text-blue-300">{certificateName}</span>
+          render: () => {
+            const content = (
+              <div className={`bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 ${
+                namespace ? 'hover:bg-blue-500/15 transition-colors cursor-pointer' : ''
+              }`}>
+                <div className="flex items-center gap-2">
+                  <LinkIcon size={14} className="text-blue-400" />
+                  <span className="text-sm text-blue-300">{certificateName}</span>
+                </div>
               </div>
-            </div>
-          ),
+            );
+
+            return namespace ? (
+              <Link
+                to="/cluster/$context/$resourceType/$name"
+                params={{ 
+                  context, 
+                  resourceType: 'certificates.cert-manager.io', 
+                  name: certificateName 
+                }}
+                search={(prev) => ({ ...prev, namespace })}
+              >
+                {content}
+              </Link>
+            ) : content;
+          },
         },
       });
     }

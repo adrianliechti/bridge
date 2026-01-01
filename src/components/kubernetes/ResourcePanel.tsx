@@ -1,7 +1,8 @@
 import { X, Loader2, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
-import { getResource, getResourceEvents, updateResource, type CoreV1Event, type KubernetesResource } from '../../api/kubernetes/kubernetes';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { getResource, getResourceEvents, updateResource, type KubernetesResource } from '../../api/kubernetes/kubernetes';
 import { getResourceConfigByKind } from '../../api/kubernetes/kubernetesDiscovery';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
@@ -41,11 +42,6 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
 }
 
 export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false, resource: resourceId }: ResourcePanelProps) {
-  const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<CoreV1Event[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal'>('yaml');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -53,36 +49,40 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   const resourceConfigRef = useRef<Awaited<ReturnType<typeof getResourceConfigByKind>> | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
-  // Auto-refresh interval (5 seconds)
-  const REFRESH_INTERVAL = 5000;
-
-  const fetchResourceData = useCallback(async () => {
-    if (!resourceId || !resourceId.name || !resourceId.kind) return;
-    
-    try {
+  // Fetch resource data using React Query with structural sharing
+  const { 
+    data: fullObject, 
+    isLoading: loading, 
+    error: resourceError,
+    refetch: refetchResource
+  } = useQuery({
+    queryKey: ['kubernetes', 'resource', context, resourceId?.kind, resourceId?.apiVersion, resourceId?.name, resourceId?.namespace],
+    queryFn: async () => {
+      if (!resourceId || !resourceId.name || !resourceId.kind) return null;
       const config = await getResourceConfigByKind(context, resourceId.kind, resourceId.apiVersion);
-      if (config) {
-        const resource = await getResource(context, config, resourceId.name, resourceId.namespace);
-        setFullObject(resource);
-      }
-      // Also refresh events
-      const resourceEvents = await getResourceEvents(context, resourceId.name, resourceId.namespace);
-      setEvents(resourceEvents);
-    } catch {
-      // Silent fail for background refreshes
-    }
-  }, [context, resourceId]);
+      if (!config) throw new Error(`Unknown resource kind: ${resourceId.kind}`);
+      resourceConfigRef.current = config;
+      return getResource(context, config, resourceId.name, resourceId.namespace);
+    },
+    enabled: isOpen && !!resourceId?.name && !!resourceId?.kind,
+    placeholderData: keepPreviousData,
+  });
 
-  // Auto-refresh polling
-  useEffect(() => {
-    if (!isOpen || !resourceId?.name || !fullObject) return;
+  // Fetch events using React Query
+  const { 
+    data: events = [], 
+    isLoading: eventsLoading 
+  } = useQuery({
+    queryKey: ['kubernetes', 'events', context, resourceId?.name, resourceId?.namespace],
+    queryFn: async () => {
+      if (!resourceId?.name) return [];
+      return getResourceEvents(context, resourceId.name, resourceId.namespace);
+    },
+    enabled: isOpen && !!resourceId?.name,
+    placeholderData: keepPreviousData,
+  });
 
-    const interval = setInterval(() => {
-      fetchResourceData();
-    }, REFRESH_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [isOpen, resourceId?.name, fullObject, fetchResourceData]);
+  const error = resourceError instanceof Error ? resourceError.message : resourceError ? String(resourceError) : null;
 
   // Get actions for the current resource
   const resourceActions = fullObject ? getResourceActions(fullObject) : [];
@@ -92,7 +92,7 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
     setLoadingAction(action.id);
     try {
       await action.execute(context, fullObject!);
-      fetchResourceData(); // Refresh after action
+      refetchResource(); // Refresh after action
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Action failed');
     } finally {
@@ -114,7 +114,7 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
       throw new Error('Resource configuration not available');
     }
 
-    const updated = await updateResource(
+    await updateResource(
       context,
       resourceConfigRef.current,
       resourceId.name,
@@ -122,70 +122,15 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
       resourceId.namespace
     );
     
-    // Update the local state with the response from the server
-    setFullObject(updated);
-  }, [context, resourceId]);
+    // Refetch to get the updated resource from the server
+    refetchResource();
+  }, [context, resourceId, refetchResource]);
 
-  // Fetch the resource config and full resource when resourceId changes
+  // Reset tab when resource changes - use overview if adapter exists, otherwise yaml
   useEffect(() => {
-    // Reset tab when resource changes - use overview if adapter exists, otherwise yaml
     const kind = resourceId?.kind || '';
     setActiveTab(hasAdapter(kind) ? 'overview' : 'yaml');
-    
-    if (!resourceId || !resourceId.name || !resourceId.kind) {
-      setFullObject(null);
-      setError(null);
-      setEvents([]);
-      return;
-    }
-
-    const name = resourceId.name;
-    const ns = resourceId.namespace;
-    const apiVersion = resourceId.apiVersion;
-
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Get the resource config by kind using discovery API
-        const config = await getResourceConfigByKind(context, kind, apiVersion);
-        if (!config) {
-          setError(`Unknown resource kind: ${kind}`);
-          setLoading(false);
-          return;
-        }
-
-        // Store the config for later use (e.g., updates)
-        resourceConfigRef.current = config;
-
-        // Then fetch the full resource
-        const resource = await getResource(context, config, name, ns);
-        setFullObject(resource);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch resource');
-        setFullObject(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchEvents = async () => {
-      setEventsLoading(true);
-      try {
-        const resourceEvents = await getResourceEvents(context, name, ns);
-        setEvents(resourceEvents);
-      } catch (err) {
-        console.error('Failed to fetch events:', err);
-        setEvents([]);
-      } finally {
-        setEventsLoading(false);
-      }
-    };
-
-    fetchData();
-    fetchEvents();
-  }, [context, resourceId]);
+  }, [resourceId?.kind, resourceId?.name, resourceId?.namespace]);
 
   if (!isOpen || !resourceId || !resourceId.name) return null;
 
@@ -442,7 +387,7 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
       {activeTab === 'yaml' && (
         <div className="flex-1 overflow-hidden flex flex-col">
           <ManifestEditor
-            resource={fullObject}
+            resource={fullObject ?? null}
             loading={loading}
             error={error}
             onSave={handleSaveResource}
