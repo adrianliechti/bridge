@@ -19,12 +19,6 @@ export interface UseDockerLogsResult {
 
 const DEFAULT_TAIL_LINES = 1000;
 
-// Strip ANSI escape codes from text
-function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-}
-
 // Parse Docker log line with optional timestamp
 function parseLine(line: string): { timestamp?: string; message: string } {
   // Docker timestamps are RFC3339Nano format at the start: 2024-12-31T10:30:00.123456789Z
@@ -36,10 +30,10 @@ function parseLine(line: string): { timestamp?: string; message: string } {
   
   if (timestampMatch) {
     const [, timestamp, message] = timestampMatch;
-    return { timestamp, message: stripAnsi(message) };
+    return { timestamp, message };
   }
   
-  return { message: stripAnsi(cleanLine) };
+  return { message: cleanLine };
 }
 
 export function useDockerLogs({

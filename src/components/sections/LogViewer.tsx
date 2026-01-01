@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronDown, Copy, Check, Filter } from 'lucide-react';
 import { ToolbarPortal } from '../ToolbarPortal';
+import Anser from 'anser';
 
 // Shared log entry type for all platforms
 export interface LogEntry {
@@ -61,6 +62,12 @@ interface ParsedLog {
   formatted: string;
   jsonData?: Record<string, unknown>;
   level?: LogLevel;
+}
+
+// Strip ANSI escape codes for format detection
+function stripAnsi(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
 }
 
 // Parse klog format: I1224 22:55:14.528759  1 file.go:123] "message" key=value
@@ -142,11 +149,13 @@ function parseLogfmt(message: string): ParsedLog | null {
 // Try to parse and pretty-print log messages in various formats
 function parseLogMessage(message: string): ParsedLog {
   const trimmed = message.trim();
+  // Strip ANSI for format detection, but keep original for plain text display
+  const stripped = stripAnsi(trimmed);
   
   // Try JSON first
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+  if (stripped.startsWith('{') || stripped.startsWith('[')) {
     try {
-      const parsed = JSON.parse(trimmed);
+      const parsed = JSON.parse(stripped);
       return { 
         format: 'json', 
         formatted: JSON.stringify(parsed, null, 2), 
@@ -158,14 +167,14 @@ function parseLogMessage(message: string): ParsedLog {
   }
   
   // Try klog format
-  const klogResult = parseKlog(trimmed);
+  const klogResult = parseKlog(stripped);
   if (klogResult) return klogResult;
   
   // Try logfmt format
-  const logfmtResult = parseLogfmt(trimmed);
+  const logfmtResult = parseLogfmt(stripped);
   if (logfmtResult) return logfmtResult;
   
-  // Plain text
+  // Plain text - keep original with ANSI codes for rendering
   return { format: 'plain', formatted: message };
 }
 
@@ -177,6 +186,90 @@ const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
   trace: 'text-neutral-500 dark:text-neutral-500',
   unknown: 'text-neutral-700 dark:text-neutral-300',
 };
+
+// Theme-aware ANSI foreground color mapping
+const ANSI_FG_COLORS: Record<string, string> = {
+  'ansi-black': 'text-neutral-800 dark:text-neutral-400',
+  'ansi-red': 'text-red-600 dark:text-red-400',
+  'ansi-green': 'text-green-600 dark:text-green-400',
+  'ansi-yellow': 'text-yellow-600 dark:text-yellow-300',
+  'ansi-blue': 'text-blue-600 dark:text-blue-400',
+  'ansi-magenta': 'text-fuchsia-600 dark:text-fuchsia-400',
+  'ansi-cyan': 'text-cyan-600 dark:text-cyan-400',
+  'ansi-white': 'text-neutral-600 dark:text-neutral-200',
+  'ansi-bright-black': 'text-neutral-500 dark:text-neutral-500',
+  'ansi-bright-red': 'text-red-500 dark:text-red-300',
+  'ansi-bright-green': 'text-green-500 dark:text-green-300',
+  'ansi-bright-yellow': 'text-yellow-500 dark:text-yellow-200',
+  'ansi-bright-blue': 'text-blue-500 dark:text-blue-300',
+  'ansi-bright-magenta': 'text-fuchsia-500 dark:text-fuchsia-300',
+  'ansi-bright-cyan': 'text-cyan-500 dark:text-cyan-300',
+  'ansi-bright-white': 'text-neutral-400 dark:text-white',
+};
+
+// Theme-aware ANSI background color mapping
+const ANSI_BG_COLORS: Record<string, string> = {
+  'ansi-black': 'bg-neutral-900 dark:bg-neutral-900',
+  'ansi-red': 'bg-red-600/20 dark:bg-red-500/30',
+  'ansi-green': 'bg-green-600/20 dark:bg-green-500/30',
+  'ansi-yellow': 'bg-yellow-500/20 dark:bg-yellow-500/30',
+  'ansi-blue': 'bg-blue-600/20 dark:bg-blue-500/30',
+  'ansi-magenta': 'bg-fuchsia-600/20 dark:bg-fuchsia-500/30',
+  'ansi-cyan': 'bg-cyan-600/20 dark:bg-cyan-500/30',
+  'ansi-white': 'bg-neutral-200 dark:bg-neutral-100',
+  'ansi-bright-black': 'bg-neutral-700 dark:bg-neutral-700',
+  'ansi-bright-red': 'bg-red-500/30 dark:bg-red-400/40',
+  'ansi-bright-green': 'bg-green-500/30 dark:bg-green-400/40',
+  'ansi-bright-yellow': 'bg-yellow-400/30 dark:bg-yellow-400/40',
+  'ansi-bright-blue': 'bg-blue-500/30 dark:bg-blue-400/40',
+  'ansi-bright-magenta': 'bg-fuchsia-500/30 dark:bg-fuchsia-400/40',
+  'ansi-bright-cyan': 'bg-cyan-500/30 dark:bg-cyan-400/40',
+  'ansi-bright-white': 'bg-white dark:bg-white',
+};
+
+// Render ANSI escape codes as colored spans with theme-aware colors
+function AnsiText({ text }: { text: string }) {
+  const parsed = Anser.ansiToJson(text, { use_classes: true, remove_empty: true });
+  
+  if (parsed.length === 0) {
+    return <>{text}</>;
+  }
+  
+  // Check if there are any actual ANSI codes (non-default styling)
+  const hasAnsiCodes = parsed.some(p => p.fg || p.bg || p.decorations?.length);
+  if (!hasAnsiCodes) {
+    return <>{text}</>;
+  }
+  
+  return (
+    <>
+      {parsed.map((part, i) => {
+        const classes: string[] = [];
+        
+        // Map foreground color
+        if (part.fg && ANSI_FG_COLORS[part.fg]) {
+          classes.push(ANSI_FG_COLORS[part.fg]);
+        }
+        
+        // Map background color
+        if (part.bg && ANSI_BG_COLORS[part.bg]) {
+          classes.push(ANSI_BG_COLORS[part.bg]);
+        }
+        
+        // Handle decorations
+        if (part.decorations?.includes('bold')) classes.push('font-bold');
+        if (part.decorations?.includes('italic')) classes.push('italic');
+        if (part.decorations?.includes('underline')) classes.push('underline');
+        
+        return classes.length > 0 ? (
+          <span key={i} className={classes.join(' ')}>{part.content}</span>
+        ) : (
+          <span key={i}>{part.content}</span>
+        );
+      })}
+    </>
+  );
+}
 
 const LOG_LEVEL_BG: Record<LogLevel, string> = {
   error: 'bg-red-50 dark:bg-red-500/10 border-l-2 border-red-400 dark:border-red-500/50',
@@ -359,11 +452,11 @@ export function LogViewer({
                 {/* Log message */}
                 {isStructured ? (
                   <pre className={`${textColor} whitespace-pre overflow-x-auto scrollbar-hide leading-snug text-[11px]`}>
-                    {parsed.formatted}
+                    <AnsiText text={parsed.formatted} />
                   </pre>
                 ) : (
                   <div className={`${textColor} break-all whitespace-pre-wrap leading-snug`}>
-                    {parsed.formatted}
+                    <AnsiText text={parsed.formatted} />
                   </div>
                 )}
               </div>
