@@ -54,7 +54,7 @@ function formatTimestamp(timestamp?: string): string {
   }
 }
 
-type LogFormat = 'json' | 'klog' | 'logfmt' | 'plain';
+type LogFormat = 'json' | 'klog' | 'logfmt' | 'console' | 'plain';
 type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'unknown';
 
 interface ParsedLog {
@@ -119,7 +119,75 @@ function parseKeyValuePairs(text: string): Record<string, string> {
   return result;
 }
 
-// Check if text looks like logfmt (key=value pairs)
+// Extract the plain text message that appears before key=value pairs
+function extractMessageAndKvPairs(text: string): { message: string; kvText: string } {
+  // Find where key=value pairs start (word followed by = not inside quotes)
+  // Match patterns like: word= or word.subword=
+  const kvStartMatch = text.match(/(?:^|\s)([\w.]+)=/);
+  
+  if (!kvStartMatch) {
+    return { message: text, kvText: '' };
+  }
+  
+  const kvStartIndex = kvStartMatch.index! + (kvStartMatch[0].startsWith(' ') ? 1 : 0);
+  const message = text.slice(0, kvStartIndex).trim();
+  const kvText = text.slice(kvStartIndex);
+  
+  return { message, kvText };
+}
+
+// Parse console format: 2026-01-01T23:25:09.654Z WRN message text key=value key2=value2
+// This is the "pretty" format output by zerolog, zap, and similar structured loggers
+function parseConsoleFormat(message: string): ParsedLog | null {
+  const trimmed = message.trim();
+  
+  // Must have timestamp + level pattern at the start
+  const timestampLevelRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\s+(INF|WRN|ERR|DBG|TRC|INFO|WARN|ERROR|DEBUG|TRACE|FTL|FATAL)\s+/i;
+  const timestampLevelMatch = trimmed.match(timestampLevelRegex);
+  
+  if (!timestampLevelMatch) return null;
+  
+  const timestamp = timestampLevelMatch[1];
+  const levelFromPrefix = timestampLevelMatch[2].toUpperCase();
+  const restOfMessage = trimmed.slice(timestampLevelMatch[0].length);
+  
+  // Extract plain text message and key=value pairs
+  const { message: plainMessage, kvText } = extractMessageAndKvPairs(restOfMessage);
+  const kvPairs = parseKeyValuePairs(kvText || restOfMessage);
+  const keys = Object.keys(kvPairs);
+  
+  // Determine log level from prefix
+  let level: LogLevel = 'unknown';
+  if (levelFromPrefix.startsWith('ERR') || levelFromPrefix === 'FTL' || levelFromPrefix === 'FATAL') level = 'error';
+  else if (levelFromPrefix.startsWith('WRN') || levelFromPrefix === 'WARN') level = 'warn';
+  else if (levelFromPrefix.startsWith('INF') || levelFromPrefix === 'INFO') level = 'info';
+  else if (levelFromPrefix.startsWith('DBG') || levelFromPrefix === 'DEBUG') level = 'debug';
+  else if (levelFromPrefix.startsWith('TRC') || levelFromPrefix === 'TRACE') level = 'trace';
+  
+  // Build formatted output
+  const lines: string[] = [
+    `timestamp: ${timestamp}`,
+    `level: ${levelFromPrefix}`,
+  ];
+  
+  if (plainMessage) {
+    lines.push(`message: ${plainMessage}`);
+  }
+  
+  // Add key=value pairs
+  for (const key of keys) {
+    lines.push(`${key}: ${kvPairs[key]}`);
+  }
+  
+  return {
+    format: 'console',
+    formatted: lines.join('\n'),
+    level,
+  };
+}
+
+// Check if text looks like pure logfmt (key=value pairs throughout)
+// Example: level=info msg="hello world" duration=1.23
 function parseLogfmt(message: string): ParsedLog | null {
   const trimmed = message.trim();
   
@@ -128,14 +196,17 @@ function parseLogfmt(message: string): ParsedLog | null {
   const kvPairs = parseKeyValuePairs(trimmed);
   const keys = Object.keys(kvPairs);
   
+  // Need at least 2 key=value pairs for pure logfmt
   if (keys.length < 2) return null;
   
+  // Determine log level from key=value pairs
   let level: LogLevel = 'unknown';
   const levelValue = (kvPairs.level ?? kvPairs.lvl ?? kvPairs.severity ?? '').toLowerCase();
   if (levelValue.includes('err') || levelValue === 'fatal') level = 'error';
   else if (levelValue.includes('warn')) level = 'warn';
   else if (levelValue === 'info') level = 'info';
   else if (levelValue === 'debug') level = 'debug';
+  else if (levelValue === 'trace') level = 'trace';
   
   const lines = keys.map(key => `${key}: ${kvPairs[key]}`);
   
@@ -170,7 +241,11 @@ function parseLogMessage(message: string): ParsedLog {
   const klogResult = parseKlog(stripped);
   if (klogResult) return klogResult;
   
-  // Try logfmt format
+  // Try console format (timestamp + level + message + key=value pairs)
+  const consoleResult = parseConsoleFormat(stripped);
+  if (consoleResult) return consoleResult;
+  
+  // Try pure logfmt format (all key=value pairs)
   const logfmtResult = parseLogfmt(stripped);
   if (logfmtResult) return logfmtResult;
   

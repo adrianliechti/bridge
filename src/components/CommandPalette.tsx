@@ -38,7 +38,6 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   // Initialize adapter when it changes
   useEffect(() => {
     let cancelled = false;
-    setIsInitialized(false);
     adapter.initialize().then(() => {
       if (!cancelled) {
         setIsInitialized(true);

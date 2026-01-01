@@ -70,13 +70,18 @@ export function ResourcePage<T = any>({
 
   // Clear selected item and close detail panel when config/namespace changes
   // Detect changes during render to avoid synchronous setState in effects
-  if (config !== trackedConfig || namespace !== trackedNamespace) {
+  const configOrNamespaceChanged = config !== trackedConfig || namespace !== trackedNamespace;
+  if (configOrNamespaceChanged) {
     setTrackedConfig(config);
     setTrackedNamespace(namespace);
     setSelectedItem(null);
     close(PANEL_DETAIL);
-    initialSyncDoneRef.current = false;
   }
+  
+  // Reset initialSyncDoneRef when config/namespace changes (must be in effect, not render)
+  useEffect(() => {
+    initialSyncDoneRef.current = false;
+  }, [config, namespace]);
   
   // Sync selected item from URL when data changes or selectedItemName changes
   useEffect(() => {
