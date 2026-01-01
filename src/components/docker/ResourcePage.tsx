@@ -13,6 +13,7 @@ import { createDockerChatAdapter, type DockerEnvironment } from './Chat';
 import { ResourcePanel } from './ResourcePanel';
 import { usePanels } from '../../hooks/usePanelState';
 import { getConfig } from '../../config';
+import { useDocker } from '../../hooks/useContext';
 
 export type DockerResourceType = 'containers' | 'images' | 'volumes' | 'networks';
 
@@ -52,6 +53,7 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
   const isFirstFetch = useRef(true);
   const { isOpen, toggle, close } = usePanels();
   const isChatPanelOpen = isOpen(PANEL_AI);
+  const { context: dockerContext } = useDocker();
 
   // Chat adapter
   const chatAdapter = createDockerChatAdapter();
@@ -70,22 +72,22 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
       let tableData: TableResponse<DockerResourceObject>;
       switch (resourceType) {
         case 'containers': {
-          const containers = await listContainers(true);
+          const containers = await listContainers(dockerContext, true);
           tableData = dockerContainersToTable(containers) as TableResponse<DockerResourceObject>;
           break;
         }
         case 'images': {
-          const images = await listImages();
+          const images = await listImages(dockerContext);
           tableData = dockerImagesToTable(images) as TableResponse<DockerResourceObject>;
           break;
         }
         case 'volumes': {
-          const volumes = await listVolumes();
+          const volumes = await listVolumes(dockerContext);
           tableData = dockerVolumesToTable(volumes) as TableResponse<DockerResourceObject>;
           break;
         }
         case 'networks': {
-          const networks = await listNetworks();
+          const networks = await listNetworks(dockerContext);
           tableData = dockerNetworksToTable(networks) as TableResponse<DockerResourceObject>;
           break;
         }
@@ -110,7 +112,7 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
       setLoading(false);
       setIsRefetching(false);
     }
-  }, [resourceType]);
+  }, [resourceType, dockerContext]);
 
   // Fetch data on mount and when resource type changes
   useEffect(() => {
@@ -161,11 +163,12 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
   const getEnvironmentInfo = useCallback((item: TableRow<DockerResourceObject> | null): DockerEnvironment => {
     const container = item?.object as DockerContainer | undefined;
     return {
+      context: dockerContext,
       selectedResourceType: resourceType,
       selectedContainerId: resourceType === 'containers' ? container?.Id?.substring(0, 12) : undefined,
       selectedContainerName: resourceType === 'containers' && container?.Names ? formatContainerName(container.Names) : undefined,
     };
-  }, [resourceType]);
+  }, [resourceType, dockerContext]);
 
   // Render AI chat button in header
   const renderHeaderActions = useCallback(() => {

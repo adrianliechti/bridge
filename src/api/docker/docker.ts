@@ -43,8 +43,8 @@ export type DockerNetwork = Network;
 export type DockerNetworkInspect = NetworkInspect;
 
 // Base fetch helper for Docker API calls
-async function fetchDockerApi<T>(path: string): Promise<T> {
-  const response = await fetch(`/docker${path}`);
+async function fetchDockerApi<T>(path: string, context: string): Promise<T> {
+  const response = await fetch(`/contexts/${context}${path}`);
   if (!response.ok) {
     throw new Error(`Docker API request failed: ${response.status} ${response.statusText}`);
   }
@@ -52,72 +52,72 @@ async function fetchDockerApi<T>(path: string): Promise<T> {
 }
 
 // List all containers
-export async function listContainers(all = true): Promise<DockerContainer[]> {
-  return fetchDockerApi<DockerContainer[]>(`/containers/json?all=${all}`);
+export async function listContainers(context: string, all = true): Promise<DockerContainer[]> {
+  return fetchDockerApi<DockerContainer[]>(`/containers/json?all=${all}`, context);
 }
 
 // Get container details
-export async function inspectContainer(id: string): Promise<ContainerInspect> {
-  return fetchDockerApi<ContainerInspect>(`/containers/${id}/json`);
+export async function inspectContainer(context: string, id: string): Promise<ContainerInspect> {
+  return fetchDockerApi<ContainerInspect>(`/containers/${id}/json`, context);
 }
 
 // List all images
-export async function listImages(): Promise<DockerImage[]> {
-  return fetchDockerApi<DockerImage[]>('/images/json');
+export async function listImages(context: string): Promise<DockerImage[]> {
+  return fetchDockerApi<DockerImage[]>('/images/json', context);
 }
 
 // Remove an image
-export async function removeImage(id: string, force = false): Promise<void> {
-  return deleteDockerApi(`/images/${id}?force=${force}`);
+export async function removeImage(context: string, id: string, force = false): Promise<void> {
+  return deleteDockerApi(`/images/${id}?force=${force}`, context);
 }
 
 // Get Docker daemon info
-export async function getInfo(): Promise<DockerInfo> {
-  return fetchDockerApi<DockerInfo>('/info');
+export async function getInfo(context: string): Promise<DockerInfo> {
+  return fetchDockerApi<DockerInfo>('/info', context);
 }
 
 // List all volumes
-export async function listVolumes(): Promise<DockerVolume[]> {
-  const response = await fetchDockerApi<VolumeListResponse>('/volumes');
+export async function listVolumes(context: string): Promise<DockerVolume[]> {
+  const response = await fetchDockerApi<VolumeListResponse>('/volumes', context);
   return response.Volumes ?? [];
 }
 
 // Get volume details
-export async function inspectVolume(name: string): Promise<DockerVolume> {
-  return fetchDockerApi<DockerVolume>(`/volumes/${encodeURIComponent(name)}`);
+export async function inspectVolume(context: string, name: string): Promise<DockerVolume> {
+  return fetchDockerApi<DockerVolume>(`/volumes/${encodeURIComponent(name)}`, context);
 }
 
 // Remove a volume
-export async function removeVolume(name: string, force = false): Promise<void> {
-  return deleteDockerApi(`/volumes/${encodeURIComponent(name)}?force=${force}`);
+export async function removeVolume(context: string, name: string, force = false): Promise<void> {
+  return deleteDockerApi(`/volumes/${encodeURIComponent(name)}?force=${force}`, context);
 }
 
 // List all networks
-export async function listNetworks(): Promise<DockerNetwork[]> {
-  return fetchDockerApi<DockerNetwork[]>('/networks');
+export async function listNetworks(context: string): Promise<DockerNetwork[]> {
+  return fetchDockerApi<DockerNetwork[]>('/networks', context);
 }
 
 // Get network details
-export async function inspectNetwork(id: string): Promise<DockerNetworkInspect> {
-  return fetchDockerApi<DockerNetworkInspect>(`/networks/${id}`);
+export async function inspectNetwork(context: string, id: string): Promise<DockerNetworkInspect> {
+  return fetchDockerApi<DockerNetworkInspect>(`/networks/${id}`, context);
 }
 
 // Remove a network
-export async function removeNetwork(id: string): Promise<void> {
-  return deleteDockerApi(`/networks/${id}`);
+export async function removeNetwork(context: string, id: string): Promise<void> {
+  return deleteDockerApi(`/networks/${id}`, context);
 }
 
 // Container control functions
-async function postDockerApi(path: string): Promise<void> {
-  const response = await fetch(`/docker${path}`, { method: 'POST' });
+async function postDockerApi(path: string, context: string): Promise<void> {
+  const response = await fetch(`/contexts/${context}${path}`, { method: 'POST' });
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `Docker API request failed: ${response.status} ${response.statusText}`);
   }
 }
 
-async function deleteDockerApi(path: string): Promise<void> {
-  const response = await fetch(`/docker${path}`, { method: 'DELETE' });
+async function deleteDockerApi(path: string, context: string): Promise<void> {
+  const response = await fetch(`/contexts/${context}${path}`, { method: 'DELETE' });
   if (!response.ok) {
     const text = await response.text();
     throw new Error(text || `Docker API request failed: ${response.status} ${response.statusText}`);
@@ -125,33 +125,33 @@ async function deleteDockerApi(path: string): Promise<void> {
 }
 
 // Start a container
-export async function startContainer(id: string): Promise<void> {
-  return postDockerApi(`/containers/${id}/start`);
+export async function startContainer(context: string, id: string): Promise<void> {
+  return postDockerApi(`/containers/${id}/start`, context);
 }
 
 // Stop a container
-export async function stopContainer(id: string): Promise<void> {
-  return postDockerApi(`/containers/${id}/stop`);
+export async function stopContainer(context: string, id: string): Promise<void> {
+  return postDockerApi(`/containers/${id}/stop`, context);
 }
 
 // Restart a container
-export async function restartContainer(id: string): Promise<void> {
-  return postDockerApi(`/containers/${id}/restart`);
+export async function restartContainer(context: string, id: string): Promise<void> {
+  return postDockerApi(`/containers/${id}/restart`, context);
 }
 
 // Pause a container
-export async function pauseContainer(id: string): Promise<void> {
-  return postDockerApi(`/containers/${id}/pause`);
+export async function pauseContainer(context: string, id: string): Promise<void> {
+  return postDockerApi(`/containers/${id}/pause`, context);
 }
 
 // Unpause a container
-export async function unpauseContainer(id: string): Promise<void> {
-  return postDockerApi(`/containers/${id}/unpause`);
+export async function unpauseContainer(context: string, id: string): Promise<void> {
+  return postDockerApi(`/containers/${id}/unpause`, context);
 }
 
 // Remove a container
-export async function removeContainer(id: string, force = false): Promise<void> {
-  return deleteDockerApi(`/containers/${id}?force=${force}`);
+export async function removeContainer(context: string, id: string, force = false): Promise<void> {
+  return deleteDockerApi(`/containers/${id}?force=${force}`, context);
 }
 
 // Stream container logs (returns a ReadableStream)
@@ -165,7 +165,7 @@ export interface ContainerLogsOptions {
   until?: number;
 }
 
-export function getContainerLogsUrl(containerId: string, options: ContainerLogsOptions = {}): string {
+export function getContainerLogsUrl(context: string, containerId: string, options: ContainerLogsOptions = {}): string {
   const params = new URLSearchParams();
   params.set('stdout', String(options.stdout ?? true));
   params.set('stderr', String(options.stderr ?? true));
@@ -184,12 +184,12 @@ export function getContainerLogsUrl(containerId: string, options: ContainerLogsO
     params.set('until', String(options.until));
   }
 
-  return `/docker/containers/${containerId}/logs?${params.toString()}`;
+  return `/contexts/${context}/containers/${containerId}/logs?${params.toString()}`;
 }
 
 // Fetch container logs (non-streaming)
-export async function getContainerLogs(containerId: string, options: ContainerLogsOptions = {}): Promise<string> {
-  const url = getContainerLogsUrl(containerId, { ...options, follow: false });
+export async function getContainerLogs(context: string, containerId: string, options: ContainerLogsOptions = {}): Promise<string> {
+  const url = getContainerLogsUrl(context, containerId, { ...options, follow: false });
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch logs: ${response.status} ${response.statusText}`);
@@ -201,12 +201,13 @@ export async function getContainerLogs(containerId: string, options: ContainerLo
 // Docker log format: [STREAM_TYPE(1)][0][0][0][SIZE(4 bytes big-endian)][PAYLOAD]
 // STREAM_TYPE: 0=stdin, 1=stdout, 2=stderr
 export async function streamContainerLogs(
+  context: string,
   containerId: string,
   options: ContainerLogsOptions,
   onLine: (line: string) => void,
   signal?: AbortSignal
 ): Promise<void> {
-  const url = getContainerLogsUrl(containerId, { ...options, follow: true });
+  const url = getContainerLogsUrl(context, containerId, { ...options, follow: true });
   
   const response = await fetch(url, { signal });
   if (!response.ok) {

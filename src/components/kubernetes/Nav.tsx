@@ -31,7 +31,7 @@ import { getResourceConfig } from '../../api/kubernetes/kubernetesDiscovery';
 import { ScopeSelector } from './ScopeSelector';
 import { type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getConfig } from '../../config';
-import { useCluster } from '../../hooks/useCluster';
+import { useKubernetes } from '../../hooks/useContext';
 
 // Compare two resources for equality (by name and group)
 function isSameResource(a: V1APIResource, b: V1APIResource): boolean {
@@ -99,7 +99,7 @@ export function Nav({
   onSelectResource,
   isOverviewSelected,
 }: NavProps) {
-  const { context, namespace, namespaces, setNamespace } = useCluster();
+  const { context, namespace, namespaces, setNamespace } = useKubernetes();
   const [builtInConfigs, setBuiltInConfigs] = useState<Map<string, V1APIResource>>(new Map());
   const [crdConfigs, setCrdConfigs] = useState<V1APIResource[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
@@ -177,8 +177,8 @@ export function Nav({
           selectedNamespace={namespace}
           onSelectNamespace={setNamespace}
           disabled={selectedResource !== null && !selectedResource.namespaced}
-          spaceLabels={getConfig().platform?.spaces?.labels}
-          platformNamespaces={getConfig().platform?.namespaces}
+          spaceLabels={getConfig().kubernetes?.tenancyLabels}
+          platformNamespaces={getConfig().kubernetes?.platformNamespaces}
         />
       </div>
 

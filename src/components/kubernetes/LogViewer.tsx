@@ -1,6 +1,6 @@
 import { LogViewer } from '../sections/LogViewer';
 import { useKubernetesLogs } from '../../hooks/useKubernetesLogs';
-import { useCluster } from '../../hooks/useCluster';
+import { useKubernetes } from '../../hooks/useContext';
 import type { KubernetesResource } from '../../api/kubernetes/kubernetes';
 
 export interface KubernetesLogViewerProps {
@@ -13,7 +13,7 @@ function KubernetesLogViewerInner({
   resource,
   toolbarRef,
 }: KubernetesLogViewerProps) {
-  const { context } = useCluster();
+  const { context } = useKubernetes();
   
   const { logs, sources, isLoading, error } = useKubernetesLogs({
     context,

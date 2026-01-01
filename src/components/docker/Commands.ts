@@ -22,12 +22,13 @@ const dockerResourceTypes: ResourceTypeItem[] = [
 ];
 
 interface DockerAdapterOptions {
+  context: string;
   onSelectResource: (type: DockerResourceType) => void;
   onClose: () => void;
 }
 
 export function createDockerAdapter(options: DockerAdapterOptions): CommandPaletteAdapter {
-  const { onSelectResource, onClose } = options;
+  const { context, onSelectResource, onClose } = options;
 
   const adapter: CommandPaletteAdapter = {
     id: 'docker',
@@ -72,8 +73,8 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
 
       try {
         const [containers, images] = await Promise.all([
-          listContainers(true),
-          listImages(),
+          listContainers(context, true),
+          listImages(context),
         ]);
 
         // Search containers

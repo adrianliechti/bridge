@@ -110,9 +110,9 @@ export const VolumeAdapter: DockerAdapter<DockerVolume> = {
         message: 'Are you sure you want to delete this volume? This action cannot be undone and all data will be lost.',
         confirmLabel: 'Delete',
       },
-      execute: async (_context, resource) => {
+      execute: async (context, resource) => {
         const volume = resource as DockerVolume;
-        await removeVolume(volume.Name!);
+        await removeVolume(context, volume.Name!);
       },
       isDisabled: (resource) => {
         const volume = resource as DockerVolume;

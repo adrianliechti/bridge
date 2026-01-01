@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, updateResource, type CoreV1Event, type KubernetesResource } from '../../api/kubernetes/kubernetes';
 import { getResourceConfigByKind } from '../../api/kubernetes/kubernetesDiscovery';
-import { useCluster } from '../../hooks/useCluster';
+import { useKubernetes } from '../../hooks/useContext';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
 import type { ResourceAction } from './adapters/types';
@@ -41,7 +41,7 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
 }
 
 export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resource: resourceId }: ResourcePanelProps) {
-  const { context } = useCluster();
+  const { context } = useKubernetes();
   const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

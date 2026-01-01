@@ -1,24 +1,29 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, Server, Container } from 'lucide-react';
-import type { Context } from '../config';
-import { useAppMode } from '../hooks/useAppMode';
+import { useMode } from '../hooks/useContext';
 
 export const DOCKER_CONTEXT = 'docker';
 
 interface ContextSelectorProps {
-  contexts: Context[];
+  contexts: string[];
   selectedContext: string;
   onSelectContext: (context: string) => void;
+  dockerContexts?: string[];
+  selectedDockerContext?: string;
+  onSelectDockerContext?: (context: string) => void;
 }
 
 export function ContextSelector({
   contexts,
   selectedContext,
   onSelectContext,
+  dockerContexts = [],
+  selectedDockerContext,
+  onSelectDockerContext,
 }: ContextSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { mode, setMode, dockerAvailable } = useAppMode();
+  const { mode, setMode } = useMode();
 
   // Close on click outside
   useEffect(() => {
@@ -34,9 +39,12 @@ export function ContextSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const handleSelect = (contextName: string) => {
-    if (contextName === DOCKER_CONTEXT) {
+  const handleSelect = (contextName: string, isDocker: boolean) => {
+    if (isDocker) {
       setMode('docker');
+      if (onSelectDockerContext) {
+        onSelectDockerContext(contextName);
+      }
     } else {
       if (mode === 'docker') {
         setMode('kubernetes');
@@ -48,11 +56,17 @@ export function ContextSelector({
 
   // Determine what's currently selected for display
   const isDockerMode = mode === 'docker';
-  const displayContext = isDockerMode ? DOCKER_CONTEXT : selectedContext;
+  const displayContext = isDockerMode ? (selectedDockerContext || DOCKER_CONTEXT) : selectedContext;
   const DisplayIcon = isDockerMode ? Container : Server;
 
-  // Single kubernetes context and no docker - don't show anything
-  if (contexts.length <= 1 && !dockerAvailable) {
+  // Calculate total contexts available
+  const totalKubernetesContexts = contexts.length;
+  const totalDockerContexts = dockerContexts.length;
+  const totalContexts = totalKubernetesContexts + totalDockerContexts;
+
+  // Hide selector if there's only one context total (or none)
+  // Show if: multiple k8s, multiple docker, or at least one of each
+  if (totalContexts <= 1) {
     return null;
   }
 
@@ -74,44 +88,51 @@ export function ContextSelector({
       {isOpen && (
         <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-neutral-950 rounded-lg shadow-xl max-h-64 overflow-y-auto border border-neutral-200 dark:border-neutral-700">
           <div className="py-1">
-            {/* Docker */}
-            {dockerAvailable && (
+            {/* Docker contexts */}
+            {dockerContexts.length > 0 && (
               <>
                 <div className="px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
-                  Local
+                  Docker
                 </div>
-                <div
-                  onClick={() => handleSelect(DOCKER_CONTEXT)}
-                  className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-sm flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                    isDockerMode
-                      ? 'text-neutral-900 dark:text-neutral-100'
-                      : 'text-neutral-600 dark:text-neutral-400'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <Container size={14} className="opacity-50 shrink-0" />
-                    <span className="truncate">docker</span>
-                  </div>
-                  {isDockerMode && (
-                    <Check size={14} className="text-neutral-500 dark:text-neutral-400 shrink-0" />
-                  )}
-                </div>
+                {dockerContexts.map((ctx) => {
+                  const isSelected = isDockerMode && selectedDockerContext === ctx;
+                  
+                  return (
+                    <div
+                      key={`docker-${ctx}`}
+                      onClick={() => handleSelect(ctx, true)}
+                      className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-sm flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
+                        isSelected
+                          ? 'text-neutral-900 dark:text-neutral-100'
+                          : 'text-neutral-600 dark:text-neutral-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Container size={14} className="opacity-50 shrink-0" />
+                        <span className="truncate">{ctx}</span>
+                      </div>
+                      {isSelected && (
+                        <Check size={14} className="text-neutral-500 dark:text-neutral-400 shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
               </>
             )}
 
             {/* Kubernetes clusters */}
             {contexts.length > 0 && (
               <>
-                <div className={`px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider ${dockerAvailable ? 'mt-1' : ''}`}>
-                  Clusters
+                <div className={`px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider ${dockerContexts.length > 0 ? 'mt-1' : ''}`}>
+                  Kubernetes
                 </div>
                 {contexts.map((ctx) => {
-                  const isSelected = !isDockerMode && selectedContext === ctx.name;
+                  const isSelected = !isDockerMode && selectedContext === ctx;
                   
                   return (
                     <div
-                      key={ctx.name}
-                      onClick={() => handleSelect(ctx.name)}
+                      key={ctx}
+                      onClick={() => handleSelect(ctx, false)}
                       className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-sm flex items-center justify-between hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
                         isSelected
                           ? 'text-neutral-900 dark:text-neutral-100'
@@ -120,7 +141,7 @@ export function ContextSelector({
                     >
                       <div className="flex items-center gap-2 truncate">
                         <Server size={14} className="opacity-50 shrink-0" />
-                        <span className="truncate">{ctx.name}</span>
+                        <span className="truncate">{ctx}</span>
                       </div>
                       {isSelected && (
                         <Check size={14} className="text-neutral-500 dark:text-neutral-400 shrink-0" />

@@ -3,6 +3,7 @@ import { streamContainerLogs, type DockerContainer, formatContainerName } from '
 import type { LogEntry } from '../components/sections/LogViewer';
 
 export interface UseDockerLogsOptions {
+  context: string;
   container: DockerContainer;
   tailLines?: number;
 }
@@ -42,6 +43,7 @@ function parseLine(line: string): { timestamp?: string; message: string } {
 }
 
 export function useDockerLogs({
+  context,
   container,
   tailLines = DEFAULT_TAIL_LINES,
 }: UseDockerLogsOptions): UseDockerLogsResult {
@@ -64,6 +66,7 @@ export function useDockerLogs({
     abortControllerRef.current = controller;
 
     streamContainerLogs(
+      context,
       containerId,
       {
         follow: true,
@@ -91,7 +94,7 @@ export function useDockerLogs({
     return () => {
       controller.abort();
     };
-  }, [containerId, containerName, isRunning, tailLines]);
+  }, [context, containerId, containerName, isRunning, tailLines]);
 
   // Determine availability
   const isAvailable = isRunning;

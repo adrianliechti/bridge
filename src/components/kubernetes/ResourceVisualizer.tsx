@@ -4,7 +4,7 @@
 // It provides a consistent look and feel across all resource kinds.
 
 import type { KubernetesResource } from '../../api/kubernetes/kubernetes';
-import { useCluster } from '../../hooks/useCluster';
+import { useKubernetes } from '../../hooks/useContext';
 import { adaptResource, getResourceActions } from './index';
 import { ActionBar } from '../sections/ActionBar';
 import { SectionRenderer } from '../sections/SectionRenderer';
@@ -20,7 +20,7 @@ interface ResourceVisualizerProps {
 }
 
 export function ResourceVisualizer({ resource, onActionComplete, hideActions = false }: ResourceVisualizerProps) {
-  const { context } = useCluster();
+  const { context } = useKubernetes();
   const sections = adaptResource(context, resource);
   const actions = getResourceActions(resource);
 

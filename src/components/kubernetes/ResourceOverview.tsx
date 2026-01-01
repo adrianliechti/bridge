@@ -24,7 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { fetchApi } from '../../api/kubernetes/kubernetes';
-import { useCluster } from '../../hooks/useCluster';
+import { useKubernetes } from '../../hooks/useContext';
 
 import { ResourcePanel } from './ResourcePanel';
 import type { V1ObjectReference, V1ObjectMeta } from '@kubernetes/client-node';
@@ -194,7 +194,7 @@ const APP_TITLE_HEIGHT = 36;
 const APP_GAP = 20;
 
 export function ResourceOverview() {
-  const { context, namespace } = useCluster();
+  const { context, namespace } = useKubernetes();
   const [applications, setApplications] = useState<Application[]>([]);
   const [allResources, setAllResources] = useState<K8sResource[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -1,8 +1,7 @@
 import { ContextSelector } from './ContextSelector';
 import { Nav as KubernetesNav } from './kubernetes/Nav';
 import { Nav as DockerNav, type DockerResourceType } from './docker/Nav';
-import { useCluster } from '../hooks/useCluster';
-import { useAppMode } from '../hooks/useAppMode';
+import { useMode, useKubernetes, useDocker } from '../hooks/useContext';
 import type { V1APIResource } from '../api/kubernetes/kubernetesTable';
 
 // Re-export for use in App
@@ -25,8 +24,9 @@ export function Sidebar({
   selectedDockerResource,
   onSelectDockerResource,
 }: SidebarProps) {
-  const { mode } = useAppMode();
-  const { context, contexts, setContext } = useCluster();
+  const { mode } = useMode();
+  const kubernetes = useKubernetes();
+  const docker = useDocker();
 
   return (
     <aside className="w-56 h-full shrink-0 bg-white dark:bg-black/40 backdrop-blur-xl flex flex-col rounded-xl border border-neutral-300/50 dark:border-neutral-700/50">
@@ -34,9 +34,12 @@ export function Sidebar({
       <div className="shrink-0 px-3 pt-3 pb-2">
         {/* Context Selector */}
         <ContextSelector
-          contexts={contexts}
-          selectedContext={context}
-          onSelectContext={setContext}
+          contexts={kubernetes.contexts}
+          selectedContext={kubernetes.context}
+          onSelectContext={kubernetes.setContext}
+          dockerContexts={docker.contexts}
+          selectedDockerContext={docker.context}
+          onSelectDockerContext={docker.setContext}
         />
       </div>
 

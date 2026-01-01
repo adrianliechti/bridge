@@ -2,7 +2,7 @@ import { Sparkles } from 'lucide-react';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getResourceTable } from '../../api/kubernetes/kubernetesTable';
 import type { TableRow, KubernetesObject } from '../../types/table';
-import { useCluster } from '../../hooks/useCluster';
+import { useKubernetes } from '../../hooks/useContext';
 import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
 import { usePanels } from '../../hooks/usePanelState';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
@@ -23,7 +23,7 @@ interface ResourcePageProps {
 }
 
 export function ResourcePage({ resource }: ResourcePageProps) {
-  const { context, namespace } = useCluster();
+  const { context, namespace } = useKubernetes();
   const { isOpen, toggle, close } = usePanels();
   const isChatPanelOpen = isOpen(PANEL_AI);
 

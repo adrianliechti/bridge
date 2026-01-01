@@ -150,9 +150,9 @@ export const NetworkAdapter: DockerAdapter<DockerNetworkInspect> = {
         message: 'Are you sure you want to delete this network? This action cannot be undone.',
         confirmLabel: 'Delete',
       },
-      execute: async (_context, resource) => {
+      execute: async (context, resource) => {
         const network = resource as DockerNetworkInspect;
-        await removeNetwork(network.Id!);
+        await removeNetwork(context, network.Id!);
       },
       isDisabled: (resource) => {
         const network = resource as DockerNetworkInspect;

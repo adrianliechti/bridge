@@ -1,32 +1,27 @@
 package server
 
-type Context struct {
-	Name string `json:"name"`
-}
-
 type Config struct {
-	DefaultContext   string `json:"defaultContext,omitempty"`
-	DefaultNamespace string `json:"defaultNamespace,omitempty"`
+	AI *AIConfig `json:"ai,omitempty"`
 
-	AI       *AIConfig       `json:"ai,omitempty"`
-	Platform *PlatformConfig `json:"platform,omitempty"`
-	Docker   *DockerConfig   `json:"docker,omitempty"`
+	Docker     *DockerConfig     `json:"docker,omitempty"`
+	Kubernetes *KubernetesConfig `json:"kubernetes,omitempty"`
 }
 
 type AIConfig struct {
 	Model string `json:"model,omitempty"`
 }
-
-type PlatformConfig struct {
-	Namespaces []string `json:"namespaces,omitempty"`
-
-	Spaces *PlatformSpacesConfig `json:"spaces,omitempty"`
-}
-
-type PlatformSpacesConfig struct {
-	Labels []string `json:"labels,omitempty"`
-}
-
 type DockerConfig struct {
-	Available bool `json:"available"`
+	Contexts []string `json:"contexts,omitempty"`
+
+	CurrentContext string `json:"defaultContext,omitempty"`
+}
+
+type KubernetesConfig struct {
+	Contexts []string `json:"contexts,omitempty"`
+
+	DefaultContext   string `json:"defaultContext,omitempty"`
+	DefaultNamespace string `json:"defaultNamespace,omitempty"`
+
+	TenancyLabels      []string `json:"tenancyLabels,omitempty"`
+	PlatformNamespaces []string `json:"platformNamespaces,omitempty"`
 }

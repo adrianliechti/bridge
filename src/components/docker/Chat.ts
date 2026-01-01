@@ -4,6 +4,7 @@ import type { ChatAdapter, ChatEnvironment } from '../../types/chat';
 import { listContainers, listImages, inspectContainer, getContainerLogs, formatContainerName } from '../../api/docker/docker';
 
 export interface DockerEnvironment extends ChatEnvironment {
+  context: string;
   selectedContainerId?: string;
   selectedContainerName?: string;
   selectedResourceType?: 'containers' | 'images' | 'volumes' | 'networks';
@@ -70,13 +71,14 @@ const dockerTools: Tool[] = [
 
 // Execute Docker tool calls
 async function executeDocker(
+  context: string,
   toolName: string,
   args: Record<string, string>
 ): Promise<unknown> {
   switch (toolName) {
     case 'list_containers': {
       const all = args.all !== 'false';
-      const containers = await listContainers(all);
+      const containers = await listContainers(context, all);
       
       return {
         containers: containers.map(c => ({
@@ -91,7 +93,7 @@ async function executeDocker(
     }
 
     case 'list_images': {
-      const images = await listImages();
+      const images = await listImages(context);
       
       return {
         images: images.map(img => {
@@ -111,7 +113,7 @@ async function executeDocker(
     case 'inspect_container': {
       try {
         // Try to find container by name or ID
-        const containers = await listContainers(true);
+        const containers = await listContainers(context, true);
         const container = containers.find(c => 
           c.Id?.startsWith(args.container) || 
           formatContainerName(c.Names ?? []).toLowerCase() === args.container.toLowerCase()
@@ -121,7 +123,7 @@ async function executeDocker(
           return { error: `Container not found: ${args.container}` };
         }
         
-        const details = await inspectContainer(container.Id);
+        const details = await inspectContainer(context, container.Id);
         
         return {
           id: details.Id?.substring(0, 12),
@@ -165,7 +167,7 @@ async function executeDocker(
     case 'get_container_logs': {
       try {
         // Try to find container by name or ID
-        const containers = await listContainers(true);
+        const containers = await listContainers(context, true);
         const container = containers.find(c => 
           c.Id?.startsWith(args.container) || 
           formatContainerName(c.Names ?? []).toLowerCase() === args.container.toLowerCase()
@@ -176,7 +178,7 @@ async function executeDocker(
         }
         
         const tail = parseInt(args.tail || '100', 10);
-        const logs = await getContainerLogs(container.Id, { tail });
+        const logs = await getContainerLogs(context, container.Id, { tail });
         
         return { logs: logs || '(no logs available)' };
       } catch (error) {
@@ -203,9 +205,10 @@ export function createDockerChatAdapter(): ChatAdapter {
     placeholder: 'Ask about your containers and images...',
     tools: dockerTools,
 
-    async executeTool(toolCall: ToolCall): Promise<ToolResult> {
+    async executeTool(toolCall: ToolCall, environment?: ChatEnvironment): Promise<ToolResult> {
+      const env = environment as DockerEnvironment;
       const args = JSON.parse(toolCall.arguments);
-      const data = await executeDocker(toolCall.name, args);
+      const data = await executeDocker(env.context, toolCall.name, args);
       return {
         id: toolCall.id,
         data,

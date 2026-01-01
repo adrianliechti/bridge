@@ -249,9 +249,9 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       label: 'Start',
       icon: createElement(Play, { size: 14 }),
       variant: 'primary',
-      execute: async (_context, resource) => {
+      execute: async (context, resource) => {
         const container = resource as ContainerInspectResponse;
-        await startContainer(container.Id!);
+        await startContainer(context, container.Id!);
       },
       isVisible: (resource) => {
         const container = resource as ContainerInspectResponse;
@@ -263,9 +263,9 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       label: 'Stop',
       icon: createElement(Square, { size: 14 }),
       variant: 'warning',
-      execute: async (_context, resource) => {
+      execute: async (context, resource) => {
         const container = resource as ContainerInspectResponse;
-        await stopContainer(container.Id!);
+        await stopContainer(context, container.Id!);
       },
       isVisible: (resource) => {
         const container = resource as ContainerInspectResponse;
@@ -277,9 +277,9 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       label: 'Restart',
       icon: createElement(RefreshCw, { size: 14 }),
       variant: 'secondary',
-      execute: async (_context, resource) => {
+      execute: async (context, resource) => {
         const container = resource as ContainerInspectResponse;
-        await restartContainer(container.Id!);
+        await restartContainer(context, container.Id!);
       },
       isVisible: (resource) => {
         const container = resource as ContainerInspectResponse;
@@ -291,9 +291,9 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       label: 'Pause',
       icon: createElement(Pause, { size: 14 }),
       variant: 'secondary',
-      execute: async (_context, resource) => {
+      execute: async (context, resource) => {
         const container = resource as ContainerInspectResponse;
-        await pauseContainer(container.Id!);
+        await pauseContainer(context, container.Id!);
       },
       isVisible: (resource) => {
         const container = resource as ContainerInspectResponse;
@@ -305,9 +305,9 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       label: 'Unpause',
       icon: createElement(Play, { size: 14 }),
       variant: 'secondary',
-      execute: async (_context, resource) => {
+      execute: async (context, resource) => {
         const container = resource as ContainerInspectResponse;
-        await unpauseContainer(container.Id!);
+        await unpauseContainer(context, container.Id!);
       },
       isVisible: (resource) => {
         const container = resource as ContainerInspectResponse;
@@ -324,9 +324,9 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
         message: 'Are you sure you want to delete this container? This action cannot be undone.',
         confirmLabel: 'Delete',
       },
-      execute: async (_context, resource) => {
+      execute: async (context, resource) => {
         const container = resource as ContainerInspectResponse;
-        await removeContainer(container.Id!);
+        await removeContainer(context, container.Id!);
       },
       isVisible: (resource) => {
         const container = resource as ContainerInspectResponse;

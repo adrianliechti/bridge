@@ -8,84 +8,123 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"slices"
 	"strings"
 
 	"github.com/adrianliechti/bridge"
 	"github.com/adrianliechti/bridge/pkg/config"
-	"k8s.io/client-go/rest"
 )
 
 type Server struct {
-	handler http.Handler
+	config *config.Config
+
+	http.Handler
+}
+
+type Context struct {
+	Type string
+
+	Name string
 }
 
 func New(cfg *config.Config) (*Server, error) {
-	proxies := make(map[string]*httputil.ReverseProxy)
+	contexts := make(map[string]*Context)
 
-	for _, c := range cfg.Contexts {
-		tr, err := rest.TransportFor(c.Config)
-
-		if err != nil {
-			return nil, err
+	for _, c := range cfg.Docker.Contexts {
+		contexts[c.Name] = &Context{
+			Type: "docker",
+			Name: c.Name,
 		}
+	}
 
-		target, path, err := rest.DefaultServerUrlFor(c.Config)
-
-		if err != nil {
-			return nil, err
+	for _, c := range cfg.Kubernetes.Contexts {
+		contexts[c.Name] = &Context{
+			Type: "kubernetes",
+			Name: c.Name,
 		}
-
-		target.Path = path
-
-		proxy := &httputil.ReverseProxy{
-			Transport: tr,
-
-			ErrorLog: log.New(io.Discard, "", 0),
-
-			Rewrite: func(r *httputil.ProxyRequest) {
-				r.SetURL(target)
-				r.Out.Host = target.Host
-			},
-		}
-
-		proxies[c.Name] = proxy
 	}
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /contexts", func(w http.ResponseWriter, r *http.Request) {
-		result := make([]Context, 0)
+	s := &Server{
+		config:  cfg,
+		Handler: mux,
+	}
 
-		for name := range proxies {
-			context := Context{
-				Name: name,
+	mux.HandleFunc("GET /config.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		config := &Config{}
+
+		if cfg.OpenAI != nil {
+			config.AI = &AIConfig{
+				Model: cfg.OpenAI.Model,
 			}
-
-			result = append(result, context)
 		}
 
-		slices.SortFunc(result, func(a, b Context) int {
-			return strings.Compare(a.Name, b.Name)
-		})
+		if cfg.Docker != nil {
+			config.Docker = &DockerConfig{
+				CurrentContext: cfg.Docker.CurrentContext,
+			}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+			for _, c := range cfg.Docker.Contexts {
+				config.Docker.Contexts = append(config.Docker.Contexts, c.Name)
+			}
+		}
+
+		if cfg.Kubernetes != nil {
+			config.Kubernetes = &KubernetesConfig{
+				DefaultContext:   cfg.Kubernetes.CurrentContext,
+				DefaultNamespace: cfg.Kubernetes.CurrentNamespace,
+
+				TenancyLabels:      cfg.Kubernetes.TenancyLabels,
+				PlatformNamespaces: cfg.Kubernetes.PlatformNamespaces,
+			}
+
+			for _, c := range cfg.Kubernetes.Contexts {
+				config.Kubernetes.Contexts = append(config.Kubernetes.Contexts, c.Name)
+			}
+		}
+
+		json.NewEncoder(w).Encode(config)
 	})
 
 	mux.HandleFunc("/contexts/{context}/{path...}", func(w http.ResponseWriter, r *http.Request) {
 		path := r.PathValue("path")
-		context := r.PathValue("context")
 
-		proxy, ok := proxies[context]
+		context, ok := contexts[r.PathValue("context")]
 
 		if !ok {
 			http.Error(w, "context not found", http.StatusNotFound)
 			return
 		}
 
-		r.URL.Path = "/" + path
-		proxy.ServeHTTP(w, r)
+		switch context.Type {
+		case "docker":
+			proxy, err := s.dockerProxy(context.Name)
+
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			r.URL.Path = "/" + path
+			proxy.ServeHTTP(w, r)
+
+		case "kubernetes":
+			proxy, err := s.kubernetesProxy(context.Name)
+
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			r.URL.Path = "/" + path
+			proxy.ServeHTTP(w, r)
+
+		default:
+			http.Error(w, "unsupported context type", http.StatusBadRequest)
+			return
+		}
 	})
 
 	if cfg.OpenAI != nil {
@@ -114,79 +153,9 @@ func New(cfg *config.Config) (*Server, error) {
 		mux.Handle("/openai/v1/", proxy)
 	}
 
-	mux.HandleFunc("GET /config.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		config := &Config{
-			DefaultContext:   cfg.CurrentContext,
-			DefaultNamespace: cfg.CurrentNamespace,
-		}
-
-		if cfg.OpenAI != nil {
-			config.AI = &AIConfig{
-				Model: cfg.OpenAI.Model,
-			}
-		}
-
-		if cfg.Platform != nil {
-			config.Platform = &PlatformConfig{}
-
-			if len(cfg.Platform.PlatformNamespaces) > 0 {
-				config.Platform.Namespaces = cfg.Platform.PlatformNamespaces
-			}
-
-			if len(cfg.Platform.PlatformSpaceLabels) > 0 {
-				config.Platform.Spaces = &PlatformSpacesConfig{
-					Labels: cfg.Platform.PlatformSpaceLabels,
-				}
-			}
-		}
-
-		if cfg.Docker != nil {
-			config.Docker = &DockerConfig{
-				Available: true,
-			}
-		}
-
-		json.NewEncoder(w).Encode(config)
-	})
-
-	// Docker API proxy
-	if cfg.Docker != nil {
-		dockerHost, err := cfg.Docker.GetAPIHost()
-		if err != nil {
-			return nil, err
-		}
-
-		dockerTarget, err := url.Parse(dockerHost)
-		if err != nil {
-			return nil, err
-		}
-
-		dockerProxy := &httputil.ReverseProxy{
-			Transport: cfg.Docker.Transport,
-			ErrorLog:  log.New(io.Discard, "", 0),
-
-			Rewrite: func(r *httputil.ProxyRequest) {
-				r.Out.URL.Path = strings.TrimPrefix(r.Out.URL.Path, "/docker")
-				r.SetURL(dockerTarget)
-				r.Out.Host = dockerTarget.Host
-			},
-		}
-
-		// Docker API proxy
-		mux.Handle("/docker/", dockerProxy)
-	}
-
 	mux.Handle("/", http.FileServerFS(bridge.DistFS))
 
-	return &Server{
-		handler: mux,
-	}, nil
-}
-
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.handler.ServeHTTP(w, r)
+	return s, nil
 }
 
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {

@@ -1,5 +1,6 @@
 import { LogViewer } from '../sections/LogViewer';
 import { useDockerLogs } from '../../hooks/useDockerLogs';
+import { useDocker } from '../../hooks/useContext';
 import type { DockerContainer } from '../../api/docker/docker';
 
 export interface DockerLogViewerProps {
@@ -12,7 +13,9 @@ function DockerLogViewerInner({
   container, 
   toolbarRef 
 }: DockerLogViewerProps) {
+  const { context: dockerContext } = useDocker();
   const { logs, sources, isLoading, error, unavailableMessage } = useDockerLogs({
+    context: dockerContext,
     container,
   });
 

@@ -15,6 +15,7 @@ import {
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
 import { DockerLogViewer } from './LogViewer';
+import { useDocker } from '../../hooks/useContext';
 import type { ResourceAction, DockerResource } from './adapters/types';
 
 type ResourceType = 'containers' | 'images' | 'volumes' | 'networks';
@@ -35,6 +36,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const { context: dockerContext } = useDocker();
 
   // Auto-refresh interval (5 seconds)
   const REFRESH_INTERVAL = 5000;
@@ -77,20 +79,20 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     try {
       let data;
       if (resourceType === 'containers') {
-        data = await inspectContainer(resourceId);
+        data = await inspectContainer(dockerContext, resourceId);
       } else if (resourceType === 'images') {
         // Images don't need separate inspect - use the resource directly
         return;
       } else if (resourceType === 'volumes') {
-        data = await inspectVolume(resourceId);
+        data = await inspectVolume(dockerContext, resourceId);
       } else if (resourceType === 'networks') {
-        data = await inspectNetwork(resourceId);
+        data = await inspectNetwork(dockerContext, resourceId);
       }
       if (data) setFullObject(data);
     } catch {
       // Silent fail for background refreshes
     }
-  }, [resourceId, resourceType]);
+  }, [resourceId, resourceType, dockerContext]);
 
   // Auto-refresh polling
   useEffect(() => {
@@ -128,11 +130,11 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       try {
         let data;
         if (resourceType === 'containers') {
-          data = await inspectContainer(resourceId);
+          data = await inspectContainer(dockerContext, resourceId);
         } else if (resourceType === 'volumes') {
-          data = await inspectVolume(resourceId);
+          data = await inspectVolume(dockerContext, resourceId);
         } else if (resourceType === 'networks') {
-          data = await inspectNetwork(resourceId);
+          data = await inspectNetwork(dockerContext, resourceId);
         }
         if (data) setFullObject(data);
       } catch (err) {
@@ -143,7 +145,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     };
 
     fetchData();
-  }, [resourceId, resourceType, resource]);
+  }, [resourceId, resourceType, resource, dockerContext]);
 
   // Determine adapter type based on resource type
   const adapterType = resourceType === 'containers' ? 'container' 
@@ -175,7 +177,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
     setConfirmAction(null);
     
     try {
-      await action.execute('', fullObject); // Docker doesn't use context
+      await action.execute(dockerContext, fullObject);
       await fetchResourceData();
     } catch (err) {
       console.error('Action failed:', err);

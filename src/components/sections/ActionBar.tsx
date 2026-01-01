@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import type { ResourceAction } from './types';
-import { useCluster } from '../../hooks/useCluster';
+import { useKubernetes } from '../../hooks/useContext';
 
 export interface ActionBarProps<T> {
   actions: ResourceAction<T>[];
@@ -10,7 +10,7 @@ export interface ActionBarProps<T> {
 }
 
 export function ActionBar<T>({ actions, resource, onActionComplete }: ActionBarProps<T>) {
-  const { context } = useCluster();
+  const { context } = useKubernetes();
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction<T> | null>(null);
   const [error, setError] = useState<string | null>(null);

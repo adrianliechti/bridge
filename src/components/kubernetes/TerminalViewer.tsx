@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { ChevronDown } from 'lucide-react';
 import { ExecSession } from '../../api/kubernetes/kubernetesExec';
-import { useCluster } from '../../hooks/useCluster';
+import { useKubernetes } from '../../hooks/useContext';
 import type { KubernetesResource } from '../../api/kubernetes/kubernetes';
 import { ToolbarPortal } from '../ToolbarPortal';
 import '@xterm/xterm/css/xterm.css';
@@ -43,7 +43,7 @@ export function TerminalViewer({
   resource,
   toolbarRef,
 }: TerminalViewerProps) {
-  const { context } = useCluster();
+  const { context } = useKubernetes();
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
