@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 
 	"github.com/adrianliechti/bridge"
@@ -153,9 +155,47 @@ func New(cfg *config.Config) (*Server, error) {
 		mux.Handle("/openai/v1/", proxy)
 	}
 
-	mux.Handle("/", http.FileServerFS(bridge.DistFS))
+	mux.Handle("/", spaHandler(bridge.DistFS))
 
 	return s, nil
+}
+
+func spaHandler(fsys fs.FS) http.Handler {
+	fileServer := http.FileServerFS(fsys)
+
+	// Read index.html once at startup
+	indexHTML, err := fs.ReadFile(fsys, "index.html")
+	if err != nil {
+		panic("failed to read index.html: " + err.Error())
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		urlPath := path.Clean(r.URL.Path)
+
+		// Redirect trailing slashes to canonical path (except root)
+		if r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") {
+			http.Redirect(w, r, urlPath, http.StatusMovedPermanently)
+			return
+		}
+
+		// Try to open the file
+		filePath := strings.TrimPrefix(urlPath, "/")
+		if filePath == "" {
+			filePath = "index.html"
+		}
+
+		f, err := fsys.Open(filePath)
+		if err == nil {
+			f.Close()
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		// File doesn't exist, serve index.html for SPA routing
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Write(indexHTML)
+	})
 }
 
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {
