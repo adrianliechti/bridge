@@ -1,7 +1,7 @@
 // Utility functions for visualizers
 
-import type { Section, ContainerData, ResourceQuotaData } from './types';
-import type { V1Container } from '@kubernetes/client-node';
+import type { Section, ContainerData, ResourceQuotaData, EnvVarData, EnvFromData } from './types';
+import type { V1Container, V1EnvVar, V1EnvFromSource } from '@kubernetes/client-node';
 import { 
   parseCpuToNanoCores, 
   parseMemoryToBytes, 
@@ -174,6 +174,9 @@ export function mapContainerSpec(container: V1Container): ContainerData {
       readOnly: m.readOnly,
       subPath: m.subPath,
     })),
+    // Environment variables
+    env: container.env?.map(mapEnvVar),
+    envFrom: container.envFrom?.map(mapEnvFrom).filter((ef): ef is NonNullable<typeof ef> => ef !== null),
   };
 }
 
@@ -334,41 +337,92 @@ export function getResourceQuotaSection(containers?: V1Container[]): Section | n
   };
 }
 
+// ============================================
+// ENVIRONMENT VARIABLES HELPERS
+// ============================================
+
 /**
- * Create a container-images section showing all container images at a glance
- * Useful for quickly seeing what images a workload uses without expanding containers
+ * Map a Kubernetes V1EnvVar to our EnvVarData type
  */
-export function getContainerImagesSection(
-  containers?: V1Container[],
-  initContainers?: V1Container[],
-): Section | null {
-  const allContainers = [
-    ...(initContainers ?? []),
-    ...(containers ?? []),
-  ];
-  
-  if (allContainers.length === 0) return null;
-  
-  // Deduplicate by image while preserving container names
-  const seen = new Set<string>();
-  const uniqueContainers: Array<{ name: string; image?: string }> = [];
-  
-  for (const container of allContainers) {
-    if (!seen.has(container.image ?? '')) {
-      seen.add(container.image ?? '');
-      uniqueContainers.push({
-        name: container.name,
-        image: container.image,
-      });
+export function mapEnvVar(env: V1EnvVar): EnvVarData {
+  // Plain value
+  if (env.value !== undefined) {
+    return {
+      name: env.name,
+      value: env.value,
+    };
+  }
+
+  // valueFrom reference
+  if (env.valueFrom) {
+    if (env.valueFrom.secretKeyRef) {
+      return {
+        name: env.name,
+        valueFrom: {
+          type: 'secretKeyRef',
+          source: env.valueFrom.secretKeyRef.name ?? '',
+          key: env.valueFrom.secretKeyRef.key,
+        },
+      };
+    }
+
+    if (env.valueFrom.configMapKeyRef) {
+      return {
+        name: env.name,
+        valueFrom: {
+          type: 'configMapKeyRef',
+          source: env.valueFrom.configMapKeyRef.name ?? '',
+          key: env.valueFrom.configMapKeyRef.key,
+        },
+      };
+    }
+
+    if (env.valueFrom.fieldRef) {
+      return {
+        name: env.name,
+        valueFrom: {
+          type: 'fieldRef',
+          source: env.valueFrom.fieldRef.fieldPath,
+        },
+      };
+    }
+
+    if (env.valueFrom.resourceFieldRef) {
+      const resource = env.valueFrom.resourceFieldRef.resource;
+      const container = env.valueFrom.resourceFieldRef.containerName;
+      return {
+        name: env.name,
+        valueFrom: {
+          type: 'resourceFieldRef',
+          source: container ? `${container}/${resource}` : resource,
+        },
+      };
     }
   }
-  
-  return {
-    id: 'images',
-    title: 'Container Images',
-    data: {
-      type: 'container-images' as const,
-      containers: uniqueContainers,
-    },
-  };
+
+  // Fallback - name with empty value
+  return { name: env.name, value: '' };
+}
+
+/**
+ * Map a Kubernetes V1EnvFromSource to our EnvFromData type
+ */
+export function mapEnvFrom(envFrom: V1EnvFromSource): EnvFromData | null {
+  if (envFrom.configMapRef) {
+    return {
+      name: envFrom.configMapRef.name ?? '',
+      type: 'configMap',
+      prefix: envFrom.prefix,
+    };
+  }
+
+  if (envFrom.secretRef) {
+    return {
+      name: envFrom.secretRef.name ?? '',
+      type: 'secret',
+      prefix: envFrom.prefix,
+    };
+  }
+
+  return null;
 }

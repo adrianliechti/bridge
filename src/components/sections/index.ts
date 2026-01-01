@@ -20,6 +20,8 @@ export type {
   ReplicaSetData,
   PVCData,
   VolumeClaimTemplateData,
+  EnvVarData,
+  EnvFromData,
   MetricsData,
   NodeMetricsData,
   ResourceQuotaData,

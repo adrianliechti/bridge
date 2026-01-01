@@ -15,6 +15,8 @@ export type {
   InfoRowData,
   ContainerData,
   VolumeData,
+  EnvVarData,
+  EnvFromData,
   SectionData,
   Section,
   ResourceSections,

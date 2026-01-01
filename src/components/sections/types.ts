@@ -89,6 +89,10 @@ export interface ContainerData {
   command?: string[];
   args?: string[];
   mounts?: Array<{ name: string; mountPath: string; readOnly?: boolean; subPath?: string }>;
+  /** Environment variables */
+  env?: EnvVarData[];
+  /** Bulk env imports from ConfigMaps/Secrets */
+  envFrom?: EnvFromData[];
   /** Live metrics (populated by metricsLoader) */
   metrics?: {
     cpu: { usage: string; usageNanoCores: number };
@@ -149,7 +153,6 @@ export interface ReplicaSetData {
   name: string;
   replicas: number;
   readyReplicas: number;
-  revision?: string;
   images: string[];
   isCurrent: boolean;
 }
@@ -168,6 +171,32 @@ export interface VolumeClaimTemplateData {
   size?: string;
   storageClass?: string;
   accessModes?: string[];
+}
+
+/** Environment variable data */
+export interface EnvVarData {
+  /** Variable name */
+  name: string;
+  /** Plain value (mutually exclusive with valueFrom) */
+  value?: string;
+  /** Reference to ConfigMap, Secret, or field */
+  valueFrom?: {
+    type: 'configMapKeyRef' | 'secretKeyRef' | 'fieldRef' | 'resourceFieldRef';
+    /** Source name (ConfigMap/Secret name, or field path) */
+    source: string;
+    /** Key within the source (for ConfigMap/Secret refs) */
+    key?: string;
+  };
+}
+
+/** envFrom bulk import data */
+export interface EnvFromData {
+  /** ConfigMap or Secret name */
+  name: string;
+  /** Type of source */
+  type: 'configMap' | 'secret';
+  /** Optional prefix for imported keys */
+  prefix?: string;
 }
 
 /** Metrics data */

@@ -4,7 +4,7 @@
 import { Link } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1ReplicaSet } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection, getContainerImagesSection } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 
 export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
   kinds: ['ReplicaSet', 'ReplicaSets'],
@@ -25,7 +25,6 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
 
     // Get owner reference (usually a Deployment)
     const ownerRef = metadata?.ownerReferences?.[0];
-    const revision = metadata?.annotations?.['deployment.kubernetes.io/revision'];
 
     // Calculate resource quota from template containers
     const allContainers = [
@@ -49,11 +48,6 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
                 <div className="text-sm flex items-center gap-2">
                   <span className="text-neutral-500">{ownerRef.kind}:</span>
                   <span className="text-cyan-400">{ownerRef.name}</span>
-                  {revision && (
-                    <span className="text-xs bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-400">
-                      rev {revision}
-                    </span>
-                  )}
                 </div>
               </div>
             ),
@@ -93,15 +87,6 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
             title: 'Selector',
           },
         }] : []),
-
-        // Container images at a glance
-        ...(getContainerImagesSection(
-          spec.template?.spec?.containers,
-          spec.template?.spec?.initContainers,
-        ) ? [getContainerImagesSection(
-          spec.template?.spec?.containers,
-          spec.template?.spec?.initContainers,
-        )!] : []),
 
         // Containers
         ...getContainerSections(

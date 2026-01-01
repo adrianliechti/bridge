@@ -49,11 +49,6 @@ export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Pro
                   <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={rs.name}>
                     {rs.name}
                   </span>
-                  {rs.revision && (
-                    <span className="text-xs bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-700 dark:text-neutral-400">
-                      rev {rs.revision}
-                    </span>
-                  )}
                 </div>
                 {rs.images.length > 0 && (
                   <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">

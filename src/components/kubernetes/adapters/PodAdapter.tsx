@@ -11,7 +11,7 @@ import {
   formatCpu,
   formatBytes,
 } from '../../../api/kubernetes/kubernetesMetrics';
-import { getResourceQuotaSection } from './utils';
+import { getResourceQuotaSection, mapEnvVar, mapEnvFrom } from './utils';
 
 export const PodAdapter: ResourceAdapter<V1Pod> = {
   kinds: ['Pod', 'Pods'],
@@ -164,6 +164,9 @@ function mapContainer(container: V1Container, statuses: V1ContainerStatus[]): Co
       readOnly: m.readOnly,
       subPath: m.subPath,
     })),
+    // Environment variables
+    env: container.env?.map(mapEnvVar),
+    envFrom: container.envFrom?.map(mapEnvFrom).filter((ef): ef is NonNullable<typeof ef> => ef !== null),
   };
 }
 

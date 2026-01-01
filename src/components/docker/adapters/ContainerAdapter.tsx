@@ -1,7 +1,7 @@
 // Docker Container Adapter
 // Extracts display data from Docker containers
 
-import type { DockerAdapter, StatusCardData, InfoRowData, ContainerData, VolumeData, Section } from './types';
+import type { DockerAdapter, StatusCardData, InfoRowData, ContainerData, VolumeData, Section, EnvVarData } from './types';
 import type { ContainerInspectResponse } from '../../../api/docker/docker';
 import {
   startContainer,
@@ -109,6 +109,15 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
     });
 
     // Container details section (as a single "container")
+    // Parse environment variables
+    const envItems: EnvVarData[] = (config?.Env ?? []).map(env => {
+      const [key, ...valueParts] = env.split('=');
+      return {
+        name: key,
+        value: valueParts.join('='),
+      };
+    });
+
     const containerData: ContainerData[] = [{
       name: container.Name?.replace(/^\//, '') ?? 'container',
       image: config?.Image ?? '',
@@ -128,6 +137,7 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
         mountPath: m.Destination ?? '',
         readOnly: !m.RW,
       })),
+      env: envItems.length > 0 ? envItems : undefined,
     }];
 
     sections.push({
@@ -215,20 +225,6 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
         id: 'volumes',
         title: 'Mounts',
         data: { type: 'volumes', items: volumes },
-      });
-    }
-
-    // Environment variables as labels
-    if (config?.Env && config.Env.length > 0) {
-      const envLabels: Record<string, string> = {};
-      for (const env of config.Env) {
-        const [key, ...valueParts] = env.split('=');
-        envLabels[key] = valueParts.join('=');
-      }
-
-      sections.push({
-        id: 'env',
-        data: { type: 'labels', labels: envLabels, title: 'Environment Variables' },
       });
     }
 

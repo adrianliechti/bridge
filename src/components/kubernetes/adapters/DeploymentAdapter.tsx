@@ -4,7 +4,7 @@
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
 import { getResourceList, getResourceConfig } from '../../../api/kubernetes/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
-import { getContainerSections, getResourceQuotaSection, getContainerImagesSection } from './utils';
+import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
@@ -127,15 +127,15 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
                       name: meta.name as string,
                       replicas: rsStatus?.replicas ?? 0,
                       readyReplicas: rsStatus?.readyReplicas ?? 0,
-                      revision: annotations?.['deployment.kubernetes.io/revision'],
                       images: rsSpec?.template?.spec?.containers?.map(c => c.image) ?? [],
                       isCurrent: (rsStatus?.replicas ?? 0) > 0,
                     };
                   })
                   .sort((a, b) => {
-                    const revA = parseInt(a.revision ?? '0');
-                    const revB = parseInt(b.revision ?? '0');
-                    return revB - revA;
+                    // Sort by replicas count (current first) then by name
+                    if (a.isCurrent && !b.isCurrent) return -1;
+                    if (!a.isCurrent && b.isCurrent) return 1;
+                    return b.name.localeCompare(a.name);
                   });
               } catch (error) {
                 console.error('Failed to fetch ReplicaSets:', error);
@@ -144,15 +144,6 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
             },
           },
         },
-
-        // Container images at a glance
-        ...(getContainerImagesSection(
-          spec.template?.spec?.containers,
-          spec.template?.spec?.initContainers,
-        ) ? [getContainerImagesSection(
-          spec.template?.spec?.containers,
-          spec.template?.spec?.initContainers,
-        )!] : []),
 
         // Containers with live metrics
         ...getContainerSections(
