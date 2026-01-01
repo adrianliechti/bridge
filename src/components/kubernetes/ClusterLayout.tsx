@@ -190,6 +190,24 @@ export function ClusterLayout() {
     setIsCommandPaletteOpen(false);
   }, []);
 
+  // Navigate to a specific resource item from command palette
+  const navigateToResourceItem = useCallback((resourceType: string, itemName: string, itemNamespace?: string) => {
+    // If the item is in a different namespace, update the namespace
+    if (itemNamespace && itemNamespace !== search.namespace) {
+      navigate({
+        to: '/cluster/$context/$resourceType/$name',
+        params: { context: context!, resourceType, name: itemName },
+        search: { namespace: itemNamespace },
+      });
+    } else {
+      navigate({
+        to: '/cluster/$context/$resourceType/$name',
+        params: { context: context!, resourceType, name: itemName },
+        search: (prev) => prev,
+      });
+    }
+  }, [context, search.namespace, navigate]);
+
   // Command palette adapter
   const commandPaletteAdapter = useMemo(() => {
     return createKubernetesAdapter({
@@ -198,9 +216,10 @@ export function ClusterLayout() {
       namespaces,
       setNamespace,
       setSelectedResource: setResource,
+      setSelectedItem: navigateToResourceItem,
       onClose: closeCommandPalette,
     });
-  }, [context, search.namespace, namespaces, setNamespace, setResource, closeCommandPalette]);
+  }, [context, search.namespace, namespaces, setNamespace, setResource, navigateToResourceItem, closeCommandPalette]);
 
   // Global keyboard shortcut for command palette
   useEffect(() => {

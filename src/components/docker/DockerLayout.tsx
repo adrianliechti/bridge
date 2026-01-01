@@ -78,14 +78,23 @@ export function DockerLayout() {
     setIsCommandPaletteOpen(false);
   }, []);
 
+  // Navigate to a specific resource item from command palette
+  const navigateToItem = useCallback((resourceType: DockerResourceType, itemId: string) => {
+    navigate({
+      to: '/docker/$context/$resourceType/$name',
+      params: { context: context!, resourceType, name: itemId },
+    });
+  }, [context, navigate]);
+
   // Command palette adapter
   const commandPaletteAdapter = useMemo(() => {
     return createDockerAdapter({
       context: context || '',
       onSelectResource: setResource,
+      onSelectItem: navigateToItem,
       onClose: closeCommandPalette,
     });
-  }, [context, setResource, closeCommandPalette]);
+  }, [context, setResource, navigateToItem, closeCommandPalette]);
 
   // Global keyboard shortcut for command palette
   useEffect(() => {

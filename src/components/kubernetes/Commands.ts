@@ -75,11 +75,12 @@ interface KubernetesAdapterOptions {
   namespaces: Array<{ metadata?: { name?: string } }>;
   setNamespace: (ns: string | undefined) => void;
   setSelectedResource: (resource: V1APIResource) => void;
+  setSelectedItem: (resourceType: string, itemName: string, itemNamespace?: string) => void;
   onClose: () => void;
 }
 
 export function createKubernetesAdapter(options: KubernetesAdapterOptions): CommandPaletteAdapter {
-  const { context, namespace, namespaces, setNamespace, setSelectedResource, onClose } = options;
+  const { context, namespace, namespaces, setNamespace, setSelectedResource, setSelectedItem, onClose } = options;
   
   // Cache for resource configs
   let resourceConfigCache = new Map<string, V1APIResource>();
@@ -220,12 +221,17 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       } else if (result.type === 'resource') {
         const config = result.data.resourceConfig as V1APIResource | undefined;
         const resourceNamespace = result.data.namespace as string | undefined;
+        const resourceName = result.data.resourceName as string | undefined;
         
         // Switch namespace if needed
         if (resourceNamespace && resourceNamespace !== namespace) {
           setNamespace(resourceNamespace);
         }
-        if (config) {
+        
+        // Navigate directly to the specific resource
+        if (config && resourceName) {
+          setSelectedItem(config.name, resourceName, resourceNamespace);
+        } else if (config) {
           setSelectedResource(config);
         }
       }

@@ -30,22 +30,23 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Detect adapter change during render and reset initialization state
-  // Also set initialized immediately if adapter has no initialize function
   if (adapter.id !== trackedAdapterId) {
     setTrackedAdapterId(adapter.id);
-    // Set to true immediately if no initialize function, false otherwise
-    setIsInitialized(!adapter.initialize);
+    setIsInitialized(false);
   }
 
-  // Initialize adapter when it changes (async part only)
+  // Initialize adapter when it changes
   useEffect(() => {
-    if (adapter.initialize) {
-      adapter.initialize().then(() => {
-        // Only set initialized if we haven't reinitialized
-        setIsInitialized(prev => !prev ? true : prev);
-      });
-    }
-    // Note: synchronous initialization is handled during render above
+    let cancelled = false;
+    setIsInitialized(false);
+    adapter.initialize().then(() => {
+      if (!cancelled) {
+        setIsInitialized(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [adapter]);
 
   // Detect palette opening during render and reset state

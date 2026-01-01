@@ -24,11 +24,12 @@ const dockerResourceTypes: ResourceTypeItem[] = [
 interface DockerAdapterOptions {
   context: string;
   onSelectResource: (type: DockerResourceType) => void;
+  onSelectItem: (type: DockerResourceType, itemId: string) => void;
   onClose: () => void;
 }
 
 export function createDockerAdapter(options: DockerAdapterOptions): CommandPaletteAdapter {
-  const { context, onSelectResource, onClose } = options;
+  const { context, onSelectResource, onSelectItem, onClose } = options;
 
   const adapter: CommandPaletteAdapter = {
     id: 'docker',
@@ -38,6 +39,10 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
     searchModePrefixes: [
       { prefix: '>', mode: 'resources' },
     ],
+
+    async initialize() {
+      // Docker resources are always available, no initialization needed
+    },
 
     getAvailableResourceTypes(): ResourceTypeItem[] {
       // All Docker resource types are always available
@@ -80,19 +85,20 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
         // Search containers
         for (const container of containers) {
           const names = container.Names || [];
-          const name = names[0]?.replace(/^\//, '') || container.Id?.substring(0, 12) || '';
-          if (normalizeForSearch(name).includes(searchNormalized)) {
+          const displayName = names[0]?.replace(/^\//, '') || container.Id?.substring(0, 12) || '';
+          // URL-friendly name (same as getResourceName in ResourcePage)
+          const urlName = displayName;
+          if (normalizeForSearch(displayName).includes(searchNormalized)) {
             searchResults.push({
               id: `container/${container.Id}`,
               type: 'resource',
-              label: name,
+              label: displayName,
               sublabel: `Container · ${container.State || 'unknown'}`,
               icon: Box,
               category: 'Docker',
               data: {
                 dockerResourceType: 'containers' as DockerResourceType,
-                resourceId: container.Id,
-                resourceName: name,
+                resourceName: urlName,
               },
             });
           }
@@ -101,19 +107,20 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
         // Search images
         for (const image of images) {
           const tags = image.RepoTags || [];
-          const name = tags[0] || image.Id?.substring(7, 19) || '';
-          if (normalizeForSearch(name).includes(searchNormalized)) {
+          const displayName = tags[0] || image.Id?.substring(7, 19) || '';
+          // URL-friendly name (same as getResourceName in ResourcePage - replace : with -)
+          const urlName = displayName.replace(/:/g, '-');
+          if (normalizeForSearch(displayName).includes(searchNormalized)) {
             searchResults.push({
               id: `image/${image.Id}`,
               type: 'resource',
-              label: name,
+              label: displayName,
               sublabel: 'Image',
               icon: Layers,
               category: 'Docker',
               data: {
                 dockerResourceType: 'images' as DockerResourceType,
-                resourceId: image.Id,
-                resourceName: name,
+                resourceName: urlName,
               },
             });
           }
@@ -135,9 +142,17 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
     },
 
     handleSelect(result: SearchResult): void {
-      if (result.type === 'resource-type' || result.type === 'resource') {
+      if (result.type === 'resource-type') {
         const resourceType = result.data.dockerResourceType as DockerResourceType | undefined;
         if (resourceType) {
+          onSelectResource(resourceType);
+        }
+      } else if (result.type === 'resource') {
+        const resourceType = result.data.dockerResourceType as DockerResourceType | undefined;
+        const resourceName = result.data.resourceName as string | undefined;
+        if (resourceType && resourceName) {
+          onSelectItem(resourceType, resourceName);
+        } else if (resourceType) {
           onSelectResource(resourceType);
         }
       }

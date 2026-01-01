@@ -62,9 +62,8 @@ export interface CommandPaletteAdapter {
   
   /**
    * Initialize the adapter (e.g., load resource configs)
-   * @returns Cleanup function if needed
    */
-  initialize?: () => Promise<void>;
+  initialize(): Promise<void>;
   
   /**
    * Get available resource types (may filter based on availability)
