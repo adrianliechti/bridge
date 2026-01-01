@@ -4,12 +4,12 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { ChevronDown } from 'lucide-react';
 import { ExecSession } from '../../api/kubernetes/kubernetesExec';
-import { useKubernetes } from '../../hooks/useContext';
 import type { KubernetesResource } from '../../api/kubernetes/kubernetes';
 import { ToolbarPortal } from '../ToolbarPortal';
 import '@xterm/xterm/css/xterm.css';
 
 export interface TerminalViewerProps {
+  context: string;
   resource: KubernetesResource;
   toolbarRef?: React.RefObject<HTMLDivElement | null>;
 }
@@ -40,10 +40,10 @@ function getPodContainers(resource: KubernetesResource): ContainerInfo[] {
 }
 
 export function TerminalViewer({
+  context,
   resource,
   toolbarRef,
 }: TerminalViewerProps) {
-  const { context } = useKubernetes();
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);

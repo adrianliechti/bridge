@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 import type { DockerContainer, DockerImage, DockerVolume, DockerNetwork, DockerNetworkInspect } from '../../api/docker/docker';
 import { 
@@ -13,7 +14,6 @@ import { createDockerChatAdapter, type DockerEnvironment } from './Chat';
 import { ResourcePanel } from './ResourcePanel';
 import { usePanels } from '../../hooks/usePanelState';
 import { getConfig } from '../../config';
-import { useDocker } from '../../hooks/useContext';
 
 export type DockerResourceType = 'containers' | 'images' | 'volumes' | 'networks';
 
@@ -21,9 +21,6 @@ type DockerResourceObject = DockerContainer | DockerImage | DockerVolume | Docke
 
 // Panel IDs
 const PANEL_AI = 'ai';
-
-// Refresh interval
-const REFRESH_INTERVAL = 5000;
 
 // Get stable sort key for each resource type
 function getResourceSortKey(resource: DockerResourceObject, resourceType: DockerResourceType): string {
@@ -41,96 +38,84 @@ function getResourceSortKey(resource: DockerResourceObject, resourceType: Docker
   }
 }
 
-interface ResourcePageProps {
-  resourceType: DockerResourceType;
+// Get URL-friendly name for each resource type
+function getResourceName(resource: DockerResourceObject, resourceType: DockerResourceType): string {
+  switch (resourceType) {
+    case 'containers': {
+      const container = resource as DockerContainer;
+      return container.Names ? formatContainerName(container.Names) : container.Id?.substring(0, 12) ?? '';
+    }
+    case 'images': {
+      const image = resource as DockerImage;
+      // Use first repo tag or short ID
+      return image.RepoTags?.[0]?.replace(/:/g, '-') ?? image.Id?.substring(7, 19) ?? '';
+    }
+    case 'volumes':
+      return (resource as DockerVolume).Name ?? '';
+    case 'networks':
+      return (resource as DockerNetwork).Name ?? '';
+    default:
+      return '';
+  }
 }
 
-export function ResourcePage({ resourceType }: ResourcePageProps) {
-  const [data, setData] = useState<TableRow<DockerResourceObject>[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [isRefetching, setIsRefetching] = useState(false);
-  const isFirstFetch = useRef(true);
+// Fetch function for Docker resources
+async function fetchDockerResources(
+  dockerContext: string,
+  resourceType: DockerResourceType
+): Promise<TableRow<DockerResourceObject>[]> {
+  let tableData: TableResponse<DockerResourceObject>;
+  switch (resourceType) {
+    case 'containers': {
+      const containers = await listContainers(dockerContext, true);
+      tableData = dockerContainersToTable(containers) as TableResponse<DockerResourceObject>;
+      break;
+    }
+    case 'images': {
+      const images = await listImages(dockerContext);
+      tableData = dockerImagesToTable(images) as TableResponse<DockerResourceObject>;
+      break;
+    }
+    case 'volumes': {
+      const volumes = await listVolumes(dockerContext);
+      tableData = dockerVolumesToTable(volumes) as TableResponse<DockerResourceObject>;
+      break;
+    }
+    case 'networks': {
+      const networks = await listNetworks(dockerContext);
+      tableData = dockerNetworksToTable(networks) as TableResponse<DockerResourceObject>;
+      break;
+    }
+  }
+  // Sort rows by stable key to prevent order changes on refresh
+  return [...tableData.rows].sort((a, b) => {
+    const keyA = getResourceSortKey(a.object, resourceType);
+    const keyB = getResourceSortKey(b.object, resourceType);
+    return keyA.localeCompare(keyB);
+  });
+}
+
+interface ResourcePageProps {
+  resourceType: DockerResourceType;
+  context: string;
+  selectedItem?: string;
+  onSelectItem?: (name: string | undefined) => void;
+}
+
+export function ResourcePage({ resourceType, context: dockerContext, selectedItem, onSelectItem }: ResourcePageProps) {
   const { isOpen, toggle, close } = usePanels();
   const isChatPanelOpen = isOpen(PANEL_AI);
-  const { context: dockerContext } = useDocker();
+
+  // Fetch Docker data using TanStack Query
+  const { data = [], isLoading: loading, error, refetch, isFetching } = useQuery({
+    queryKey: ['docker', dockerContext, resourceType],
+    queryFn: () => fetchDockerResources(dockerContext, resourceType),
+    refetchInterval: 5000,
+  });
+  const isRefetching = isFetching && !loading;
 
   // Chat adapter
   const chatAdapter = createDockerChatAdapter();
-
-  // Fetch Docker data
-  const fetchData = useCallback(async (isBackground = false) => {
-    // Only show loading on initial fetch
-    if (!isBackground) {
-      setLoading(true);
-    }
-    if (isBackground) {
-      setIsRefetching(true);
-    }
-
-    try {
-      let tableData: TableResponse<DockerResourceObject>;
-      switch (resourceType) {
-        case 'containers': {
-          const containers = await listContainers(dockerContext, true);
-          tableData = dockerContainersToTable(containers) as TableResponse<DockerResourceObject>;
-          break;
-        }
-        case 'images': {
-          const images = await listImages(dockerContext);
-          tableData = dockerImagesToTable(images) as TableResponse<DockerResourceObject>;
-          break;
-        }
-        case 'volumes': {
-          const volumes = await listVolumes(dockerContext);
-          tableData = dockerVolumesToTable(volumes) as TableResponse<DockerResourceObject>;
-          break;
-        }
-        case 'networks': {
-          const networks = await listNetworks(dockerContext);
-          tableData = dockerNetworksToTable(networks) as TableResponse<DockerResourceObject>;
-          break;
-        }
-      }
-      // Sort rows by stable key to prevent order changes on refresh
-      const sortedRows = [...tableData.rows].sort((a, b) => {
-        const keyA = getResourceSortKey(a.object, resourceType);
-        const keyB = getResourceSortKey(b.object, resourceType);
-        return keyA.localeCompare(keyB);
-      });
-      setData(sortedRows);
-      // Only clear error on initial fetch success
-      if (!isBackground) {
-        setError(null);
-      }
-    } catch (err) {
-      // Only set error on initial fetch
-      if (!isBackground) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch Docker data'));
-      }
-    } finally {
-      setLoading(false);
-      setIsRefetching(false);
-    }
-  }, [resourceType, dockerContext]);
-
-  // Fetch data on mount and when resource type changes
-  useEffect(() => {
-    isFirstFetch.current = true;
-    fetchData(false);
-  }, [fetchData]);
-
-  // Auto-refresh every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Only poll if initial fetch succeeded
-      if (!isFirstFetch.current || data.length > 0) {
-        fetchData(true);
-      }
-      isFirstFetch.current = false;
-    }, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchData, data.length]);
 
   // Build config and table data
   const config: ResourceConfig = useMemo(() => ({
@@ -210,6 +195,7 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
     ? (item: TableRow<DockerResourceObject>, onClose: () => void, otherPanelOpen: boolean) => {
         return (
           <ResourcePanel
+            context={dockerContext}
             isOpen={true}
             onClose={onClose}
             otherPanelOpen={otherPanelOpen || isChatPanelOpen}
@@ -219,12 +205,12 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
         );
       }
     : undefined,
-  [showDetailPanel, resourceType, isChatPanelOpen]);
+  [showDetailPanel, resourceType, isChatPanelOpen, dockerContext]);
 
-  // Manual refetch (triggered by user)
-  const refetch = useCallback(() => {
-    fetchData(false);
-  }, [fetchData]);
+  // Get item name for URL sync
+  const getItemName = useCallback((row: TableRow<DockerResourceObject>) => {
+    return getResourceName(row.object, resourceType);
+  }, [resourceType]);
 
   return (
     <BaseResourcePage
@@ -239,6 +225,9 @@ export function ResourcePage({ resourceType }: ResourcePageProps) {
       renderDetailPanel={renderDetailPanel}
       renderHeaderActions={renderHeaderActions}
       renderExtraPanels={renderExtraPanels}
+      selectedItemName={selectedItem}
+      onSelectItemName={onSelectItem}
+      getItemName={getItemName}
     />
   );
 }

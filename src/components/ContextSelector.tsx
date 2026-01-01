@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, Server, Container } from 'lucide-react';
-import { useMode } from '../hooks/useContext';
 
 export const DOCKER_CONTEXT = 'docker';
 
 interface ContextSelectorProps {
+  mode?: 'cluster' | 'docker';
   contexts: string[];
   selectedContext: string;
   onSelectContext: (context: string) => void;
@@ -14,6 +14,7 @@ interface ContextSelectorProps {
 }
 
 export function ContextSelector({
+  mode,
   contexts,
   selectedContext,
   onSelectContext,
@@ -23,7 +24,6 @@ export function ContextSelector({
 }: ContextSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { mode, setMode } = useMode();
 
   // Close on click outside
   useEffect(() => {
@@ -41,14 +41,10 @@ export function ContextSelector({
 
   const handleSelect = (contextName: string, isDocker: boolean) => {
     if (isDocker) {
-      setMode('docker');
       if (onSelectDockerContext) {
         onSelectDockerContext(contextName);
       }
     } else {
-      if (mode === 'docker') {
-        setMode('kubernetes');
-      }
       onSelectContext(contextName);
     }
     setIsOpen(false);

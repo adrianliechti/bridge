@@ -24,7 +24,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { fetchApi } from '../../api/kubernetes/kubernetes';
-import { useKubernetes } from '../../hooks/useContext';
 
 import { ResourcePanel } from './ResourcePanel';
 import type { V1ObjectReference, V1ObjectMeta } from '@kubernetes/client-node';
@@ -193,8 +192,15 @@ const APP_PADDING = 12;
 const APP_TITLE_HEIGHT = 36;
 const APP_GAP = 20;
 
-export function ResourceOverview() {
-  const { context, namespace } = useKubernetes();
+interface ResourceOverviewProps {
+  context?: string;
+  namespace?: string;
+}
+
+export function ResourceOverview({ context: contextProp, namespace: namespaceProp }: ResourceOverviewProps) {
+  // Use props directly - they come from the router now
+  const context = contextProp || '';
+  const namespace = namespaceProp;
   const [applications, setApplications] = useState<Application[]>([]);
   const [allResources, setAllResources] = useState<K8sResource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -547,6 +553,7 @@ export function ResourceOverview() {
       </div>
     </div>
     <ResourcePanel
+      context={context}
       isOpen={isDetailPanelOpen}
       onClose={() => setSelectedNode(null)}
       resource={selectedResource}

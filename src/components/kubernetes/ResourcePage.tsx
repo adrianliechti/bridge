@@ -2,7 +2,6 @@ import { Sparkles } from 'lucide-react';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getResourceTable } from '../../api/kubernetes/kubernetesTable';
 import type { TableRow, KubernetesObject } from '../../types/table';
-import { useKubernetes } from '../../hooks/useContext';
 import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
 import { usePanels } from '../../hooks/usePanelState';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
@@ -14,23 +13,22 @@ import { getConfig } from '../../config';
 // Panel IDs
 const PANEL_AI = 'ai';
 
-function getDisplayName(resource: V1APIResource): string {
-  return resource.name.charAt(0).toUpperCase() + resource.name.slice(1);
-}
-
 interface ResourcePageProps {
   resource: V1APIResource;
+  context: string;
+  namespace: string | undefined;
+  selectedItem?: string;
+  onSelectItem?: (name: string | undefined) => void;
 }
 
-export function ResourcePage({ resource }: ResourcePageProps) {
-  const { context, namespace } = useKubernetes();
+export function ResourcePage({ resource, context, namespace, selectedItem, onSelectItem }: ResourcePageProps) {
   const { isOpen, toggle, close } = usePanels();
   const isChatPanelOpen = isOpen(PANEL_AI);
 
   // Fetch data using useKubernetesQuery
   const { data, loading, error, refetch, isRefetching } = useKubernetesQuery(
-    () => getResourceTable(context, resource, namespace),
-    [context, resource, namespace]
+    ['kubernetes', 'resources', context, resource.group, resource.name, namespace],
+    () => getResourceTable(context, resource, namespace)
   );
 
   // Extract Kubernetes resource info for detail panel
@@ -97,6 +95,7 @@ export function ResourcePage({ resource }: ResourcePageProps) {
     const resourceInfo = getResourceInfo(item);
     return (
       <ResourcePanel
+        context={context}
         isOpen={true}
         onClose={onClose}
         otherPanelOpen={otherPanelOpen || isChatPanelOpen}
@@ -105,10 +104,15 @@ export function ResourcePage({ resource }: ResourcePageProps) {
     );
   };
 
+  // Get item name for URL sync
+  const getItemName = (row: TableRow<KubernetesObject>) => {
+    return row.object.metadata?.name || '';
+  };
+
   return (
     <BaseResourcePage
       config={resource}
-      title={getDisplayName(resource)}
+      title={resource.kind}
       namespace={namespace}
       data={data}
       loading={loading}
@@ -118,6 +122,9 @@ export function ResourcePage({ resource }: ResourcePageProps) {
       renderDetailPanel={renderDetailPanel}
       renderHeaderActions={renderHeaderActions}
       renderExtraPanels={renderExtraPanels}
+      selectedItemName={selectedItem}
+      onSelectItemName={onSelectItem}
+      getItemName={getItemName}
     />
   );
 }

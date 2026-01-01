@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { getResource, getResourceEvents, updateResource, type CoreV1Event, type KubernetesResource } from '../../api/kubernetes/kubernetes';
 import { getResourceConfigByKind } from '../../api/kubernetes/kubernetesDiscovery';
-import { useKubernetes } from '../../hooks/useContext';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
 import type { ResourceAction } from './adapters/types';
@@ -14,6 +13,7 @@ import { EventsView } from './EventsView';
 import { ManifestEditor } from './ManifestEditor';
 
 interface ResourcePanelProps {
+  context: string;
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
@@ -40,8 +40,7 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
   };
 }
 
-export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resource: resourceId }: ResourcePanelProps) {
-  const { context } = useKubernetes();
+export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false, resource: resourceId }: ResourcePanelProps) {
   const [fullObject, setFullObject] = useState<KubernetesResource | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -435,7 +434,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
           )}
 
           {fullObject && !loading && (
-            <ResourceVisualizer resource={fullObject} hideActions />
+            <ResourceVisualizer context={context} resource={fullObject} hideActions />
           )}
         </div>
       )}
@@ -469,6 +468,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       {activeTab === 'logs' && supportsLogs && fullObject && (
         <div className="flex-1 overflow-hidden">
           <KubernetesLogViewer
+            context={context}
             resource={fullObject}
             toolbarRef={toolbarRef}
           />
@@ -478,6 +478,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
       {activeTab === 'terminal' && supportsTerminal && fullObject && (
         <div className="flex-1 overflow-hidden">
           <TerminalViewer
+            context={context}
             resource={fullObject}
             toolbarRef={toolbarRef}
           />

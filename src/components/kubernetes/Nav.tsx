@@ -31,7 +31,6 @@ import { getResourceConfig } from '../../api/kubernetes/kubernetesDiscovery';
 import { ScopeSelector } from './ScopeSelector';
 import { type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getConfig } from '../../config';
-import { useKubernetes } from '../../hooks/useContext';
 
 // Compare two resources for equality (by name and group)
 function isSameResource(a: V1APIResource, b: V1APIResource): boolean {
@@ -89,17 +88,26 @@ const categoryLabels: Record<string, string> = {
 };
 
 interface NavProps {
+  context: string;
+  namespace: string | undefined;
+  namespaces: { metadata?: { name?: string } }[];
   selectedResource: V1APIResource | null;
   onSelectResource: (resource: V1APIResource | null) => void;
+  onSelectNamespace: (namespace: string | undefined) => void;
   isOverviewSelected?: boolean;
+  isWelcome?: boolean;
 }
 
 export function Nav({
+  context,
+  namespace,
+  namespaces,
   selectedResource,
   onSelectResource,
+  onSelectNamespace,
   isOverviewSelected,
+  isWelcome,
 }: NavProps) {
-  const { context, namespace, namespaces, setNamespace } = useKubernetes();
   const [builtInConfigs, setBuiltInConfigs] = useState<Map<string, V1APIResource>>(new Map());
   const [crdConfigs, setCrdConfigs] = useState<V1APIResource[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
@@ -175,7 +183,7 @@ export function Nav({
         <ScopeSelector
           namespaces={namespaces}
           selectedNamespace={namespace}
-          onSelectNamespace={setNamespace}
+          onSelectNamespace={onSelectNamespace}
           disabled={selectedResource !== null && !selectedResource.namespaced}
           spaceLabels={getConfig().kubernetes?.tenancyLabels}
           platformNamespaces={getConfig().kubernetes?.platformNamespaces}
@@ -188,7 +196,7 @@ export function Nav({
         <div className="mb-2 px-2">
           <button
             className={`flex items-center w-full px-3 py-2 text-sm rounded-lg transition-colors ${
-              isOverviewSelected
+              isOverviewSelected && !isWelcome
                 ? 'bg-white/90 text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-neutral-100'
                 : 'text-neutral-600 hover:bg-white/50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/50 dark:hover:text-neutral-200'
             }`}
@@ -291,3 +299,6 @@ export function Nav({
     </>
   );
 }
+
+// Alias for new router-based code
+export { Nav as ClusterNav };

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
@@ -28,6 +28,10 @@ interface ResourcePageProps<T = any> {
   renderHeaderActions?: (columns: TableColumnDefinition[]) => React.ReactNode;
   // Optional extra panels (e.g., ChatPanel)
   renderExtraPanels?: (selectedItem: TableRow<T> | null, isDetailPanelOpen: boolean) => React.ReactNode;
+  // URL-driven selection (optional)
+  selectedItemName?: string;
+  onSelectItemName?: (name: string | undefined) => void;
+  getItemName?: (item: TableRow<T>) => string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,6 +48,9 @@ export function ResourcePage<T = any>({
   renderDetailPanel,
   renderHeaderActions,
   renderExtraPanels,
+  selectedItemName,
+  onSelectItemName,
+  getItemName,
 }: ResourcePageProps<T>) {
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   const [selectedItem, setSelectedItem] = useState<TableRow<T> | null>(null);
@@ -66,15 +73,47 @@ export function ResourcePage<T = any>({
     close(PANEL_DETAIL);
   }
 
+  // Track previous selectedItemName to detect changes
+  const prevSelectedItemNameRef = useRef(selectedItemName);
+  
+  // Sync selected item from URL when data changes or selectedItemName changes
+  useEffect(() => {
+    const prevName = prevSelectedItemNameRef.current;
+    prevSelectedItemNameRef.current = selectedItemName;
+    
+    // Use a microtask to avoid synchronous setState in effect
+    queueMicrotask(() => {
+      if (selectedItemName && data?.rows && getItemName) {
+        const item = data.rows.find(row => getItemName(row) === selectedItemName);
+        if (item && prevName !== selectedItemName) {
+          setSelectedItem(item);
+          if (showDetailPanel) {
+            open(PANEL_DETAIL);
+          }
+        }
+      } else if (!selectedItemName && prevName) {
+        setSelectedItem(null);
+        close(PANEL_DETAIL);
+      }
+    });
+  }, [selectedItemName, data, getItemName, showDetailPanel, open, close]);
+
   // Sync selected item with detail panel state
   const handleSelectItem = useCallback((item: TableRow<T> | null) => {
     setSelectedItem(item);
     if (item && showDetailPanel) {
       open(PANEL_DETAIL);
+      // Update URL if handler provided
+      if (onSelectItemName && getItemName) {
+        onSelectItemName(getItemName(item));
+      }
     } else {
       close(PANEL_DETAIL);
+      if (onSelectItemName) {
+        onSelectItemName(undefined);
+      }
     }
-  }, [open, close, showDetailPanel]);
+  }, [open, close, showDetailPanel, onSelectItemName, getItemName]);
 
   const handleColumnsLoaded = useCallback((cols: TableColumnDefinition[]) => {
     setColumns(cols);
@@ -92,11 +131,6 @@ export function ResourcePage<T = any>({
         <header className={`shrink-0 h-14 flex items-center justify-between px-5 mt-2 transition-all duration-300 ${getHeaderActionsPadding()}`}>
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-100">{title}</h2>
-            {namespace && (
-              <span className="px-2.5 py-0.5 rounded-md text-xs bg-neutral-200/80 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
-                {namespace}
-              </span>
-            )}
           </div>
           {/* Actions */}
           <div className="flex items-center gap-2">
@@ -146,6 +180,10 @@ export function ResourcePage<T = any>({
         renderDetailPanel(selectedItem, () => {
           setSelectedItem(null);
           close(PANEL_DETAIL);
+          // Navigate back to list URL
+          if (onSelectItemName) {
+            onSelectItemName(undefined);
+          }
         }, false)
       )}
     </>

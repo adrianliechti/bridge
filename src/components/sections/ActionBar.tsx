@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import type { ResourceAction } from './types';
-import { useKubernetes } from '../../hooks/useContext';
 
 export interface ActionBarProps<T> {
+  context: string;
   actions: ResourceAction<T>[];
   resource: T;
   onActionComplete?: () => void;
 }
 
-export function ActionBar<T>({ actions, resource, onActionComplete }: ActionBarProps<T>) {
-  const { context } = useKubernetes();
+export function ActionBar<T>({ context, actions, resource, onActionComplete }: ActionBarProps<T>) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction<T> | null>(null);
   const [error, setError] = useState<string | null>(null);

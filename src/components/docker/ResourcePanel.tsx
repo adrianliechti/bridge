@@ -15,12 +15,12 @@ import {
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
 import { DockerLogViewer } from './LogViewer';
-import { useDocker } from '../../hooks/useContext';
 import type { ResourceAction, DockerResource } from './adapters/types';
 
 type ResourceType = 'containers' | 'images' | 'volumes' | 'networks';
 
 interface ResourcePanelProps {
+  context: string;
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
@@ -28,7 +28,7 @@ interface ResourcePanelProps {
   resourceType?: ResourceType;
 }
 
-export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resource, resourceType = 'containers' }: ResourcePanelProps) {
+export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPanelOpen = false, resource, resourceType = 'containers' }: ResourcePanelProps) {
   const [fullObject, setFullObject] = useState<ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +36,6 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const { context: dockerContext } = useDocker();
 
   // Auto-refresh interval (5 seconds)
   const REFRESH_INTERVAL = 5000;
@@ -340,6 +339,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
             {activeTab === 'overview' && fullObject && (
               <div className="h-full overflow-auto p-4">
                 <ResourceVisualizer
+                  context={dockerContext}
                   resource={fullObject}
                   onActionComplete={fetchResourceData}
                   hideActions={true}
@@ -347,7 +347,7 @@ export function ResourcePanel({ isOpen, onClose, otherPanelOpen = false, resourc
               </div>
             )}
             {activeTab === 'logs' && resourceType === 'containers' && resource && (
-              <DockerLogViewer container={resource as DockerContainer} toolbarRef={toolbarRef} />
+              <DockerLogViewer context={dockerContext} container={resource as DockerContainer} toolbarRef={toolbarRef} />
             )}
           </>
         )}

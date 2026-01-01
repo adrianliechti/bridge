@@ -3,8 +3,9 @@ import { Box, Layers, HardDrive, Network } from 'lucide-react';
 export type DockerResourceType = 'containers' | 'images' | 'volumes' | 'networks';
 
 interface NavProps {
-  selectedResource: DockerResourceType;
+  selectedResource: DockerResourceType | null;
   onSelectResource: (resource: DockerResourceType) => void;
+  isWelcome?: boolean;
 }
 
 const navItems: { id: DockerResourceType; label: string; icon: React.ComponentType<{ size: number; className?: string }> }[] = [
@@ -14,12 +15,12 @@ const navItems: { id: DockerResourceType; label: string; icon: React.ComponentTy
   { id: 'networks', label: 'Networks', icon: Network },
 ];
 
-export function Nav({ selectedResource, onSelectResource }: NavProps) {
+export function Nav({ selectedResource, onSelectResource, isWelcome }: NavProps) {
   return (
     <nav className="flex-1 py-1 overflow-y-auto overflow-x-hidden min-h-0">
       <ul className="px-2">
         {navItems.map((item) => {
-          const isActive = selectedResource === item.id;
+          const isActive = !isWelcome && selectedResource === item.id;
           return (
             <li key={item.id}>
               <button

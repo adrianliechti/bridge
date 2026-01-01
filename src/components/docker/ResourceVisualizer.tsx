@@ -15,6 +15,7 @@ import { SectionRenderer } from '../sections/SectionRenderer';
 type DockerDetailResource = ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect;
 
 interface ResourceVisualizerProps {
+  context: string;
   resource: DockerDetailResource;
   onActionComplete?: () => void;
   hideActions?: boolean;
@@ -33,7 +34,7 @@ function getResourceType(resource: DockerDetailResource): string {
   return 'container';
 }
 
-export function ResourceVisualizer({ resource, onActionComplete, hideActions = false }: ResourceVisualizerProps) {
+export function ResourceVisualizer({ context, resource, onActionComplete, hideActions = false }: ResourceVisualizerProps) {
   const resourceType = getResourceType(resource);
   const sections = adaptResource(resource, resourceType);
   const actions = getResourceActions(resource, resourceType);
@@ -50,6 +51,7 @@ export function ResourceVisualizer({ resource, onActionComplete, hideActions = f
     <div className="space-y-4">
       {!hideActions && actions.length > 0 && (
         <ActionBar 
+          context={context}
           actions={actions} 
           resource={resource} 
           onActionComplete={onActionComplete}

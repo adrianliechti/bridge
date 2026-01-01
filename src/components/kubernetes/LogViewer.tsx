@@ -1,19 +1,19 @@
 import { LogViewer } from '../sections/LogViewer';
 import { useKubernetesLogs } from '../../hooks/useKubernetesLogs';
-import { useKubernetes } from '../../hooks/useContext';
 import type { KubernetesResource } from '../../api/kubernetes/kubernetes';
 
 export interface KubernetesLogViewerProps {
+  context: string;
   resource: KubernetesResource;
   toolbarRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 // Inner component that handles log streaming
 function KubernetesLogViewerInner({ 
+  context,
   resource,
   toolbarRef,
 }: KubernetesLogViewerProps) {
-  const { context } = useKubernetes();
   
   const { logs, sources, isLoading, error } = useKubernetesLogs({
     context,
@@ -38,10 +38,11 @@ function getResourceKey(resource: KubernetesResource): string {
 }
 
 // Wrapper component that uses key to reset inner state when resource changes
-export function KubernetesLogViewer({ resource, toolbarRef }: KubernetesLogViewerProps) {
+export function KubernetesLogViewer({ context, resource, toolbarRef }: KubernetesLogViewerProps) {
   return (
     <KubernetesLogViewerInner 
-      key={getResourceKey(resource)} 
+      key={getResourceKey(resource)}
+      context={context}
       resource={resource} 
       toolbarRef={toolbarRef} 
     />
