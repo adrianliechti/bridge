@@ -91,7 +91,7 @@ export function ResourceTable<T = any>({
 
       cols.push(
         columnHelper.accessor((row) => row.cells[idx], {
-          id: colDef.name,
+          id: colDef.name.toLowerCase(),
           header: colDef.name,
           sortingFn: isDateTime ? 'datetime' : 'auto',
           sortUndefined: 'last',
@@ -104,6 +104,11 @@ export function ResourceTable<T = any>({
               formatted = '<none>';
             } else if (isDateTime && typeof value === 'string') {
               // Inline age formatting
+              // Note: Age values (e.g., "5m", "2h") are calculated on each cell render.
+              // They update automatically when the table re-renders (e.g., due to data refetch,
+              // sorting, filtering). The refetchInterval in query configuration ensures periodic
+              // updates. If more frequent age updates are needed without refetching data, consider
+              // adding a separate interval timer to trigger re-renders.
               const created = new Date(value);
               const now = new Date();
               const diffMs = now.getTime() - created.getTime();
