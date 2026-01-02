@@ -13,12 +13,16 @@ import { MetadataView } from '../sections';
 import { EventsView } from './EventsView';
 import { ManifestEditor } from './ManifestEditor';
 
+type TabType = 'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal';
+
 interface ResourcePanelProps {
   context: string;
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
   resource: V1ObjectReference | null;
+  tab?: TabType;
+  onTabChange?: (tab: TabType | undefined) => void;
 }
 
 // Metadata fields to hide from the detail panel
@@ -41,8 +45,8 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
   };
 }
 
-export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false, resource: resourceId }: ResourcePanelProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal'>('yaml');
+export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false, resource: resourceId, tab: urlTab, onTabChange }: ResourcePanelProps) {
+  const [activeTab, setActiveTabState] = useState<TabType>('yaml');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
@@ -126,25 +130,20 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
     refetchResource();
   }, [context, resourceId, refetchResource]);
 
-  // Reset tab when resource changes - use overview if adapter exists, otherwise yaml
-  useEffect(() => {
-    const kind = resourceId?.kind || '';
-    setActiveTab(hasAdapter(kind) ? 'overview' : 'yaml');
-  }, [resourceId?.kind, resourceId?.name, resourceId?.namespace]);
+  // Wrapper to update both local state and URL
+  const setActiveTab = useCallback((tab: TabType) => {
+    setActiveTabState(tab);
+    onTabChange?.(tab);
+  }, [onTabChange]);
 
-  if (!isOpen || !resourceId || !resourceId.name) return null;
+  // Determine which tabs are available for the current resource (static checks)
+  const kind = resourceId?.kind || '';
+  const hasCustomAdapter = hasAdapter(kind);
+  const LOGGABLE_KINDS = ['Pod', 'Deployment', 'DaemonSet', 'ReplicaSet', 'StatefulSet', 'Job'];
+  const supportsLogs = LOGGABLE_KINDS.includes(kind) && !!resourceId?.namespace;
+  const supportsTerminal = kind === 'Pod' && !!resourceId?.namespace;
 
-  const rawObject = fullObject;
-  
-  // Filter out hidden metadata fields for display
-  const displayObject = rawObject ? filterHiddenMetadataFields(rawObject) : null;
-  const resourceName = resourceId.name;
-  const resourceKind = resourceId.kind || 'Resource';
-
-  // Check if resource has a custom adapter for Overview tab
-  const hasCustomAdapter = hasAdapter(resourceKind);
-
-  // Check if metadata has labels or annotations to show
+  // Compute hasMetadata early (needed for tab validation)
   const hiddenLabels = new Set(['pod-template-hash', 'controller-revision-hash', 'pod-template-generation']);
   const hiddenAnnotations = new Set([
     'kubectl.kubernetes.io/last-applied-configuration',
@@ -153,25 +152,68 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
     'deprecated.daemonset.template.generation',
     'kubernetes.io/description',
   ]);
-  
-  const metadata = displayObject?.metadata as Record<string, unknown> | undefined;
-  const labels = metadata?.labels as Record<string, string> | undefined;
-  const annotations = metadata?.annotations as Record<string, string> | undefined;
-  
-  const filteredLabelsCount = labels 
-    ? Object.keys(labels).filter(key => !hiddenLabels.has(key)).length 
+  const rawMetadata = fullObject?.metadata as Record<string, unknown> | undefined;
+  const rawLabels = rawMetadata?.labels as Record<string, string> | undefined;
+  const rawAnnotations = rawMetadata?.annotations as Record<string, string> | undefined;
+  const filteredLabelsCount = rawLabels 
+    ? Object.keys(rawLabels).filter(key => !hiddenLabels.has(key)).length 
     : 0;
-  const filteredAnnotationsCount = annotations 
-    ? Object.keys(annotations).filter(key => !hiddenAnnotations.has(key)).length 
+  const filteredAnnotationsCount = rawAnnotations 
+    ? Object.keys(rawAnnotations).filter(key => !hiddenAnnotations.has(key)).length 
     : 0;
   const hasMetadata = filteredLabelsCount > 0 || filteredAnnotationsCount > 0;
+  const hasEvents = events.length > 0;
 
-  // Resource kinds that support logs (have pods)
-  const LOGGABLE_KINDS = ['Pod', 'Deployment', 'DaemonSet', 'ReplicaSet', 'StatefulSet', 'Job'];
-  const supportsLogs = LOGGABLE_KINDS.includes(resourceKind) && !!resourceId.namespace;
+  // Helper to check if a tab is available
+  const isTabAvailable = useCallback((tab: TabType): boolean => {
+    switch (tab) {
+      case 'overview': return hasCustomAdapter;
+      case 'metadata': return hasMetadata;
+      case 'yaml': return true;
+      case 'events': return hasEvents;
+      case 'logs': return supportsLogs;
+      case 'terminal': return supportsTerminal;
+      default: return false;
+    }
+  }, [hasCustomAdapter, hasMetadata, hasEvents, supportsLogs, supportsTerminal]);
+
+  // Determine default tab
+  const getDefaultTab = useCallback((): TabType => {
+    return hasCustomAdapter ? 'overview' : 'yaml';
+  }, [hasCustomAdapter]);
+
+  // Sync tab from URL or set default when resource changes
+  useEffect(() => {
+    if (urlTab && isTabAvailable(urlTab)) {
+      // URL tab is valid, use it
+      setActiveTabState(urlTab);
+    } else if (urlTab) {
+      // URL tab is not available, fall back and update URL
+      const fallback = getDefaultTab();
+      setActiveTabState(fallback);
+      onTabChange?.(fallback);
+    } else {
+      // No URL tab, use default
+      setActiveTabState(getDefaultTab());
+    }
+  }, [resourceId?.kind, resourceId?.name, resourceId?.namespace, urlTab, isTabAvailable, getDefaultTab, onTabChange]);
+
+  // Re-validate active tab when data changes (e.g., events load, metadata changes)
+  useEffect(() => {
+    if (!isTabAvailable(activeTab)) {
+      const fallback = getDefaultTab();
+      setActiveTabState(fallback);
+      onTabChange?.(fallback);
+    }
+  }, [activeTab, isTabAvailable, getDefaultTab, onTabChange]);
+
+  if (!isOpen || !resourceId || !resourceId.name) return null;
+
+  const rawObject = fullObject;
   
-  // Only pods support terminal
-  const supportsTerminal = resourceKind === 'Pod' && !!resourceId.namespace;
+  // Filter out hidden metadata fields for display
+  const displayObject = rawObject ? filterHiddenMetadataFields(rawObject) : null;
+  const resourceName = resourceId.name;
 
   return (
     <aside 

@@ -20,6 +20,7 @@ import { WelcomePage } from './components/WelcomePage';
 const clusterSearchSchema = z.object({
   namespace: z.string().optional(),
   panel: z.enum(['ai']).optional(),
+  tab: z.enum(['overview', 'metadata', 'yaml', 'events', 'logs', 'terminal']).optional(),
 });
 
 // Search params schema for docker routes  

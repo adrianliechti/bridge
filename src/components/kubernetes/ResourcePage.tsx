@@ -13,15 +13,19 @@ import { getConfig } from '../../config';
 // Panel IDs
 const PANEL_AI = 'ai';
 
+type TabType = 'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal';
+
 interface ResourcePageProps {
   resource: V1APIResource;
   context: string;
   namespace: string | undefined;
   selectedItem?: string;
   onSelectItem?: (name: string | undefined) => void;
+  tab?: TabType;
+  onTabChange?: (tab: TabType | undefined) => void;
 }
 
-export function ResourcePage({ resource, context, namespace, selectedItem, onSelectItem }: ResourcePageProps) {
+export function ResourcePage({ resource, context, namespace, selectedItem, onSelectItem, tab, onTabChange }: ResourcePageProps) {
   const { isOpen, toggle, close } = usePanels();
   const isChatPanelOpen = isOpen(PANEL_AI);
 
@@ -100,6 +104,8 @@ export function ResourcePage({ resource, context, namespace, selectedItem, onSel
         onClose={onClose}
         otherPanelOpen={otherPanelOpen || isChatPanelOpen}
         resource={resourceInfo}
+        tab={tab}
+        onTabChange={onTabChange}
       />
     );
   };

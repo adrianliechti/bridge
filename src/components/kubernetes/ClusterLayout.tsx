@@ -173,10 +173,18 @@ export function ClusterLayout() {
       navigate({
         to: '/cluster/$context/$resourceType',
         params: { context: context!, resourceType },
-        search: (prev) => prev,
+        search: (prev) => ({ ...prev, tab: undefined }), // Clear tab when deselecting item
       });
     }
   }, [context, resourceType, navigate]);
+
+  const setTab = useCallback((tab: 'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal' | undefined) => {
+    navigate({
+      to: '.',
+      search: (prev) => ({ ...prev, tab }),
+      replace: true, // Don't add to history for tab changes
+    });
+  }, [navigate]);
 
   const setDockerContext = useCallback((dockerContext: string) => {
     navigate({
@@ -303,6 +311,8 @@ export function ClusterLayout() {
           resource={currentResourceConfig}
           selectedItem={name}
           onSelectItem={setSelectedItem}
+          tab={search.tab}
+          onTabChange={setTab}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center text-neutral-500">
