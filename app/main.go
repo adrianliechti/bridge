@@ -35,16 +35,6 @@ func main() {
 			Assets: bridge.DistFS,
 
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/api" {
-					r.URL.Path = "/api/"
-				}
-
-				if r.URL.Path == "/apis" {
-					r.URL.Path = "/apis/"
-				}
-
-				println("Request for:", r.URL.Path)
-
 				mux.ServeHTTP(w, r)
 			}),
 		},

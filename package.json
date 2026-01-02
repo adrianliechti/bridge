@@ -10,11 +10,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@docker/node-sdk": "^0.0.17",
     "@monaco-editor/react": "^4.7.0",
     "@peculiar/x509": "^1.14.2",
+    "@tanstack/ai": "^0.2.0",
+    "@tanstack/ai-client": "^0.2.0",
+    "@tanstack/ai-openai": "^0.2.0",
+    "@tanstack/ai-react": "^0.2.0",
+    "@tanstack/react-query": "^5.90.16",
+    "@tanstack/react-router": "^1.144.0",
+    "@tanstack/react-table": "^8.21.3",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
+    "anser": "^2.3.5",
     "lucide-react": "^0.562.0",
     "openai": "^6.15.0",
     "react": "^19.2.3",
@@ -22,7 +31,8 @@
     "react-markdown": "^10.1.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.2",
+    "zod": "^4.3.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

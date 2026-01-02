@@ -1,0 +1,347 @@
+// Pod Adapter
+// Extracts display data from Pod resources
+
+import type { ResourceAdapter, ResourceSections, ContainerData, VolumeData } from './types';
+import type { V1Pod, V1Container, V1ContainerStatus, V1Volume } from '@kubernetes/client-node';
+
+import { 
+  getPodMetrics, 
+  parseCpuToNanoCores, 
+  parseMemoryToBytes,
+  formatCpu,
+  formatBytes,
+} from '../../../api/kubernetes/kubernetesMetrics';
+import { getResourceQuotaSection, mapEnvVar, mapEnvFrom } from './utils';
+
+export const PodAdapter: ResourceAdapter<V1Pod> = {
+  kinds: ['Pod', 'Pods'],
+
+  adapt(context: string, resource): ResourceSections {
+    const spec = resource.spec;
+    const status = resource.status;
+    const metadata = resource.metadata;
+    const namespace = metadata?.namespace;
+
+    if (!spec) {
+      return { sections: [] };
+    }
+
+    const containers = spec.containers ?? [];
+    const initContainers = spec.initContainers ?? [];
+    const containerStatuses = status?.containerStatuses ?? [];
+    const initContainerStatuses = status?.initContainerStatuses ?? [];
+
+    const totalRestarts = containerStatuses.reduce((sum, c) => sum + (c.restartCount ?? 0), 0);
+
+    // Create metrics loader for container metrics
+    const metricsLoader = async () => {
+      const podName = metadata?.name;
+      const podNamespace = namespace;
+      if (!podName || !podNamespace) return null;
+
+      const metrics = await getPodMetrics(context, podName, podNamespace);
+      if (!metrics) return null;
+
+      const result = new Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }>();
+      
+      for (const cm of metrics.containers) {
+        result.set(cm.name, {
+          cpu: { 
+            usage: formatCpu(parseCpuToNanoCores(cm.usage.cpu)), 
+            usageNanoCores: parseCpuToNanoCores(cm.usage.cpu) 
+          },
+          memory: { 
+            usage: formatBytes(parseMemoryToBytes(cm.usage.memory)), 
+            usageBytes: parseMemoryToBytes(cm.usage.memory) 
+          },
+        });
+      }
+      
+      return result;
+    };
+
+    // Aggregate containers for quota calculation
+    const allContainers = [...containers, ...initContainers];
+    const quotaSection = getResourceQuotaSection(allContainers);
+
+    return {
+      sections: [
+        // Status overview
+        {
+          id: 'status',
+          data: {
+            type: 'status-cards',
+            items: [
+              { label: 'Phase', value: status?.phase || 'Unknown', status: getPhaseStatus(status?.phase) },
+              { label: 'Pod IP', value: status?.podIP || 'Pending' },
+              { label: 'Node', value: spec.nodeName || 'Not scheduled' },
+              { label: 'Restarts', value: totalRestarts, status: totalRestarts > 0 ? 'warning' : 'success' },
+            ],
+          },
+        },
+
+        // Resource Quota
+        ...(quotaSection ? [quotaSection] : []),
+
+        // Init containers
+        ...(initContainers.length > 0 ? [{
+          id: 'init-containers',
+          title: 'Init Containers',
+          data: {
+            type: 'containers' as const,
+            items: initContainers.map(c => mapContainer(c, initContainerStatuses)),
+            // Init containers typically don't have live metrics
+          },
+        }] : []),
+
+        // Containers with live metrics
+        {
+          id: 'containers',
+          title: 'Containers',
+          data: {
+            type: 'containers' as const,
+            items: containers.map(c => mapContainer(c, containerStatuses)),
+            metricsLoader,
+          },
+        },
+
+        // Volumes
+        ...(spec.volumes?.length ? [{
+          id: 'volumes',
+          title: 'Volumes',
+          data: {
+            type: 'volumes' as const,
+            items: spec.volumes.map(v => mapVolume(v, [...containers, ...initContainers])),
+          },
+        }] : []),
+      ],
+    };
+  },
+};
+
+function mapContainer(container: V1Container, statuses: V1ContainerStatus[]): ContainerData {
+  const status = statuses.find(s => s.name === container.name);
+  const state = getContainerState(status);
+  const lastTerminated = status?.lastState?.terminated;
+  const currentTerminated = status?.state?.terminated;
+  
+  return {
+    name: container.name,
+    image: container.image || '',
+    state: state.state,
+    stateReason: state.reason,
+    stateMessage: state.message,
+    ready: status?.ready,
+    restartCount: status?.restartCount,
+    currentTermination: currentTerminated ? {
+      reason: currentTerminated.reason,
+      message: currentTerminated.message,
+      exitCode: currentTerminated.exitCode,
+      signal: currentTerminated.signal,
+      startedAt: currentTerminated.startedAt?.toISOString?.() ?? currentTerminated.startedAt as unknown as string,
+      finishedAt: currentTerminated.finishedAt?.toISOString?.() ?? currentTerminated.finishedAt as unknown as string,
+    } : undefined,
+    lastTermination: lastTerminated ? {
+      reason: lastTerminated.reason,
+      exitCode: lastTerminated.exitCode,
+      signal: lastTerminated.signal,
+      finishedAt: lastTerminated.finishedAt?.toISOString?.() ?? lastTerminated.finishedAt as unknown as string,
+    } : undefined,
+    resources: container.resources ? {
+      requests: container.resources.requests as Record<string, string> | undefined,
+      limits: container.resources.limits as Record<string, string> | undefined,
+    } : undefined,
+    ports: container.ports?.map(p => ({
+      name: p.name,
+      containerPort: p.containerPort,
+      protocol: p.protocol,
+    })),
+    command: container.command,
+    args: container.args,
+    mounts: container.volumeMounts?.map(m => ({
+      name: m.name,
+      mountPath: m.mountPath,
+      readOnly: m.readOnly,
+      subPath: m.subPath,
+    })),
+    // Environment variables
+    env: container.env?.map(mapEnvVar),
+    envFrom: container.envFrom?.map(mapEnvFrom).filter((ef): ef is NonNullable<typeof ef> => ef !== null),
+  };
+}
+
+function mapVolume(volume: V1Volume, containers: V1Container[]): VolumeData {
+  const info = getVolumeInfo(volume);
+  
+  // Find all containers that mount this volume
+  const mounts: VolumeData['mounts'] = [];
+  for (const container of containers) {
+    if (container.volumeMounts) {
+      for (const mount of container.volumeMounts) {
+        if (mount.name === volume.name) {
+          mounts.push({
+            container: container.name,
+            mountPath: mount.mountPath,
+            readOnly: mount.readOnly ?? false,
+            subPath: mount.subPath,
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    name: volume.name,
+    type: info.type,
+    source: info.detail,
+    extra: info.extra,
+    mounts,
+  };
+}
+
+function getPhaseStatus(phase?: string): 'success' | 'warning' | 'error' | 'neutral' {
+  switch (phase?.toLowerCase()) {
+    case 'running': return 'success';
+    case 'succeeded': return 'success';
+    case 'pending': return 'warning';
+    case 'failed': return 'error';
+    default: return 'neutral';
+  }
+}
+
+function getContainerState(status?: V1ContainerStatus): { state?: 'running' | 'waiting' | 'terminated'; reason?: string; message?: string } {
+  if (!status?.state) return {};
+
+  if (status.state.running) {
+    return { state: 'running' };
+  }
+  if (status.state.waiting) {
+    return { state: 'waiting', reason: status.state.waiting.reason, message: status.state.waiting.message };
+  }
+  if (status.state.terminated) {
+    return { state: 'terminated', reason: status.state.terminated.reason, message: status.state.terminated.message };
+  }
+  return {};
+}
+
+// Format a decimal mode number as human-readable permissions (e.g., 420 -> "rw-r--r--")
+function formatOctalMode(mode: number): string {
+  const octal = mode.toString(8).padStart(4, '0');
+  
+  // Parse special bits (first digit) and permission bits (last 3 digits)
+  const special = parseInt(octal[octal.length - 4] || '0', 10);
+  const user = parseInt(octal[octal.length - 3], 10);
+  const group = parseInt(octal[octal.length - 2], 10);
+  const other = parseInt(octal[octal.length - 1], 10);
+  
+  const setuid = (special & 4) !== 0;
+  const setgid = (special & 2) !== 0;
+  const sticky = (special & 1) !== 0;
+  
+  const r = (n: number) => (n & 4) ? 'r' : '-';
+  const w = (n: number) => (n & 2) ? 'w' : '-';
+  
+  // Execute bit can be modified by special bits
+  const userX = (user & 1) ? (setuid ? 's' : 'x') : (setuid ? 'S' : '-');
+  const groupX = (group & 1) ? (setgid ? 's' : 'x') : (setgid ? 'S' : '-');
+  const otherX = (other & 1) ? (sticky ? 't' : 'x') : (sticky ? 'T' : '-');
+  
+  return r(user) + w(user) + userX + r(group) + w(group) + groupX + r(other) + w(other) + otherX;
+}
+
+function getVolumeInfo(volume: V1Volume): { type: string; detail: string; extra?: Record<string, string> } {
+  if (volume.configMap) {
+    return { 
+      type: 'ConfigMap', 
+      detail: volume.configMap.name || '',
+      extra: {
+        ...(volume.configMap.optional !== undefined && { optional: String(volume.configMap.optional) }),
+        ...(volume.configMap.defaultMode !== undefined && { mode: formatOctalMode(volume.configMap.defaultMode) }),
+      }
+    };
+  }
+  if (volume.secret) {
+    return { 
+      type: 'Secret', 
+      detail: volume.secret.secretName || '',
+      extra: {
+        ...(volume.secret.optional !== undefined && { optional: String(volume.secret.optional) }),
+        ...(volume.secret.defaultMode !== undefined && { mode: formatOctalMode(volume.secret.defaultMode) }),
+      }
+    };
+  }
+  if (volume.emptyDir) {
+    return { 
+      type: 'EmptyDir', 
+      detail: volume.emptyDir.medium || 'default',
+      extra: {
+        ...(volume.emptyDir.sizeLimit && { sizeLimit: volume.emptyDir.sizeLimit }),
+      }
+    };
+  }
+  if (volume.hostPath) {
+    return { 
+      type: 'HostPath', 
+      detail: volume.hostPath.path,
+      extra: {
+        ...(volume.hostPath.type && { type: volume.hostPath.type }),
+      }
+    };
+  }
+  if (volume.persistentVolumeClaim) {
+    return { 
+      type: 'PVC', 
+      detail: volume.persistentVolumeClaim.claimName,
+      extra: {
+        ...(volume.persistentVolumeClaim.readOnly && { readOnly: 'true' }),
+      }
+    };
+  }
+  if (volume.projected) {
+    const sources = volume.projected.sources || [];
+    const sourceTypes = sources.map(s => {
+      if (s.configMap) return 'ConfigMap';
+      if (s.secret) return 'Secret';
+      if (s.serviceAccountToken) return 'ServiceAccountToken';
+      if (s.downwardAPI) return 'DownwardAPI';
+      return 'Unknown';
+    });
+    return { 
+      type: 'Projected', 
+      detail: `${sources.length} sources`,
+      extra: {
+        sources: sourceTypes.join(', '),
+        ...(volume.projected.defaultMode !== undefined && { mode: formatOctalMode(volume.projected.defaultMode) }),
+      }
+    };
+  }
+  if (volume.downwardAPI) {
+    return { 
+      type: 'DownwardAPI', 
+      detail: `${volume.downwardAPI.items?.length || 0} items`,
+      extra: {
+        ...(volume.downwardAPI.defaultMode !== undefined && { mode: formatOctalMode(volume.downwardAPI.defaultMode) }),
+      }
+    };
+  }
+  if (volume.nfs) {
+    return { 
+      type: 'NFS', 
+      detail: `${volume.nfs.server}:${volume.nfs.path}`,
+      extra: {
+        ...(volume.nfs.readOnly && { readOnly: 'true' }),
+      }
+    };
+  }
+  if (volume.csi) {
+    return { 
+      type: 'CSI', 
+      detail: volume.csi.driver,
+      extra: {
+        ...(volume.csi.fsType && { fsType: volume.csi.fsType }),
+        ...(volume.csi.readOnly && { readOnly: 'true' }),
+      }
+    };
+  }
+  return { type: 'Unknown', detail: '' };
+}

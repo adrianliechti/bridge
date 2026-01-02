@@ -4,88 +4,129 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"slices"
+	"path"
 	"strings"
 
 	"github.com/adrianliechti/bridge"
 	"github.com/adrianliechti/bridge/pkg/config"
-	"k8s.io/client-go/rest"
 )
 
 type Server struct {
-	handler http.Handler
+	config *config.Config
+
+	http.Handler
+}
+
+type Context struct {
+	Type string
+
+	Name string
 }
 
 func New(cfg *config.Config) (*Server, error) {
-	proxies := make(map[string]*httputil.ReverseProxy)
+	contexts := make(map[string]*Context)
 
-	for _, c := range cfg.Contexts {
-		tr, err := rest.TransportFor(c.Config)
-
-		if err != nil {
-			return nil, err
+	for _, c := range cfg.Docker.Contexts {
+		contexts[c.Name] = &Context{
+			Type: "docker",
+			Name: c.Name,
 		}
+	}
 
-		target, path, err := rest.DefaultServerUrlFor(c.Config)
-
-		if err != nil {
-			return nil, err
+	for _, c := range cfg.Kubernetes.Contexts {
+		contexts[c.Name] = &Context{
+			Type: "kubernetes",
+			Name: c.Name,
 		}
-
-		target.Path = path
-
-		proxy := &httputil.ReverseProxy{
-			Transport: tr,
-
-			ErrorLog: log.New(io.Discard, "", 0),
-
-			Rewrite: func(r *httputil.ProxyRequest) {
-				r.SetURL(target)
-				r.Out.Host = target.Host
-			},
-		}
-
-		proxies[c.Name] = proxy
 	}
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /contexts", func(w http.ResponseWriter, r *http.Request) {
-		result := make([]Context, 0)
+	s := &Server{
+		config:  cfg,
+		Handler: mux,
+	}
 
-		for name := range proxies {
-			context := Context{
-				Name: name,
+	mux.HandleFunc("GET /config.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		config := &Config{}
+
+		if cfg.OpenAI != nil {
+			config.AI = &AIConfig{
+				Model: cfg.OpenAI.Model,
 			}
-
-			result = append(result, context)
 		}
 
-		slices.SortFunc(result, func(a, b Context) int {
-			return strings.Compare(a.Name, b.Name)
-		})
+		if cfg.Docker != nil {
+			config.Docker = &DockerConfig{
+				CurrentContext: cfg.Docker.CurrentContext,
+			}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+			for _, c := range cfg.Docker.Contexts {
+				config.Docker.Contexts = append(config.Docker.Contexts, c.Name)
+			}
+		}
+
+		if cfg.Kubernetes != nil {
+			config.Kubernetes = &KubernetesConfig{
+				DefaultContext:   cfg.Kubernetes.CurrentContext,
+				DefaultNamespace: cfg.Kubernetes.CurrentNamespace,
+
+				TenancyLabels:      cfg.Kubernetes.TenancyLabels,
+				PlatformNamespaces: cfg.Kubernetes.PlatformNamespaces,
+			}
+
+			for _, c := range cfg.Kubernetes.Contexts {
+				config.Kubernetes.Contexts = append(config.Kubernetes.Contexts, c.Name)
+			}
+		}
+
+		json.NewEncoder(w).Encode(config)
 	})
 
 	mux.HandleFunc("/contexts/{context}/{path...}", func(w http.ResponseWriter, r *http.Request) {
 		path := r.PathValue("path")
-		context := r.PathValue("context")
 
-		proxy, ok := proxies[context]
+		context, ok := contexts[r.PathValue("context")]
 
 		if !ok {
 			http.Error(w, "context not found", http.StatusNotFound)
 			return
 		}
 
-		r.URL.Path = "/" + path
-		proxy.ServeHTTP(w, r)
+		switch context.Type {
+		case "docker":
+			proxy, err := s.dockerProxy(context.Name)
+
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			r.URL.Path = "/" + path
+			proxy.ServeHTTP(w, r)
+
+		case "kubernetes":
+			proxy, err := s.kubernetesProxy(context.Name)
+
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			r.URL.Path = "/" + path
+			proxy.ServeHTTP(w, r)
+
+		default:
+			http.Error(w, "unsupported context type", http.StatusBadRequest)
+			return
+		}
 	})
 
 	if cfg.OpenAI != nil {
@@ -114,46 +155,47 @@ func New(cfg *config.Config) (*Server, error) {
 		mux.Handle("/openai/v1/", proxy)
 	}
 
-	mux.HandleFunc("GET /config.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	mux.Handle("/", spaHandler(bridge.DistFS))
 
-		config := &Config{
-			DefaultContext:   cfg.CurrentContext,
-			DefaultNamespace: cfg.CurrentNamespace,
-		}
-
-		if cfg.OpenAI != nil {
-			config.AI = &AIConfig{
-				Model: cfg.OpenAI.Model,
-			}
-		}
-
-		if cfg.Platform != nil {
-			config.Platform = &PlatformConfig{}
-
-			if len(cfg.Platform.PlatformNamespaces) > 0 {
-				config.Platform.Namespaces = cfg.Platform.PlatformNamespaces
-			}
-
-			if len(cfg.Platform.PlatformSpaceLabels) > 0 {
-				config.Platform.Spaces = &PlatformSpacesConfig{
-					Labels: cfg.Platform.PlatformSpaceLabels,
-				}
-			}
-		}
-
-		json.NewEncoder(w).Encode(config)
-	})
-
-	mux.Handle("/", http.FileServerFS(bridge.DistFS))
-
-	return &Server{
-		handler: mux,
-	}, nil
+	return s, nil
 }
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.handler.ServeHTTP(w, r)
+func spaHandler(fsys fs.FS) http.Handler {
+	fileServer := http.FileServerFS(fsys)
+
+	// Read index.html once at startup
+	indexHTML, err := fs.ReadFile(fsys, "index.html")
+	if err != nil {
+		panic("failed to read index.html: " + err.Error())
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		urlPath := path.Clean(r.URL.Path)
+
+		// Redirect trailing slashes to canonical path (except root)
+		if r.URL.Path != "/" && strings.HasSuffix(r.URL.Path, "/") {
+			http.Redirect(w, r, urlPath, http.StatusMovedPermanently)
+			return
+		}
+
+		// Try to open the file
+		filePath := strings.TrimPrefix(urlPath, "/")
+		if filePath == "" {
+			filePath = "index.html"
+		}
+
+		f, err := fsys.Open(filePath)
+		if err == nil {
+			f.Close()
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		// File doesn't exist, serve index.html for SPA routing
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Write(indexHTML)
+	})
 }
 
 func (s *Server) ListenAndServe(ctx context.Context, addr string) error {

@@ -12,7 +12,7 @@ import {
   Box,
   Database,
 } from 'lucide-react';
-import type { VolumeData } from '../adapters/types';
+import type { VolumeData } from './types';
 
 export function VolumesSection({ items }: { items: VolumeData[] }) {
   if (items.length === 0) return null;
@@ -28,6 +28,7 @@ export function VolumesSection({ items }: { items: VolumeData[] }) {
 
 export function VolumeCard({ volume }: { volume: VolumeData }) {
   const [expanded, setExpanded] = useState(false);
+  const toggleExpanded = () => setExpanded(prev => !prev);
 
   const typeStyles: Record<string, string> = {
     'ConfigMap': 'border-blue-500/30 bg-blue-500/5',
@@ -68,7 +69,7 @@ export function VolumeCard({ volume }: { volume: VolumeData }) {
   return (
     <div className={`border rounded-lg overflow-hidden ${typeStyles[volume.type] || 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50'}`}>
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={toggleExpanded}
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30 transition-colors cursor-pointer"
       >
         {typeIcons[volume.type] || <HardDrive size={14} className="text-neutral-600 dark:text-neutral-400" />}

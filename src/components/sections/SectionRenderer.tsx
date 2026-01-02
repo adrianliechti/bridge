@@ -1,6 +1,5 @@
-import type { Section, SectionData } from '../adapters/types';
+import type { Section, SectionData } from './types';
 import { StatusCardsSection, GaugesSection } from './StatusSection';
-import { ConditionsView } from './ConditionsView';
 import { ContainersSection } from './ContainerSection';
 import { VolumesSection } from './VolumeSection';
 import { CapacityBarsSection, TaintsSection } from './NodeSection';
@@ -17,7 +16,7 @@ export function SectionRenderer({ section }: { section: Section }) {
   // Don't render empty sections
   if (content === null) return null;
 
-  if (!title) return <>{content}</>;
+  if (!title) return <div>{content}</div>;
 
   return (
     <div>
@@ -36,9 +35,6 @@ function renderSectionData(data: SectionData): React.ReactNode {
 
     case 'gauges':
       return <GaugesSection items={data.items} podGrid={data.showPodGrid} />;
-
-    case 'conditions':
-      return <ConditionsView conditions={data.items} />;
 
     case 'info-grid':
       return <InfoGridSection items={data.items} columns={data.columns} />;

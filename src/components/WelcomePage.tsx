@@ -1,44 +1,66 @@
-import { Layers, Database, Zap } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { getConfig } from '../config';
 
 export function WelcomePage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full">
-      <div className="max-w-2xl mx-auto px-8 text-center">
-        {/* Logo / Icon */}
-        <div className="mb-8 relative">
-          <img src="/logo.png" alt="Logo" className="w-70 h-70 mx-auto dark:hidden" />
-          <img src="/logo_dark.png" alt="Logo" className="w-70 h-70 mx-auto hidden dark:block" />
-        </div>
+  const config = getConfig();
+  const navigate = useNavigate();
+  const k8sContexts = useMemo(() => config.kubernetes?.contexts || [], [config.kubernetes?.contexts]);
+  const dockerContexts = useMemo(() => config.docker?.contexts || [], [config.docker?.contexts]);
 
-        {/* Feature cards */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/30">
-            <div className="w-9 h-9 mx-auto mb-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center">
-              <Layers size={18} className="text-emerald-600 dark:text-emerald-400" />
+  const hasKubernetes = k8sContexts.length > 0;
+  const hasDocker = dockerContexts.length > 0;
+
+  // Auto-redirect on mount
+  useEffect(() => {
+    // Priority 1: Kubernetes with default context or first available
+    if (hasKubernetes) {
+      const context = config.kubernetes?.defaultContext || k8sContexts[0];
+      navigate({ to: '/cluster/$context', params: { context }, replace: true });
+      return;
+    }
+    // Priority 2: Docker with default context or first available
+    if (hasDocker) {
+      const context = config.docker?.defaultContext || dockerContexts[0];
+      navigate({ to: '/docker/$context', params: { context }, replace: true });
+      return;
+    }
+  }, [hasKubernetes, hasDocker, config.kubernetes?.defaultContext, config.docker?.defaultContext, k8sContexts, dockerContexts, navigate]);
+
+  // If nothing available, show empty state with guidance
+  if (!hasKubernetes && !hasDocker) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="max-w-md mx-auto px-8 text-center">
+            <div className="mb-6">
+              <img src="/logo.png" alt="Logo" className="w-32 h-32 mx-auto dark:hidden opacity-50" />
+              <img src="/logo_dark.png" alt="Logo" className="w-32 h-32 mx-auto hidden dark:block opacity-50" />
             </div>
-            <h3 className="font-medium text-sm text-neutral-900 dark:text-neutral-100 mb-0.5">Topology</h3>
-            <p className="text-xs text-neutral-400 dark:text-neutral-500">
-              Resource relationships
+            <h1 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300 mb-3">
+              No Contexts Available
+            </h1>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
+              No Kubernetes or Docker contexts were found. Make sure your kubeconfig or Docker configuration is set up correctly.
             </p>
-          </div>
-          <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/30">
-            <div className="w-9 h-9 mx-auto mb-2.5 rounded-lg bg-sky-100 dark:bg-sky-500/10 flex items-center justify-center">
-              <Database size={18} className="text-sky-600 dark:text-sky-400" />
+            <div className="text-left text-xs text-neutral-400 dark:text-neutral-500 space-y-2 bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
+              <p className="font-medium text-neutral-500 dark:text-neutral-400">Quick setup:</p>
+              <p>• For Kubernetes: ensure <code className="bg-neutral-200 dark:bg-neutral-700 px-1 rounded">~/.kube/config</code> exists</p>
+              <p>• For Docker: ensure Docker Desktop or Docker Engine is running</p>
             </div>
-            <h3 className="font-medium text-sm text-neutral-900 dark:text-neutral-100 mb-0.5">Browser</h3>
-            <p className="text-xs text-neutral-400 dark:text-neutral-500">
-              Browse any resource
-            </p>
           </div>
-          <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/30">
-            <div className="w-9 h-9 mx-auto mb-2.5 rounded-lg bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center">
-              <Zap size={18} className="text-purple-600 dark:text-purple-400" />
-            </div>
-            <h3 className="font-medium text-sm text-neutral-900 dark:text-neutral-100 mb-0.5">Details</h3>
-            <p className="text-xs text-neutral-400 dark:text-neutral-500">
-              Full specifications
-            </p>
-          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while redirecting
+  return (
+    <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+      <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="mb-8">
+          <img src="/logo.png" alt="Logo" className="w-32 h-32 mx-auto dark:hidden opacity-50" />
+          <img src="/logo_dark.png" alt="Logo" className="w-32 h-32 mx-auto hidden dark:block opacity-50" />
         </div>
       </div>
     </div>

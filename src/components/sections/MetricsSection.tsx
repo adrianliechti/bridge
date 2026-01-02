@@ -5,9 +5,9 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import type { 
-  NodeMetricsData,
-} from '../adapters/types';
-import { calculatePercentage } from '../../api/kubernetesMetrics';
+  MetricsData,
+} from './types';
+import { calculatePercentage } from './utils';
 
 const METRICS_REFRESH_INTERVAL = 15000; // 15 seconds
 
@@ -42,8 +42,8 @@ export function MetricsProgressBar({
   );
 }
 
-export function NodeMetricsSection({ loader, title }: { loader: () => Promise<NodeMetricsData | null>; title?: string }) {
-  const [data, setData] = useState<NodeMetricsData | null>(null);
+export function NodeMetricsSection({ loader, title }: { loader: () => Promise<MetricsData | null>; title?: string }) {
+  const [data, setData] = useState<MetricsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -87,8 +87,8 @@ export function NodeMetricsSection({ loader, title }: { loader: () => Promise<No
     return null;
   }
 
-  const cpuPercentage = calculatePercentage(data.cpu.usageNanoCores, data.cpu.allocatableNanoCores);
-  const memoryPercentage = calculatePercentage(data.memory.usageBytes, data.memory.allocatableBytes);
+  const cpuPercentage = calculatePercentage(data.cpu.usageNanoCores, data.cpu.allocatableNanoCores ?? 0);
+  const memoryPercentage = calculatePercentage(data.memory.usageBytes, data.memory.allocatableBytes ?? 0);
 
   return (
     <div>
