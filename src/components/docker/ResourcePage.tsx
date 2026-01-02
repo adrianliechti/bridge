@@ -1,10 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
-import type { DockerContainer, DockerImage, DockerVolume, DockerNetwork, DockerNetworkInspect } from '../../api/docker/docker';
+import type { DockerContainer, DockerImage, DockerVolume, DockerNetwork, DockerNetworkInspect, ComposeApplication } from '../../api/docker/docker';
 import { 
-  listContainers, listImages, listVolumes, listNetworks,
-  dockerContainersToTable, dockerImagesToTable, dockerVolumesToTable, dockerNetworksToTable,
+  listContainers, listImages, listVolumes, listNetworks, listApplications,
+  dockerContainersToTable, dockerImagesToTable, dockerVolumesToTable, dockerNetworksToTable, dockerApplicationsToTable,
   formatContainerName 
 } from '../../api/docker/docker';
 import type { TableRow, ResourceConfig, TableResponse } from '../../types/table';
@@ -20,9 +20,9 @@ import { ResourcePanel } from './ResourcePanel';
 import { usePanels } from '../../hooks/usePanelState';
 import { getConfig } from '../../config';
 
-export type DockerResourceType = 'containers' | 'images' | 'volumes' | 'networks';
+export type DockerResourceType = 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
 
-type DockerResourceObject = DockerContainer | DockerImage | DockerVolume | DockerNetwork | DockerNetworkInspect;
+type DockerResourceObject = DockerContainer | DockerImage | DockerVolume | DockerNetwork | DockerNetworkInspect | ComposeApplication;
 
 // Panel IDs
 const PANEL_AI = 'ai';
@@ -30,6 +30,8 @@ const PANEL_AI = 'ai';
 // Get stable sort key for each resource type
 function getResourceSortKey(resource: DockerResourceObject, resourceType: DockerResourceType): string {
   switch (resourceType) {
+    case 'applications':
+      return (resource as ComposeApplication).name ?? '';
     case 'containers':
       return (resource as DockerContainer).Id ?? '';
     case 'images':
@@ -46,6 +48,8 @@ function getResourceSortKey(resource: DockerResourceObject, resourceType: Docker
 // Get URL-friendly name for each resource type
 function getResourceName(resource: DockerResourceObject, resourceType: DockerResourceType): string {
   switch (resourceType) {
+    case 'applications':
+      return (resource as ComposeApplication).name ?? '';
     case 'containers': {
       const container = resource as DockerContainer;
       return container.Names ? formatContainerName(container.Names) : container.Id?.substring(0, 12) ?? '';
@@ -71,6 +75,11 @@ async function fetchDockerResources(
 ): Promise<TableRow<DockerResourceObject>[]> {
   let tableData: TableResponse<DockerResourceObject>;
   switch (resourceType) {
+    case 'applications': {
+      const applications = await listApplications(dockerContext);
+      tableData = dockerApplicationsToTable(applications) as TableResponse<DockerResourceObject>;
+      break;
+    }
     case 'containers': {
       const containers = await listContainers(dockerContext, true);
       tableData = dockerContainersToTable(containers) as TableResponse<DockerResourceObject>;
@@ -127,6 +136,8 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
 
   const tableData = useMemo(() => {
     switch (resourceType) {
+      case 'applications':
+        return dockerApplicationsToTable(data.map(row => row.object as ComposeApplication));
       case 'containers':
         return dockerContainersToTable(data.map(row => row.object as DockerContainer));
       case 'images':
@@ -139,6 +150,7 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   }, [resourceType, data]);
 
   const titleMap: Record<DockerResourceType, string> = {
+    applications: 'Applications',
     containers: 'Containers',
     images: 'Images',
     volumes: 'Volumes',
@@ -199,7 +211,7 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   }, [isChatPanelOpen, close, getEnvironmentInfo, tools]);
 
   // Custom detail panel for Docker resources using the new ResourcePanel
-  const showDetailPanel = resourceType === 'containers' || resourceType === 'images' || resourceType === 'volumes' || resourceType === 'networks';
+  const showDetailPanel = resourceType === 'applications' || resourceType === 'containers' || resourceType === 'images' || resourceType === 'volumes' || resourceType === 'networks';
   
   const renderDetailPanel = useMemo(() => showDetailPanel
     ? (item: TableRow<DockerResourceObject>, onClose: () => void, otherPanelOpen: boolean) => {

@@ -67,6 +67,10 @@ export interface ContainerData {
   stateMessage?: string;
   ready?: boolean;
   restartCount?: number;
+  /** Group name for grouped containers (e.g., service name in Docker Compose) */
+  group?: string;
+  /** Replica status shown on the right (e.g., "1/1") */
+  replicas?: string;
   currentTermination?: {
     reason?: string;
     message?: string;

@@ -11,8 +11,13 @@ import {
   unpauseContainer,
   removeContainer,
 } from '../../../api/docker/docker';
-import { Play, Pause, Square, RefreshCw, Trash2 } from 'lucide-react';
+import { Play, Pause, Square, RefreshCw, Trash2, Link as LinkIcon, LayoutGrid } from 'lucide-react';
 import { createElement } from 'react';
+import { Link } from '@tanstack/react-router';
+
+// Docker Compose label constants
+const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project';
+const COMPOSE_SERVICE_LABEL = 'com.docker.compose.service';
 
 // Map Docker states to our unified state type
 function mapDockerState(state?: string): ContainerData['state'] {
@@ -43,7 +48,7 @@ function getStatusLevel(state?: string): 'success' | 'warning' | 'error' | 'neut
 export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
   types: ['container'],
 
-  adapt(container): { sections: Section[] } {
+  adapt(context, container): { sections: Section[] } {
     const sections: Section[] = [];
     const state = container.State;
     const config = container.Config;
@@ -83,6 +88,37 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       id: 'status',
       data: { type: 'status-cards', items: statusCards },
     });
+
+    // Application link (if part of a Docker Compose project)
+    const composeProject = config?.Labels?.[COMPOSE_PROJECT_LABEL];
+    const composeService = config?.Labels?.[COMPOSE_SERVICE_LABEL];
+    if (composeProject && context) {
+      sections.push({
+        id: 'application',
+        data: {
+          type: 'custom' as const,
+          render: () => (
+            <Link
+              to="/docker/$context/$resourceType/$name"
+              params={{ context, resourceType: 'applications', name: composeProject }}
+            >
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 hover:bg-blue-500/15 transition-colors cursor-pointer">
+                <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
+                  <LinkIcon size={10} /> Part of Application
+                </div>
+                <div className="text-sm flex items-center gap-2">
+                  <LayoutGrid size={14} className="text-blue-400" />
+                  <span className="text-cyan-400">{composeProject}</span>
+                  {composeService && (
+                    <span className="text-neutral-500">/ {composeService}</span>
+                  )}
+                </div>
+              </div>
+            </Link>
+          ),
+        },
+      });
+    }
 
     // Info section
     const infoItems: InfoRowData[] = [

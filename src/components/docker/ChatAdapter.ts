@@ -9,7 +9,7 @@ export interface DockerEnvironment extends ChatEnvironment {
   context: string;
   selectedContainerId?: string;
   selectedContainerName?: string;
-  selectedResourceType?: 'containers' | 'images' | 'volumes' | 'networks';
+  selectedResourceType?: 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
 }
 
 // Zod schemas for tool inputs

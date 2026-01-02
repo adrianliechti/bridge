@@ -10,14 +10,16 @@ import {
   type DockerVolume,
   type DockerNetwork,
   type DockerNetworkInspect,
+  type ComposeApplication,
   formatContainerName,
 } from '../../api/docker/docker';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
 import { DockerLogViewer } from './LogViewer';
+import { LabelsSection } from '../sections/InfoSection';
 import type { ResourceAction, DockerResource } from './adapters/types';
 
-type ResourceType = 'containers' | 'images' | 'volumes' | 'networks';
+type ResourceType = 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
 
 interface ResourcePanelProps {
   context: string;
@@ -29,10 +31,10 @@ interface ResourcePanelProps {
 }
 
 export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPanelOpen = false, resource, resourceType = 'containers' }: ResourcePanelProps) {
-  const [fullObject, setFullObject] = useState<ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect | null>(null);
+  const [fullObject, setFullObject] = useState<ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect | ComposeApplication | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'logs'>('overview');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -43,6 +45,7 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
   // Get resource ID based on type
   const getResourceId = useCallback((res: DockerResource | null): string => {
     if (!res) return '';
+    if (resourceType === 'applications') return (res as ComposeApplication).name ?? '';
     if (resourceType === 'containers') return (res as DockerContainer).Id ?? '';
     if (resourceType === 'images') return (res as DockerImage).Id ?? '';
     if (resourceType === 'volumes') return (res as DockerVolume).Name ?? '';
@@ -55,6 +58,9 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
   // Get display name based on type
   const getDisplayName = useCallback((res: DockerResource | null): string => {
     if (!res) return '';
+    if (resourceType === 'applications') {
+      return (res as ComposeApplication).name ?? '';
+    }
     if (resourceType === 'containers') {
       const container = res as DockerContainer;
       return formatContainerName(container.Names ?? []);
@@ -82,6 +88,9 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
       } else if (resourceType === 'images') {
         // Images don't need separate inspect - use the resource directly
         return;
+      } else if (resourceType === 'applications') {
+        // Applications don't need separate inspect - use the resource directly
+        return;
       } else if (resourceType === 'volumes') {
         data = await inspectVolume(dockerContext, resourceId);
       } else if (resourceType === 'networks') {
@@ -96,8 +105,8 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
   // Auto-refresh polling
   useEffect(() => {
     if (!isOpen || !resourceId || !fullObject) return;
-    // No auto-refresh for images since they don't change
-    if (resourceType === 'images') return;
+    // No auto-refresh for images or applications since they are already aggregated
+    if (resourceType === 'images' || resourceType === 'applications') return;
 
     const interval = setInterval(() => {
       fetchResourceData();
@@ -119,6 +128,12 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
     // For images, use the resource directly (no inspect needed)
     if (resourceType === 'images') {
       setFullObject(resource as DockerImage);
+      return;
+    }
+
+    // For applications, use the resource directly (already aggregated)
+    if (resourceType === 'applications') {
+      setFullObject(resource as ComposeApplication);
       return;
     }
 
@@ -147,7 +162,8 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
   }, [resourceId, resourceType, resource, dockerContext]);
 
   // Determine adapter type based on resource type
-  const adapterType = resourceType === 'containers' ? 'container' 
+  const adapterType = resourceType === 'applications' ? 'application'
+    : resourceType === 'containers' ? 'container' 
     : resourceType === 'images' ? 'image'
     : resourceType === 'volumes' ? 'volume' 
     : 'network';
@@ -190,14 +206,51 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
   // Only show logs tab for containers
   const showLogsTab = resourceType === 'containers';
   
-  const tabs: { id: 'overview' | 'logs'; label: string }[] = showLogsTab
-    ? [
-        { id: 'overview', label: 'Overview' },
-        { id: 'logs', label: 'Logs' },
-      ]
-    : [
-        { id: 'overview', label: 'Overview' },
-      ];
+  // Check if resource has labels for metadata tab
+  const hasLabels = (() => {
+    if (!fullObject) return false;
+    if (resourceType === 'containers') {
+      const container = fullObject as ContainerInspect;
+      return container.Config?.Labels && Object.keys(container.Config.Labels).length > 0;
+    }
+    if (resourceType === 'images') {
+      const image = fullObject as DockerImage;
+      return image.Labels && Object.keys(image.Labels).length > 0;
+    }
+    if (resourceType === 'volumes') {
+      const volume = fullObject as DockerVolume;
+      return volume.Labels && Object.keys(volume.Labels).length > 0;
+    }
+    if (resourceType === 'networks') {
+      const network = fullObject as DockerNetworkInspect;
+      return network.Labels && Object.keys(network.Labels).length > 0;
+    }
+    return false;
+  })();
+
+  // Get labels for the current resource
+  const getResourceLabels = (): Record<string, string> | undefined => {
+    if (!fullObject) return undefined;
+    if (resourceType === 'containers') {
+      return (fullObject as ContainerInspect).Config?.Labels;
+    }
+    if (resourceType === 'images') {
+      return (fullObject as DockerImage).Labels ?? undefined;
+    }
+    if (resourceType === 'volumes') {
+      return (fullObject as DockerVolume).Labels ?? undefined;
+    }
+    if (resourceType === 'networks') {
+      return (fullObject as DockerNetworkInspect).Labels ?? undefined;
+    }
+    return undefined;
+  };
+  
+  const tabs: { id: 'overview' | 'metadata' | 'logs'; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    ...(hasLabels ? [{ id: 'metadata' as const, label: 'Metadata' }] : []),
+    ...(showLogsTab ? [{ id: 'logs' as const, label: 'Logs' }] : []),
+  ];
 
   // Only show overview tab if we have an adapter
   const showOverviewTab = hasAdapter(adapterType);
@@ -343,7 +396,13 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
                   resource={fullObject}
                   onActionComplete={fetchResourceData}
                   hideActions={true}
+                  hideLabels={true}
                 />
+              </div>
+            )}
+            {activeTab === 'metadata' && fullObject && (
+              <div className="h-full overflow-auto p-4">
+                {getResourceLabels() && <LabelsSection labels={getResourceLabels()!} />}
               </div>
             )}
             {activeTab === 'logs' && resourceType === 'containers' && resource && (

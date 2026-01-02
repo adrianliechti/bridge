@@ -54,20 +54,16 @@ export function LabelsSection({ labels, title = 'Labels' }: { labels: Record<str
         <Tag size={12} />
         {title}
       </h5>
-      <table className="w-full text-xs table-fixed">
-        <colgroup>
-          <col className="w-[40%]" />
-          <col className="w-[60%]" />
-        </colgroup>
+      <table className="w-full text-xs">
         <tbody>
           {sortedEntries.map(([key, value], index) => {
             const isImportant = importantPrefixes.some(p => key.startsWith(p));
             return (
               <tr key={key} className={index % 2 === 0 ? 'bg-neutral-50 dark:bg-neutral-800/30' : ''}>
-                <td className={`py-1.5 px-2 truncate ${isImportant ? 'text-blue-600 dark:text-blue-400' : 'text-sky-600 dark:text-sky-400'}`} title={key}>
+                <td className={`py-1.5 px-2 whitespace-nowrap w-[1%] ${isImportant ? 'text-blue-600 dark:text-blue-400' : 'text-sky-600 dark:text-sky-400'}`} title={key}>
                   {key}
                 </td>
-                <td className="py-1.5 px-2 text-emerald-600 dark:text-emerald-400 truncate" title={value}>
+                <td className="py-1.5 px-2 text-emerald-600 dark:text-emerald-400 break-all" title={value}>
                   {value}
                 </td>
               </tr>

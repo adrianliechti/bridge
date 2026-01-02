@@ -8,6 +8,7 @@ import { ContainerAdapter } from './adapters/ContainerAdapter';
 import { ImageAdapter } from './adapters/ImageAdapter';
 import { VolumeAdapter } from './adapters/VolumeAdapter';
 import { NetworkAdapter } from './adapters/NetworkAdapter';
+import { ApplicationAdapter } from './adapters/ApplicationAdapter';
 
 // All registered adapters
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,6 +17,7 @@ const adapters: DockerAdapter<any>[] = [
   ImageAdapter,
   VolumeAdapter,
   NetworkAdapter,
+  ApplicationAdapter,
 ];
 
 // Build lookup map (type -> adapter)
@@ -43,10 +45,10 @@ export function hasAdapter(type: string): boolean {
 /**
  * Adapt a Docker resource to display sections using the appropriate adapter
  */
-export function adaptResource(resource: DockerResource, type: string): ResourceSections | null {
+export function adaptResource(resource: DockerResource, type: string, context: string): ResourceSections | null {
   const adapter = getAdapter(type);
   if (!adapter) return null;
-  return adapter.adapt(resource);
+  return adapter.adapt(context, resource);
 }
 
 /**

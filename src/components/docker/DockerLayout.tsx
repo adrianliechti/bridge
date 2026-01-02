@@ -7,7 +7,7 @@ import { createDockerAdapter } from './Commands';
 import { ResourcePage } from './ResourcePage';
 import { getConfig } from '../../config';
 
-const validResourceTypes: DockerResourceType[] = ['containers', 'images', 'volumes', 'networks'];
+const validResourceTypes: DockerResourceType[] = ['applications', 'containers', 'images', 'volumes', 'networks'];
 
 function isValidResourceType(type: string): type is DockerResourceType {
   return validResourceTypes.includes(type as DockerResourceType);
