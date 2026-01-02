@@ -500,3 +500,181 @@ export function dockerNetworksToTable(networks: DockerNetwork[]): TableResponse<
   return { columnDefinitions, rows };
 }
 
+// ============================================
+// DOCKER COMPOSE APPLICATIONS
+// ============================================
+
+// Docker Compose label keys
+const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project';
+const COMPOSE_SERVICE_LABEL = 'com.docker.compose.service';
+const COMPOSE_CONFIG_FILES_LABEL = 'com.docker.compose.project.config_files';
+const COMPOSE_WORKING_DIR_LABEL = 'com.docker.compose.project.working_dir';
+
+/** A service within a Docker Compose application */
+export interface ComposeService {
+  name: string;
+  /** Full container inspect data for each container */
+  containers: ContainerInspect[];
+  running: number;
+  total: number;
+  image?: string;
+}
+
+/** A Docker Compose application (project) */
+export interface ComposeApplication {
+  /** Project name from com.docker.compose.project label */
+  name: string;
+  /** Services in this application, keyed by service name */
+  services: ComposeService[];
+  /** Total running containers across all services */
+  runningContainers: number;
+  /** Total containers across all services */
+  totalContainers: number;
+  /** Networks belonging to this compose project */
+  networks: DockerNetwork[];
+  /** Volumes belonging to this compose project */
+  volumes: DockerVolume[];
+  /** Path to docker-compose config file(s), if available */
+  configFiles?: string;
+  /** Working directory of the compose project, if available */
+  workingDir?: string;
+}
+
+/** List all Docker Compose applications by aggregating containers, networks, and volumes */
+export async function listApplications(context: string): Promise<ComposeApplication[]> {
+  // Fetch all resources in parallel
+  const [containers, networks, volumes] = await Promise.all([
+    listContainers(context, true),
+    listNetworks(context),
+    listVolumes(context),
+  ]);
+
+  // Filter compose containers and group by project
+  const composeContainers = containers.filter(c => c.Labels?.[COMPOSE_PROJECT_LABEL]);
+  
+  // Inspect all compose containers in parallel to get full data including env vars
+  const inspectedContainers = await Promise.all(
+    composeContainers.map(c => inspectContainer(context, c.Id!))
+  );
+
+  // Group inspected containers by compose project
+  const projectMap = new Map<string, {
+    services: Map<string, ContainerInspect[]>;
+    configFiles?: string;
+    workingDir?: string;
+  }>();
+
+  for (const container of inspectedContainers) {
+    const labels = container.Config?.Labels;
+    const projectName = labels?.[COMPOSE_PROJECT_LABEL];
+    if (!projectName) continue;
+
+    const serviceName = labels?.[COMPOSE_SERVICE_LABEL] ?? 'unknown';
+    
+    if (!projectMap.has(projectName)) {
+      projectMap.set(projectName, {
+        services: new Map(),
+        configFiles: labels?.[COMPOSE_CONFIG_FILES_LABEL],
+        workingDir: labels?.[COMPOSE_WORKING_DIR_LABEL],
+      });
+    }
+
+    const project = projectMap.get(projectName)!;
+    if (!project.services.has(serviceName)) {
+      project.services.set(serviceName, []);
+    }
+    project.services.get(serviceName)!.push(container);
+  }
+
+  // Group networks by compose project
+  const networksByProject = new Map<string, DockerNetwork[]>();
+  for (const network of networks) {
+    const projectName = network.Labels?.[COMPOSE_PROJECT_LABEL];
+    if (!projectName) continue;
+    if (!networksByProject.has(projectName)) {
+      networksByProject.set(projectName, []);
+    }
+    networksByProject.get(projectName)!.push(network);
+  }
+
+  // Group volumes by compose project
+  const volumesByProject = new Map<string, DockerVolume[]>();
+  for (const volume of volumes) {
+    const projectName = volume.Labels?.[COMPOSE_PROJECT_LABEL];
+    if (!projectName) continue;
+    if (!volumesByProject.has(projectName)) {
+      volumesByProject.set(projectName, []);
+    }
+    volumesByProject.get(projectName)!.push(volume);
+  }
+
+  // Build application objects
+  const applications: ComposeApplication[] = [];
+  
+  for (const [projectName, project] of projectMap) {
+    const services: ComposeService[] = [];
+    let runningContainers = 0;
+    let totalContainers = 0;
+
+    for (const [serviceName, serviceContainers] of project.services) {
+      const running = serviceContainers.filter(c => c.State?.Running).length;
+      runningContainers += running;
+      totalContainers += serviceContainers.length;
+
+      // Get image from first container (all containers in a service use the same image)
+      const image = serviceContainers[0]?.Config?.Image;
+
+      services.push({
+        name: serviceName,
+        containers: serviceContainers,
+        running,
+        total: serviceContainers.length,
+        image,
+      });
+    }
+
+    // Sort services by name
+    services.sort((a, b) => a.name.localeCompare(b.name));
+
+    applications.push({
+      name: projectName,
+      services,
+      runningContainers,
+      totalContainers,
+      networks: networksByProject.get(projectName) ?? [],
+      volumes: volumesByProject.get(projectName) ?? [],
+      configFiles: project.configFiles,
+      workingDir: project.workingDir,
+    });
+  }
+
+  // Sort applications by name
+  applications.sort((a, b) => a.name.localeCompare(b.name));
+
+  return applications;
+}
+
+/** Convert Docker Compose applications to table format */
+export function dockerApplicationsToTable(applications: ComposeApplication[]): TableResponse<ComposeApplication> {
+  const columnDefinitions: TableColumnDefinition[] = [
+    { name: 'Name', type: 'string', format: '', description: 'Application name', priority: 0 },
+    { name: 'Services', type: 'number', format: '', description: 'Number of services', priority: 0 },
+    { name: 'Status', type: 'string', format: '', description: 'Running containers', priority: 0 },
+    { name: 'Networks', type: 'number', format: '', description: 'Number of networks', priority: 1 },
+    { name: 'Volumes', type: 'number', format: '', description: 'Number of volumes', priority: 1 },
+  ];
+
+  const rows = applications.map(app => ({
+    cells: [
+      app.name,
+      app.services.length.toString(),
+      `${app.runningContainers}/${app.totalContainers}`,
+      app.networks.length.toString(),
+      app.volumes.length.toString(),
+    ],
+    object: app,
+  }));
+
+  return { columnDefinitions, rows };
+}
+

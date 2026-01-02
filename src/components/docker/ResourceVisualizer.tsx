@@ -3,7 +3,7 @@
 // This component renders the sections produced by Docker adapters.
 // It provides a consistent look and feel across all Docker resource types.
 
-import type { ContainerInspect, DockerImage, DockerVolume, DockerNetworkInspect } from '../../api/docker/docker';
+import type { ContainerInspect, DockerImage, DockerVolume, DockerNetworkInspect, ComposeApplication } from '../../api/docker/docker';
 import { adaptResource, getResourceActions } from './index';
 import { ActionBar } from '../sections/ActionBar';
 import { SectionRenderer } from '../sections/SectionRenderer';
@@ -12,17 +12,20 @@ import { SectionRenderer } from '../sections/SectionRenderer';
 // MAIN COMPONENT
 // ============================================
 
-type DockerDetailResource = ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect;
+type DockerDetailResource = ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect | ComposeApplication;
 
 interface ResourceVisualizerProps {
   context: string;
   resource: DockerDetailResource;
   onActionComplete?: () => void;
   hideActions?: boolean;
+  hideLabels?: boolean;
 }
 
 // Determine resource type from the resource object
 function getResourceType(resource: DockerDetailResource): string {
+  // ComposeApplication has services array and name
+  if ('services' in resource && Array.isArray(resource.services)) return 'application';
   // ContainerInspect has State, Config, etc.
   if ('Config' in resource && 'State' in resource) return 'container';
   // DockerImage has RepoTags, RepoDigests
@@ -34,12 +37,25 @@ function getResourceType(resource: DockerDetailResource): string {
   return 'container';
 }
 
-export function ResourceVisualizer({ context, resource, onActionComplete, hideActions = false }: ResourceVisualizerProps) {
+export function ResourceVisualizer({ context, resource, onActionComplete, hideActions = false, hideLabels = false }: ResourceVisualizerProps) {
   const resourceType = getResourceType(resource);
-  const sections = adaptResource(resource, resourceType);
+  const sections = adaptResource(resource, resourceType, context);
   const actions = getResourceActions(resource, resourceType);
+  
+  if (!sections) {
+    return (
+      <div className="text-neutral-500 text-sm">
+        No visualization available
+      </div>
+    );
+  }
 
-  if (!sections || sections.sections.length === 0) {
+  // Filter out labels section if hideLabels is true
+  const filteredSections = hideLabels 
+    ? sections.sections.filter(section => section.data.type !== 'labels')
+    : sections.sections;
+
+  if (filteredSections.length === 0) {
     return (
       <div className="text-neutral-500 text-sm">
         No visualization available
@@ -57,7 +73,7 @@ export function ResourceVisualizer({ context, resource, onActionComplete, hideAc
           onActionComplete={onActionComplete}
         />
       )}
-      {sections.sections.map(section => (
+      {filteredSections.map(section => (
         <SectionRenderer key={section.id} section={section} />
       ))}
     </div>

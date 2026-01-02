@@ -135,6 +135,12 @@ export function ContainerCard({
             {container.restartCount} restarts
           </div>
         )}
+        {/* Replica count display */}
+        {container.replicas && (
+          <div className="text-xs text-neutral-500 dark:text-neutral-400 font-mono">
+            {container.replicas}
+          </div>
+        )}
       </button>
 
       {expanded && (

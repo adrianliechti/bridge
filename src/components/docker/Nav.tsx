@@ -1,6 +1,6 @@
-import { Box, Layers, HardDrive, Network } from 'lucide-react';
+import { Box, Layers, HardDrive, Network, LayoutGrid } from 'lucide-react';
 
-export type DockerResourceType = 'containers' | 'images' | 'volumes' | 'networks';
+export type DockerResourceType = 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
 
 interface NavProps {
   selectedResource: DockerResourceType | null;
@@ -9,6 +9,7 @@ interface NavProps {
 }
 
 const navItems: { id: DockerResourceType; label: string; icon: React.ComponentType<{ size: number; className?: string }> }[] = [
+  { id: 'applications', label: 'Applications', icon: LayoutGrid },
   { id: 'containers', label: 'Containers', icon: Box },
   { id: 'images', label: 'Images', icon: Layers },
   { id: 'volumes', label: 'Volumes', icon: HardDrive },

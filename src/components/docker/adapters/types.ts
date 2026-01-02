@@ -2,7 +2,7 @@
 //
 // Defines the adapter interface for Docker resources.
 
-import type { ContainerSummary, ContainerInspectResponse, ImageSummary, DockerVolume, DockerNetwork, DockerNetworkInspect } from '../../../api/docker/docker';
+import type { ContainerSummary, ContainerInspectResponse, ImageSummary, DockerVolume, DockerNetwork, DockerNetworkInspect, ComposeApplication } from '../../../api/docker/docker';
 
 // Re-export all section types for convenience
 export type {
@@ -27,7 +27,7 @@ export type {
 import type { ResourceAction as GenericResourceAction, ResourceSections } from '../../sections/types';
 
 /** Docker container resource type */
-export type DockerResource = ContainerSummary | ContainerInspectResponse | ImageSummary | DockerVolume | DockerNetwork | DockerNetworkInspect;
+export type DockerResource = ContainerSummary | ContainerInspectResponse | ImageSummary | DockerVolume | DockerNetwork | DockerNetworkInspect | ComposeApplication;
 
 /** Docker-specific action type */
 export type ResourceAction = GenericResourceAction<DockerResource>;
@@ -46,7 +46,7 @@ export interface DockerAdapter<T = DockerResource> {
   readonly types: string[];
 
   /** Extract all display sections from the resource */
-  adapt(resource: T): ResourceSections;
+  adapt(context: string, resource: T): ResourceSections;
 
   /** Optional actions that can be performed on this resource type */
   readonly actions?: ResourceAction[];

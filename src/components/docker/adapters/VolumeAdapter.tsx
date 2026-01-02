@@ -20,7 +20,7 @@ function formatBytes(bytes?: number): string {
 export const VolumeAdapter: DockerAdapter<DockerVolume> = {
   types: ['volume'],
 
-  adapt(volume): { sections: Section[] } {
+  adapt(_context, volume): { sections: Section[] } {
     const sections: Section[] = [];
 
     // Status section

@@ -13,7 +13,7 @@ const BUILTIN_NETWORKS = ['bridge', 'host', 'none'];
 export const NetworkAdapter: DockerAdapter<DockerNetworkInspect> = {
   types: ['network'],
 
-  adapt(network): { sections: Section[] } {
+  adapt(_context, network): { sections: Section[] } {
     const sections: Section[] = [];
     const ipam = network.IPAM;
     const containers = network.Containers;

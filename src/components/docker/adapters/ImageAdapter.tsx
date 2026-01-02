@@ -48,7 +48,7 @@ function parseImageRef(ref: string): { repository: string; tag: string } {
 export const ImageAdapter: DockerAdapter<DockerImage> = {
   types: ['image'],
 
-  adapt(image): { sections: Section[] } {
+  adapt(_context, image): { sections: Section[] } {
     const sections: Section[] = [];
 
     // Parse repo tags

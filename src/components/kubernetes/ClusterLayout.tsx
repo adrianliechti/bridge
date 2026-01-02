@@ -188,8 +188,8 @@ export function ClusterLayout() {
 
   const setDockerContext = useCallback((dockerContext: string) => {
     navigate({
-      to: '/docker/$context/$resourceType',
-      params: { context: dockerContext, resourceType: 'containers' },
+      to: '/docker/$context',
+      params: { context: dockerContext },
     });
   }, [navigate]);
 

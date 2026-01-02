@@ -56,6 +56,9 @@ export function ColumnFilter({ columns }: ColumnFilterProps) {
           {columns.map((column) => {
             const isVisible = column.getIsVisible();
             const columnId = column.id;
+            // Use the header text if available, otherwise fall back to the column ID
+            const headerDef = column.columnDef.header;
+            const displayName = typeof headerDef === 'string' ? headerDef : columnId;
             return (
               <label
                 key={columnId}
@@ -75,7 +78,7 @@ export function ColumnFilter({ columns }: ColumnFilterProps) {
                   onClick={column.getToggleVisibilityHandler()}
                   className="text-sm text-neutral-700 dark:text-neutral-400 cursor-pointer"
                 >
-                  {columnId}
+                  {displayName}
                 </span>
               </label>
             );
