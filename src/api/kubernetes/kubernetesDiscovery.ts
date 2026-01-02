@@ -239,9 +239,6 @@ export function preloadDiscovery(context: string): void {
   discoverResources(context).catch(console.error);
 }
 
-// Re-export V1APIResource for consumers
-export type { V1APIResource, V1CustomResourceDefinition } from '@kubernetes/client-node';
-
 // Convert a CRD to a V1APIResource
 export function crdToResourceConfig(crd: V1CustomResourceDefinition): V1APIResource {
   const spec = crd.spec;

@@ -6,7 +6,7 @@ import {
 import type { 
   StatusCardData,
   GaugeData,
-  PodGridData,
+  GridData,
 } from './types';
 
 export function StatusCardsSection({ items }: { items: StatusCardData[] }) {
@@ -35,7 +35,7 @@ export function StatusCardsSection({ items }: { items: StatusCardData[] }) {
   );
 }
 
-export function GaugesSection({ items, podGrid }: { items: GaugeData[]; podGrid?: PodGridData }) {
+export function GaugesSection({ items, podGrid }: { items: GaugeData[]; podGrid?: GridData }) {
   const colorClasses: Record<string, string> = {
     emerald: 'text-emerald-400',
     blue: 'text-blue-400',
@@ -74,7 +74,7 @@ export function GaugesSection({ items, podGrid }: { items: GaugeData[]; podGrid?
   );
 }
 
-export function PodGridSection({ data }: { data: PodGridData }) {
+export function PodGridSection({ data }: { data: GridData }) {
   const IconComponent = data.icon === 'database' ? Database : data.icon === 'server' ? Server : Box;
 
   return (

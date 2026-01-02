@@ -2,7 +2,7 @@
 // Extracts display data from Node resources
 
 import { Server, Cpu, HardDrive, Box, CheckCircle2, XCircle } from 'lucide-react';
-import type { ResourceAdapter, ResourceSections, NodeMetricsData } from './types';
+import type { ResourceAdapter, ResourceSections, MetricsData } from './types';
 import { formatMemory } from './utils';
 import type { V1Node } from '@kubernetes/client-node';
 import { 
@@ -71,7 +71,7 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
           data: {
             type: 'node-metrics',
             title: 'Resource Usage',
-            loader: async (): Promise<NodeMetricsData | null> => {
+            loader: async (): Promise<MetricsData | null> => {
               const nodeName = metadata?.name;
               if (!nodeName) return null;
 

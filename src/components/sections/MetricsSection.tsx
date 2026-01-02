@@ -5,7 +5,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import type { 
-  NodeMetricsData,
+  MetricsData,
 } from './types';
 import { calculatePercentage } from './utils';
 
@@ -42,8 +42,8 @@ export function MetricsProgressBar({
   );
 }
 
-export function NodeMetricsSection({ loader, title }: { loader: () => Promise<NodeMetricsData | null>; title?: string }) {
-  const [data, setData] = useState<NodeMetricsData | null>(null);
+export function NodeMetricsSection({ loader, title }: { loader: () => Promise<MetricsData | null>; title?: string }) {
+  const [data, setData] = useState<MetricsData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 // Chat adapter types for platform-agnostic chat functionality
-import type { Tool, ToolCall, ToolResult, Message } from '../api/openai/openai';
+import type { AnyClientTool } from '@tanstack/ai';
 
 /**
  * Environment context about what the user is currently viewing
@@ -10,28 +10,9 @@ export interface ChatEnvironment {
 }
 
 /**
- * Options for the chat function
+ * Adapter configuration for platform-specific chat functionality
  */
-export interface ChatOptions {
-  environment: ChatEnvironment;
-  model?: string;
-  instructions?: string;
-  onStream?: (delta: string, snapshot: string) => void;
-  onToolCall?: (toolName: string, args: Record<string, string>) => void;
-}
-
-/**
- * Result from a chat interaction
- */
-export interface ChatResult {
-  response: Message;
-  history: Message[];
-}
-
-/**
- * Adapter interface for platform-specific chat functionality
- */
-export interface ChatAdapter {
+export interface ChatAdapterConfig {
   /** Unique identifier for this adapter */
   id: string;
   
@@ -40,17 +21,14 @@ export interface ChatAdapter {
   
   /** Placeholder text for the input field */
   placeholder: string;
-  
-  /** Available tools for this platform */
-  tools: Tool[];
-  
-  /**
-   * Execute a tool call and return the result
-   */
-  executeTool(toolCall: ToolCall, environment: ChatEnvironment): Promise<ToolResult>;
-  
-  /**
-   * Build system instructions based on environment context
-   */
-  buildInstructions(environment: ChatEnvironment): string;
 }
+
+/**
+ * Function type for creating client tools
+ */
+export type CreateToolsFn<TEnv extends ChatEnvironment> = (environment: TEnv) => AnyClientTool[];
+
+/**
+ * Function type for building system instructions
+ */
+export type BuildInstructionsFn<TEnv extends ChatEnvironment> = (environment: TEnv) => string;

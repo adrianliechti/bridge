@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getResourceTable } from '../../api/kubernetes/kubernetesTable';
@@ -6,7 +7,12 @@ import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
 import { usePanels } from '../../hooks/usePanelState';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
 import { ChatPanel } from '../ChatPanel';
-import { createKubernetesChatAdapter, type KubernetesEnvironment } from './Chat';
+import { 
+  kubernetesAdapterConfig, 
+  createKubernetesTools, 
+  buildKubernetesInstructions,
+  type KubernetesEnvironment 
+} from './ChatAdapter';
 import { ResourcePanel } from './ResourcePanel';
 import { getConfig } from '../../config';
 
@@ -48,18 +54,21 @@ export function ResourcePage({ resource, context, namespace, selectedItem, onSel
     };
   };
 
-  // Chat adapter
-  const chatAdapter = createKubernetesChatAdapter();
-
   // Environment info for AI chat
-  const getEnvironmentInfo = (item: TableRow<KubernetesObject> | null): KubernetesEnvironment => ({
+  const getEnvironmentInfo = useCallback((item: TableRow<KubernetesObject> | null): KubernetesEnvironment => ({
     currentContext: context,
     currentNamespace: item?.object.metadata?.namespace || namespace || 'all namespaces',
     selectedResourceKind: resource.group 
       ? `${resource.kind} (${resource.group}/${resource.version})` 
       : `${resource.kind} (${resource.version})`,
     selectedResourceName: item?.object.metadata?.name,
-  });
+  }), [context, namespace, resource.kind, resource.group, resource.version]);
+
+  // Create tools for the current environment - memoized
+  const tools = useMemo(() => {
+    const env = getEnvironmentInfo(null);
+    return createKubernetesTools(env);
+  }, [getEnvironmentInfo]);
 
   // Render AI chat button in header
   const renderHeaderActions = () => {
@@ -88,8 +97,10 @@ export function ResourcePage({ resource, context, namespace, selectedItem, onSel
         isOpen={isChatPanelOpen}
         onClose={() => close(PANEL_AI)}
         otherPanelOpen={isDetailPanelOpen}
-        adapter={chatAdapter}
+        adapterConfig={kubernetesAdapterConfig}
         environment={environmentInfo}
+        tools={tools}
+        buildInstructions={buildKubernetesInstructions}
       />
     );
   };

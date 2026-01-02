@@ -237,15 +237,6 @@ export interface ResourceQuotaData {
   };
 }
 
-// ============================================
-// SECTION DEFINITIONS
-// ============================================
-
-/** Type alias for backwards compatibility */
-export type PodGridData = GridData;
-export type PodGridIcon = GridIcon;
-export type NodeMetricsData = MetricsData;
-
 /**
  * A section is a named group of data to display.
  * The `type` field determines how it's rendered.
