@@ -31,17 +31,21 @@ type Context struct {
 func New(cfg *config.Config) (*Server, error) {
 	contexts := make(map[string]*Context)
 
-	for _, c := range cfg.Docker.Contexts {
-		contexts[c.Name] = &Context{
-			Type: "docker",
-			Name: c.Name,
+	if cfg.Docker != nil {
+		for _, c := range cfg.Docker.Contexts {
+			contexts[c.Name] = &Context{
+				Type: "docker",
+				Name: c.Name,
+			}
 		}
 	}
 
-	for _, c := range cfg.Kubernetes.Contexts {
-		contexts[c.Name] = &Context{
-			Type: "kubernetes",
-			Name: c.Name,
+	if cfg.Kubernetes != nil {
+		for _, c := range cfg.Kubernetes.Contexts {
+			contexts[c.Name] = &Context{
+				Type: "kubernetes",
+				Name: c.Name,
+			}
 		}
 	}
 
