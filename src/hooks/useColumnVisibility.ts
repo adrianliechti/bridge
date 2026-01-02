@@ -1,34 +1,26 @@
 import { useState, useCallback } from 'react';
+import type { VisibilityState, OnChangeFn } from '@tanstack/react-table';
 
 // Columns that are hidden by default
-const DEFAULT_HIDDEN_COLUMNS = [
-  'selector',
-  'containers',
-  'images',
-  'labels',
-  'annotations',
-  'nominated node',
-  'readiness gates',
-  'node selector',
-];
+const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
+  selector: false,
+  containers: false,
+  images: false,
+  labels: false,
+  annotations: false,
+  'nominated node': false,
+  'readiness gates': false,
+  'node selector': false,
+};
 
-// Hook for managing column visibility
+// Hook for managing column visibility with TanStack Table
 // To reset state when resource changes, use key prop on the component using this hook
 export function useColumnVisibility() {
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(() => new Set(DEFAULT_HIDDEN_COLUMNS));
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => ({ ...DEFAULT_HIDDEN_COLUMNS }));
 
-  const toggleColumn = useCallback((columnName: string) => {
-    const key = columnName.toLowerCase();
-    setHiddenColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
+  const onColumnVisibilityChange: OnChangeFn<VisibilityState> = useCallback((updater) => {
+    setColumnVisibility((prev) => (typeof updater === 'function' ? updater(prev) : updater));
   }, []);
 
-  return { hiddenColumns, toggleColumn };
+  return { columnVisibility, onColumnVisibilityChange };
 }
