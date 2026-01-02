@@ -4,7 +4,6 @@ import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } f
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { usePanels } from '../hooks/usePanelState';
 import { ResourceTable } from './ResourceTable';
-import { ColumnFilter } from './ColumnFilter';
 
 // Panel IDs
 const PANEL_DETAIL = 'detail';
@@ -54,12 +53,13 @@ export function ResourcePage<T = any>({
 }: ResourcePageProps<T>) {
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
   const [selectedItem, setSelectedItem] = useState<TableRow<T> | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   
   // Track config and namespace to detect changes during render
   const [trackedConfig, setTrackedConfig] = useState(config);
   const [trackedNamespace, setTrackedNamespace] = useState(namespace);
   
-  const { hiddenColumns, toggleColumn } = useColumnVisibility();
+  const { columnVisibility, onColumnVisibilityChange } = useColumnVisibility();
   const { isOpen, open, close } = usePanels();
   
   const isDetailPanelOpen = isOpen(PANEL_DETAIL);
@@ -159,11 +159,7 @@ export function ResourcePage<T = any>({
             >
               <Search size={18} />
             </button>
-            <ColumnFilter
-              columns={columns}
-              hiddenColumns={hiddenColumns}
-              onToggleColumn={toggleColumn}
-            />
+            <div ref={toolbarRef} />
             {renderHeaderActions?.(columns)}
           </div>
         </header>
@@ -175,8 +171,10 @@ export function ResourcePage<T = any>({
             error={error}
             refetch={refetch}
             isRefetching={isRefetching}
-            hiddenColumns={hiddenColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={onColumnVisibilityChange}
             onColumnsLoaded={handleColumnsLoaded}
+            toolbarRef={toolbarRef}
             selectedItem={selectedItem}
             onSelectItem={handleSelectItem}
             namespace={namespace}

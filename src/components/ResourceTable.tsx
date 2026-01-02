@@ -1,59 +1,44 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useCallback, useState } from 'react';
 import { AlertTriangle, ChevronUp, ChevronDown, ChevronsUpDown, RefreshCw } from 'lucide-react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  createColumnHelper,
+  type ColumnDef,
+  type SortingState,
+  type RowSelectionState,
+  type OnChangeFn,
+  type VisibilityState,
+} from '@tanstack/react-table';
 import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } from '../types/table';
 import { getObjectId as getIdHelper, getObjectNamespace as getNamespaceHelper } from '../types/table';
+import { ColumnFilter } from './ColumnFilter';
+import { ToolbarPortal } from './ToolbarPortal';
 
-// Sort direction type
-type SortDirection = 'asc' | 'desc' | null;
-
-// Sort state
-interface SortState {
-  column: string | null;
-  direction: SortDirection;
-}
-
-// Format cell value based on column type
-function formatCell(value: unknown, column: TableColumnDefinition): string {
-  if (value === null || value === undefined) {
-    return '<none>';
-  }
-
-  if (column.format === 'date-time' && typeof value === 'string') {
-    return formatAge(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value.length > 0 ? value.join(', ') : '<none>';
-  }
-
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-
-  return String(value);
-}
-
-// Calculate age from timestamp (same as kubectl)
-function formatAge(timestamp: string): string {
-  const created = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - created.getTime();
-
-  const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) return `${days}d`;
-  if (hours > 0) return `${hours}h`;
-  if (minutes > 0) return `${minutes}m`;
-  return `${seconds}s`;
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const columnHelper = createColumnHelper<TableRow<any>>();
 
 // Check if column likely contains status information
-function isStatusColumn(column: TableColumnDefinition): boolean {
-  const name = column.name.toLowerCase();
-  return name === 'status' || name === 'phase' || name === 'ready' || name === 'condition';
+function isStatusColumn(name: string): boolean {
+  const lowerName = name.toLowerCase();
+  return lowerName === 'status' || lowerName === 'phase' || lowerName === 'ready' || lowerName === 'condition';
+}
+
+// Get status color classes based on value
+function getStatusClasses(value: string): { text: string; dot: string } {
+  const lower = value.toLowerCase();
+  if (lower.match(/running|active|ready|available|bound|succeeded|complete|healthy|true/)) {
+    return { text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' };
+  }
+  if (lower.match(/pending|creating|waiting|progressing|scheduled/)) {
+    return { text: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' };
+  }
+  if (lower.match(/failed|error|crashloopbackoff|terminated|unknown|lost|false/)) {
+    return { text: 'text-red-600 dark:text-red-400', dot: 'bg-red-500' };
+  }
+  return { text: 'text-neutral-500 dark:text-neutral-400', dot: 'bg-neutral-400' };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,8 +49,10 @@ interface ResourceTableProps<T = any> {
   error: Error | null;
   refetch: () => void;
   isRefetching?: boolean;
-  hiddenColumns: Set<string>;
+  columnVisibility: VisibilityState;
+  onColumnVisibilityChange: OnChangeFn<VisibilityState>;
   onColumnsLoaded?: (columns: TableColumnDefinition[]) => void;
+  toolbarRef?: React.RefObject<HTMLDivElement | null>;
   selectedItem?: TableRow<T> | null;
   onSelectItem?: (item: TableRow<T> | null) => void;
   namespace?: string; // Current namespace filter (undefined = all namespaces)
@@ -79,113 +66,156 @@ export function ResourceTable<T = any>({
   error,
   refetch,
   isRefetching = false,
-  hiddenColumns,
+  columnVisibility,
+  onColumnVisibilityChange,
   onColumnsLoaded,
+  toolbarRef,
   selectedItem,
   onSelectItem,
   namespace,
 }: ResourceTableProps<T>) {
-  const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
-
   // Check if we should show the namespace column (when all namespaces is selected and resource is namespaced)
   const showNamespaceColumn = namespace === undefined && config.namespaced === true;
 
-  // Namespace column definition for "all namespaces" view
-  const namespaceColumn: TableColumnDefinition = useMemo(() => ({
-    name: 'Namespace',
-    type: 'string',
-    format: '',
-    description: 'Namespace of the resource',
-    priority: 0,
-  }), []);
-
-  // Get visible columns
-  const visibleColumns = useMemo(() => {
+  // Build columns dynamically from API column definitions
+  const columns = useMemo(() => {
     if (!data?.columnDefinitions) return [];
-    const columns = data.columnDefinitions.filter((col) => !hiddenColumns.has(col.name.toLowerCase()));
-    
-    // Insert namespace column after Name column when showing all namespaces
-    if (showNamespaceColumn && !hiddenColumns.has('namespace')) {
-      const nameIndex = columns.findIndex(col => col.name.toLowerCase() === 'name');
-      if (nameIndex !== -1) {
-        return [
-          ...columns.slice(0, nameIndex + 1),
-          namespaceColumn,
-          ...columns.slice(nameIndex + 1),
-        ];
-      }
-    }
-    
-    return columns;
-  }, [data, hiddenColumns, showNamespaceColumn, namespaceColumn]);
 
-  // Sort rows
-  const sortedRows = useMemo(() => {
-    if (!data?.rows || !sortState.column || !sortState.direction) {
-      return data?.rows ?? [];
-    }
+    const cols: ColumnDef<TableRow<T>, unknown>[] = [];
+    const apiColumns = data.columnDefinitions;
 
-    // Handle synthetic Namespace column
-    const isSortingNamespace = sortState.column === 'Namespace' && showNamespaceColumn;
-    
-    if (isSortingNamespace) {
-      return [...data.rows].sort((a, b) => {
-        const aVal = getNamespaceHelper(a.object) || '';
-        const bVal = getNamespaceHelper(b.object) || '';
-        const comparison = aVal.localeCompare(bVal);
-        return sortState.direction === 'asc' ? comparison : -comparison;
-      });
-    }
+    apiColumns.forEach((colDef, idx) => {
+      const isStatus = isStatusColumn(colDef.name);
+      const isName = colDef.name.toLowerCase() === 'name';
+      const isDateTime = colDef.format === 'date-time';
 
-    const columnIndex = data.columnDefinitions.findIndex(
-      (c) => c.name === sortState.column
-    );
-    if (columnIndex === -1) return data.rows;
+      cols.push(
+        columnHelper.accessor((row) => row.cells[idx], {
+          id: colDef.name.toLowerCase(),
+          header: colDef.name,
+          sortingFn: isDateTime ? 'datetime' : 'auto',
+          sortUndefined: 'last',
+          cell: (info) => {
+            const value = info.getValue();
 
-    const column = data.columnDefinitions[columnIndex];
-    
-    return [...data.rows].sort((a, b) => {
-      const aVal = a.cells[columnIndex];
-      const bVal = b.cells[columnIndex];
-      
-      // Handle null/undefined
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return sortState.direction === 'asc' ? -1 : 1;
-      if (bVal == null) return sortState.direction === 'asc' ? 1 : -1;
-      
-      let comparison = 0;
-      
-      // Date comparison
-      if (column.format === 'date-time') {
-        const aDate = new Date(String(aVal)).getTime();
-        const bDate = new Date(String(bVal)).getTime();
-        comparison = aDate - bDate;
+            // Format the value
+            let formatted: string;
+            if (value === null || value === undefined) {
+              formatted = '<none>';
+            } else if (isDateTime && typeof value === 'string') {
+              // Inline age formatting
+              // Note: Age values (e.g., "5m", "2h") are calculated on each cell render.
+              // They update automatically when the table re-renders (e.g., due to data refetch,
+              // sorting, filtering). The refetchInterval in query configuration ensures periodic
+              // updates. If more frequent age updates are needed without refetching data, consider
+              // adding a separate interval timer to trigger re-renders.
+              const created = new Date(value);
+              const now = new Date();
+              const diffMs = now.getTime() - created.getTime();
+              const seconds = Math.floor(diffMs / 1000);
+              const minutes = Math.floor(seconds / 60);
+              const hours = Math.floor(minutes / 60);
+              const days = Math.floor(hours / 24);
+              if (days > 0) formatted = `${days}d`;
+              else if (hours > 0) formatted = `${hours}h`;
+              else if (minutes > 0) formatted = `${minutes}m`;
+              else formatted = `${seconds}s`;
+            } else if (Array.isArray(value)) {
+              formatted = value.length > 0 ? value.join(', ') : '<none>';
+            } else if (typeof value === 'object') {
+              formatted = JSON.stringify(value);
+            } else {
+              formatted = String(value);
+            }
+
+            // Status column with colored badge
+            if (isStatus) {
+              const { text, dot } = getStatusClasses(formatted);
+              return (
+                <span className={`inline-flex items-center gap-1.5 text-xs font-medium capitalize ${text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                  {formatted}
+                </span>
+              );
+            }
+
+            // Name column styling
+            if (isName) {
+              return <span className="text-neutral-900 dark:text-neutral-300">{formatted}</span>;
+            }
+
+            return <span className="text-neutral-500 dark:text-neutral-500">{formatted}</span>;
+          },
+          meta: { description: colDef.description, format: colDef.format },
+        }) as ColumnDef<TableRow<T>, unknown>
+      );
+
+      // Insert synthetic Namespace column after Name
+      if (isName && showNamespaceColumn) {
+        cols.push(
+          columnHelper.accessor((row) => getNamespaceHelper(row.object), {
+            id: 'Namespace',
+            header: 'Namespace',
+            sortingFn: 'alphanumeric',
+            sortUndefined: 'last',
+            cell: (info) => {
+              const value = info.getValue() ?? '<none>';
+              return <span className="text-neutral-500 dark:text-neutral-500">{value}</span>;
+            },
+            meta: { description: 'Namespace of the resource', format: '' },
+          }) as ColumnDef<TableRow<T>, unknown>
+        );
       }
-      // Numeric comparison
-      else if (typeof aVal === 'number' && typeof bVal === 'number') {
-        comparison = aVal - bVal;
-      }
-      // String comparison
-      else {
-        comparison = String(aVal).localeCompare(String(bVal));
-      }
-      
-      return sortState.direction === 'asc' ? comparison : -comparison;
     });
-  }, [data, sortState, showNamespaceColumn]);
 
-  // Handle column header click for sorting
-  const handleSort = (columnName: string) => {
-    setSortState(prev => {
-      if (prev.column !== columnName) {
-        return { column: columnName, direction: 'asc' };
+    return cols;
+  }, [data?.columnDefinitions, showNamespaceColumn]);
+
+  // Derive row selection state from selectedItem prop
+  const rowSelection = useMemo<RowSelectionState>(() => {
+    if (!selectedItem) return {};
+    const rowId = getIdHelper(selectedItem.object);
+    return { [rowId]: true };
+  }, [selectedItem]);
+
+  // Handle row selection changes and sync to external state
+  const handleRowSelectionChange: OnChangeFn<RowSelectionState> = useCallback(
+    (updater) => {
+      const newSelection = typeof updater === 'function' ? updater(rowSelection) : updater;
+      const selectedIds = Object.keys(newSelection).filter((id) => newSelection[id]);
+
+      if (selectedIds.length === 0) {
+        onSelectItem?.(null);
+      } else {
+        const row = data?.rows.find((r) => getIdHelper(r.object) === selectedIds[0]);
+        onSelectItem?.(row ?? null);
       }
-      if (prev.direction === 'asc') {
-        return { column: columnName, direction: 'desc' };
-      }
-      return { column: null, direction: null };
-    });
-  };
+    },
+    [data?.rows, onSelectItem, rowSelection]
+  );
+
+  // Sorting state
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Create the table instance
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table returns non-memoizable functions by design
+  const table = useReactTable({
+    data: data?.rows ?? [],
+    columns,
+    state: {
+      sorting,
+      rowSelection,
+      columnVisibility,
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    onRowSelectionChange: handleRowSelectionChange,
+    onColumnVisibilityChange,
+    enableRowSelection: true,
+    enableMultiRowSelection: false,
+    getRowId: (row) => getIdHelper(row.object),
+  });
 
   // Notify parent of columns when data loads
   useEffect(() => {
@@ -246,104 +276,77 @@ export function ResourceTable<T = any>({
       <div className="overflow-auto h-full">
         <table className="w-full text-[13px]">
           <thead className="sticky top-0 z-10 bg-neutral-100 dark:bg-neutral-950">
-            <tr>
-              {visibleColumns.map((col, idx) => {
-                const isSorted = sortState.column === col.name;
-                return (
-                  <th 
-                    key={idx} 
-                    title={col.description}
-                    onClick={() => handleSort(col.name)}
-                    className={`text-left px-4 py-2 text-[11px] font-medium whitespace-nowrap cursor-pointer transition-colors select-none group bg-neutral-100 dark:bg-neutral-950 ${
-                      isSorted 
-                        ? 'text-neutral-900 dark:text-neutral-200' 
-                        : 'text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-400'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1">
-                      {col.name}
-                      <span className={`transition-opacity ${isSorted ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}>
-                        {isSorted && sortState.direction === 'asc' ? (
-                          <ChevronUp size={12} />
-                        ) : isSorted && sortState.direction === 'desc' ? (
-                          <ChevronDown size={12} />
-                        ) : (
-                          <ChevronsUpDown size={12} />
-                        )}
-                      </span>
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRows.map((row: TableRow<T>, rowIndex: number) => {
-              const rowId = getIdHelper(row.object);
-              const selectedId = selectedItem ? getIdHelper(selectedItem.object) : null;
-              const isSelected = selectedId === rowId;
-              const isOdd = rowIndex % 2 === 1;
-              return (
-              <tr 
-                key={rowId} 
-                onClick={() => onSelectItem?.(isSelected ? null : row)}
-                className={`transition-colors cursor-pointer ${
-                  isSelected 
-                    ? 'bg-blue-500/20 dark:bg-blue-500/20' 
-                    : isOdd 
-                      ? 'bg-neutral-200/40 dark:bg-neutral-800/30 hover:bg-neutral-200/70 dark:hover:bg-neutral-800/50'
-                      : 'hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30'
-                }`}
-              >
-                {visibleColumns.map((col, idx) => {
-                  // Handle the synthetic Namespace column
-                  const isNamespaceColumn = col.name === 'Namespace' && showNamespaceColumn;
-                  const cellIndex = isNamespaceColumn 
-                    ? -1 
-                    : data!.columnDefinitions.findIndex((c) => c.name === col.name);
-                  const cellValue = isNamespaceColumn 
-                    ? getNamespaceHelper(row.object) 
-                    : row.cells[cellIndex];
-                  const formatted = formatCell(cellValue, col);
-                  const isNameColumn = col.name.toLowerCase() === 'name';
-
-                  if (isStatusColumn(col)) {
-                    return (
-                      <td key={idx} className={`px-4 py-2 whitespace-nowrap ${idx === 0 ? 'rounded-l-lg' : ''} ${idx === visibleColumns.length - 1 ? 'rounded-r-lg' : ''}`}>
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium capitalize ${
-                          formatted.toLowerCase().match(/running|active|ready|available|bound|succeeded|complete|healthy|true/) ? 'text-emerald-600 dark:text-emerald-400' :
-                          formatted.toLowerCase().match(/pending|creating|waiting|progressing|scheduled/) ? 'text-amber-600 dark:text-amber-400' :
-                          formatted.toLowerCase().match(/failed|error|crashloopbackoff|terminated|unknown|lost|false/) ? 'text-red-600 dark:text-red-400' :
-                          'text-neutral-500 dark:text-neutral-400'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            formatted.toLowerCase().match(/running|active|ready|available|bound|succeeded|complete|healthy|true/) ? 'bg-emerald-500' :
-                            formatted.toLowerCase().match(/pending|creating|waiting|progressing|scheduled/) ? 'bg-amber-500' :
-                            formatted.toLowerCase().match(/failed|error|crashloopbackoff|terminated|unknown|lost|false/) ? 'bg-red-500' :
-                            'bg-neutral-400'
-                          }`} />
-                          {formatted}
-                        </span>
-                      </td>
-                    );
-                  }
-
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  const isSorted = header.column.getIsSorted();
+                  const meta = header.column.columnDef.meta as { description?: string } | undefined;
                   return (
-                    <td key={idx} className={`px-4 py-2 whitespace-nowrap ${idx === 0 ? 'rounded-l-lg' : ''} ${idx === visibleColumns.length - 1 ? 'rounded-r-lg' : ''} ${
-                      isNameColumn 
-                        ? 'text-neutral-900 dark:text-neutral-300' 
-                        : 'text-neutral-500 dark:text-neutral-500'
-                    }`}>
-                      {formatted}
-                    </td>
+                    <th
+                      key={header.id}
+                      title={meta?.description}
+                      onClick={header.column.getToggleSortingHandler()}
+                      className={`text-left px-4 py-2 text-[11px] font-medium whitespace-nowrap cursor-pointer transition-colors select-none group bg-neutral-100 dark:bg-neutral-950 ${
+                        isSorted
+                          ? 'text-neutral-900 dark:text-neutral-200'
+                          : 'text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        <span className={`transition-opacity ${isSorted ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}>
+                          {isSorted === 'asc' ? (
+                            <ChevronUp size={12} />
+                          ) : isSorted === 'desc' ? (
+                            <ChevronDown size={12} />
+                          ) : (
+                            <ChevronsUpDown size={12} />
+                          )}
+                        </span>
+                      </div>
+                    </th>
                   );
                 })}
               </tr>
-            );
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row, rowIndex) => {
+              const isSelected = row.getIsSelected();
+              const isOdd = rowIndex % 2 === 1;
+              const visibleCells = row.getVisibleCells();
+              return (
+                <tr
+                  key={row.id}
+                  onClick={row.getToggleSelectedHandler()}
+                  className={`transition-colors cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-500/20 dark:bg-blue-500/20'
+                      : isOdd
+                        ? 'bg-neutral-200/40 dark:bg-neutral-800/30 hover:bg-neutral-200/70 dark:hover:bg-neutral-800/50'
+                        : 'hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30'
+                  }`}
+                >
+                  {visibleCells.map((cell, idx) => (
+                    <td
+                      key={cell.id}
+                      className={`px-4 py-2 whitespace-nowrap ${idx === 0 ? 'rounded-l-lg' : ''} ${idx === visibleCells.length - 1 ? 'rounded-r-lg' : ''}`}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              );
             })}
           </tbody>
         </table>
       </div>
+      {/* Render ColumnFilter into the toolbar via portal */}
+      {toolbarRef && (
+        <ToolbarPortal toolbarRef={toolbarRef}>
+          <ColumnFilter columns={table.getAllLeafColumns()} />
+        </ToolbarPortal>
+      )}
     </div>
   );
 }
