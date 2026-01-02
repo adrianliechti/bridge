@@ -1,27 +1,22 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { Send, X, Loader2, Trash2, Square } from 'lucide-react';
-import { chat, maxIterations, type StreamChunk, type AnyClientTool } from '@tanstack/ai';
+import { useRef, useEffect, useState, useMemo } from 'react';
+import { Send, X, Trash2, Square, Loader2 } from 'lucide-react';
+import { useChat, stream, type UIMessage } from '@tanstack/ai-react';
+import { chat, maxIterations, type AnyClientTool } from '@tanstack/ai';
 import { createChatAdapter, getConfiguredModel } from '../api/openai/chatAdapter';
 import type { ChatAdapterConfig, ChatEnvironment } from '../types/chat';
 import { Markdown } from './Markdown';
 
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-interface ChatPanelProps {
+interface ChatPanelProps<T extends ChatEnvironment = ChatEnvironment> {
   isOpen: boolean;
   onClose: () => void;
   otherPanelOpen?: boolean;
   adapterConfig: ChatAdapterConfig;
-  environment: ChatEnvironment;
+  environment: T;
   tools: AnyClientTool[];
-  buildInstructions: (environment: ChatEnvironment) => string;
+  buildInstructions: (environment: T) => string;
 }
 
-export function ChatPanel({ 
+export function ChatPanel<T extends ChatEnvironment>({ 
   isOpen, 
   onClose, 
   otherPanelOpen = false, 
@@ -29,31 +24,49 @@ export function ChatPanel({
   environment,
   tools,
   buildInstructions,
-}: ChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+}: ChatPanelProps<T>) {
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
   
   // Track adapter changes to reset chat
   const prevAdapterIdRef = useRef(adapterConfig.id);
 
+  // Create connection adapter that wraps the chat() function
+  const connection = useMemo(() => {
+    const model = getConfiguredModel();
+    const adapter = createChatAdapter(model);
+    const instructions = buildInstructions(environment);
+
+    return stream((messages) => 
+      chat({
+        adapter,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messages: messages as any,
+        tools,
+        systemPrompts: [instructions],
+        agentLoopStrategy: maxIterations(10),
+      })
+    );
+  }, [environment, tools, buildInstructions]);
+
+  const { messages, sendMessage, isLoading, stop, clear } = useChat({
+    connection,
+    tools,
+  });
+
   // Reset chat when adapter changes
   useEffect(() => {
     if (prevAdapterIdRef.current !== adapterConfig.id) {
-      setMessages([]);
-      setStreamingContent('');
+      clear();
       prevAdapterIdRef.current = adapterConfig.id;
     }
-  }, [adapterConfig.id]);
+  }, [adapterConfig.id, clear]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messages]);
 
   // Focus input when panel opens
   useEffect(() => {
@@ -62,89 +75,12 @@ export function ChatPanel({
     }
   }, [isOpen]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-
-    const userContent = input.trim();
+    sendMessage(input.trim());
     setInput('');
-    setIsLoading(true);
-    setStreamingContent('');
-
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: userContent,
-    };
-    setMessages(prev => [...prev, userMessage]);
-
-    try {
-      const model = getConfiguredModel();
-      const adapter = createChatAdapter(model);
-      const instructions = buildInstructions(environment);
-      
-      abortControllerRef.current = new AbortController();
-
-      // Build messages for the API
-      const apiMessages = [...messages, userMessage].map(msg => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      }));
-
-      // Use TanStack AI chat() with streaming
-      const stream = chat({
-        adapter,
-        messages: apiMessages,
-        tools,
-        systemPrompts: [instructions],
-        agentLoopStrategy: maxIterations(10),
-        abortController: abortControllerRef.current,
-      });
-
-      let accumulatedContent = '';
-
-      // Process the stream
-      for await (const chunk of stream as AsyncIterable<StreamChunk>) {
-        if (chunk.type === 'content') {
-          accumulatedContent = chunk.content;
-          setStreamingContent(accumulatedContent);
-        }
-      }
-
-      // Add the final assistant message
-      if (accumulatedContent) {
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: accumulatedContent,
-        }]);
-      }
-      
-      setStreamingContent('');
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') {
-        if (streamingContent) {
-          setMessages(prev => [...prev, {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: streamingContent + '\n\n*(cancelled)*',
-          }]);
-        }
-      } else {
-        console.error('Chat error:', error);
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
-        }]);
-      }
-      setStreamingContent('');
-    } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    }
-  }, [input, isLoading, messages, environment, tools, buildInstructions, streamingContent]);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -153,18 +89,23 @@ export function ChatPanel({
     }
   };
 
-  const handleClearChat = () => {
-    setMessages([]);
-    setStreamingContent('');
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+  // Extract text content from message parts
+  // Filter by type='text' AND truthy content to avoid undefined/empty
+  const getMessageContent = (message: UIMessage): string => {
+    return message.parts
+      .filter((part): part is { type: 'text'; content: string } => 
+        part.type === 'text' && Boolean(part.content)
+      )
+      .map(part => part.content)
+      .join('')
+      .replace(/^undefined/, ''); // Remove "undefined" prefix from library bug
   };
 
-  const handleStop = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+  // Check if message is currently streaming (last assistant message while loading)
+  const isStreaming = (message: UIMessage, index: number): boolean => {
+    return isLoading && 
+           message.role === 'assistant' && 
+           index === messages.length - 1;
   };
 
   return (
@@ -181,7 +122,7 @@ export function ChatPanel({
         <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">{adapterConfig.name}</h3>
         <div className="flex items-center gap-1">
           <button
-            onClick={handleClearChat}
+            onClick={clear}
             className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 rounded-md transition-colors"
             title="Clear chat"
           >
@@ -198,36 +139,38 @@ export function ChatPanel({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`text-sm ${
-              message.role === 'user'
-                ? 'bg-neutral-100 dark:bg-neutral-800/50 -mx-4 px-4 py-3 border-l-2 border-sky-500'
-                : ''
-            }`}
-          >
-            <div className={message.role === 'user' ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-800 dark:text-neutral-200'}>
-              {message.role === 'assistant' ? (
-                <Markdown>{message.content}</Markdown>
-              ) : (
-                <span className="whitespace-pre-wrap">{message.content}</span>
-              )}
+        {messages.map((message, index) => {
+          const content = getMessageContent(message);
+          
+          return (
+            <div
+              key={message.id}
+              className={`text-sm ${
+                message.role === 'user'
+                  ? 'bg-neutral-100 dark:bg-neutral-800/50 -mx-4 px-4 py-3 border-l-2 border-sky-500'
+                  : ''
+              }`}
+            >
+              <div className={message.role === 'user' ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-800 dark:text-neutral-200'}>
+                {message.role === 'assistant' ? (
+                  content ? (
+                    <Markdown>{content}</Markdown>
+                  ) : isStreaming(message, index) ? (
+                    <span className="flex items-center gap-2 text-neutral-400">
+                      <Loader2 size={14} className="animate-spin" />
+                      Thinking...
+                    </span>
+                  ) : null
+                ) : (
+                  <span className="whitespace-pre-wrap">{content}</span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         
-        {/* Streaming content */}
-        {streamingContent && (
-          <div className="text-sm">
-            <div className="text-neutral-800 dark:text-neutral-200">
-              <Markdown>{streamingContent}</Markdown>
-            </div>
-          </div>
-        )}
-        
-        {/* Loading indicator */}
-        {isLoading && !streamingContent && (
+        {/* Loading indicator when no assistant message yet */}
+        {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === 'user') && (
           <div className="text-sm">
             <div className="text-neutral-800 dark:text-neutral-200">
               <span className="flex items-center gap-2 text-neutral-400">
@@ -257,7 +200,7 @@ export function ChatPanel({
           />
           <button
             type={isLoading ? 'button' : 'submit'}
-            onClick={isLoading ? handleStop : undefined}
+            onClick={isLoading ? stop : undefined}
             disabled={!isLoading && !input.trim()}
             className="p-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 disabled:text-neutral-500 text-white rounded-xl transition-colors"
           >
