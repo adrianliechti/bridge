@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: darwin/arm64
+            artifact: Bridge.app
+          - os: windows-latest
+            platform: windows/amd64
+            artifact: Bridge.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build
+        working-directory: app
+        run: wails build -platform ${{ matrix.platform }}
+
+      - name: Zip macOS app
+        if: matrix.os == 'macos-latest'
+        working-directory: app/build/bin
+        run: zip -r Bridge-darwin-arm64.zip Bridge.app
+
+      - name: Zip Windows app
+        if: matrix.os == 'windows-latest'
+        working-directory: app/build/bin
+        run: Compress-Archive -Path Bridge.exe -DestinationPath Bridge-windows-amd64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: Bridge-${{ matrix.os }}
+          path: app/build/bin/*.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create ${{ github.ref_name }} artifacts/*.zip
