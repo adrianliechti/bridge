@@ -3,7 +3,8 @@
 // Extracts display data from Gateway API GRPCRoute resources
 
 import React from 'react';
-import { Network, GitBranch, Link } from 'lucide-react';
+import { Network, GitBranch, Link as LinkIcon } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import type { ResourceAdapter, ResourceSections } from './types';
 
 interface GRPCRule {
@@ -21,6 +22,9 @@ interface GRPCRule {
 }
 
 interface GRPCRoute {
+  metadata?: {
+    namespace?: string;
+  };
   spec?: {
     parentRefs?: Array<{
       name: string;
@@ -48,9 +52,10 @@ interface GRPCRoute {
 export const GRPCRouteAdapter: ResourceAdapter<GRPCRoute> = {
   kinds: ['GRPCRoute', 'GRPCRoutes'],
 
-  adapt(_context: string, resource): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
+    const routeNamespace = resource.metadata?.namespace;
 
     if (!spec) {
       return { sections: [] };
@@ -66,25 +71,26 @@ export const GRPCRouteAdapter: ResourceAdapter<GRPCRoute> = {
                 data: {
                   type: 'custom' as const,
                   render: () => (
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                      <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
-                        <Link size={10} /> Parent Gateway{spec.parentRefs!.length > 1 ? 's' : ''}
-                      </div>
-                      <div className="space-y-1">
-                        {spec.parentRefs!.map((parent, idx) => {
-                          const parentStatus = status?.parents?.find((p) => p.parentRef.name === parent.name);
-                          const acceptedCond = parentStatus?.conditions?.find((c) => c.type === 'Accepted');
-                          const isAccepted = acceptedCond?.status === 'True';
-                          
-                          return (
-                            <div key={idx} className="text-sm flex items-center gap-2">
-                              <span className="text-neutral-600 dark:text-neutral-500">Gateway:</span>
+                    <div className="space-y-2">
+                      {spec.parentRefs!.map((parent, idx) => {
+                        const parentStatus = status?.parents?.find((p) => p.parentRef.name === parent.name);
+                        const acceptedCond = parentStatus?.conditions?.find((c) => c.type === 'Accepted');
+                        const isAccepted = acceptedCond?.status === 'True';
+                        // Gateway namespace: use explicit namespace or fall back to route's namespace
+                        const gatewayNamespace = parent.namespace || routeNamespace;
+                        
+                        const content = (
+                          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                            <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
+                              <LinkIcon size={10} /> Parent Gateway
+                            </div>
+                            <div className="text-sm flex items-center gap-2">
                               <span className="text-cyan-600 dark:text-cyan-400">{parent.name}</span>
                               {parent.namespace && (
                                 <span className="text-xs text-neutral-600 dark:text-neutral-500">({parent.namespace})</span>
                               )}
                               <span
-                                className={`text-xs px-1.5 py-0.5 rounded ${
+                                className={`text-xs px-1.5 py-0.5 rounded ml-auto ${
                                   isAccepted
                                     ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                                     : 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
@@ -93,9 +99,27 @@ export const GRPCRouteAdapter: ResourceAdapter<GRPCRoute> = {
                                 {isAccepted ? 'Accepted' : acceptedCond?.reason || 'Unknown'}
                               </span>
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
+                        );
+
+                        return gatewayNamespace ? (
+                          <Link
+                            key={idx}
+                            to="/cluster/$context/$resourceType/$name"
+                            params={{
+                              context,
+                              resourceType: 'gateways.gateway.networking.k8s.io',
+                              name: parent.name,
+                            }}
+                            search={(prev) => ({ ...prev, namespace: gatewayNamespace })}
+                            className="block hover:bg-blue-500/15 rounded-lg transition-colors cursor-pointer"
+                          >
+                            {content}
+                          </Link>
+                        ) : (
+                          <div key={idx}>{content}</div>
+                        );
+                      })}
                     </div>
                   ),
                 },

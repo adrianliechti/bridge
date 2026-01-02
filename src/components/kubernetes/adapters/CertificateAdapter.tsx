@@ -1,7 +1,8 @@
 // Certificate Adapter (cert-manager.io/v1)
 // Extracts display data from cert-manager Certificate resources
 
-import { Shield, Clock, Key, Lock, CheckCircle2, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
+import { Shield, Clock, Key, Lock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link as LinkIcon } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
 
 
@@ -190,9 +191,10 @@ function getAlgorithmDisplay(privateKey?: PrivateKey): string {
 export const CertificateAdapter: ResourceAdapter<Certificate> = {
   kinds: ['Certificate', 'Certificates'],
 
-  adapt(_context: string, resource): ResourceSections {
+  adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
     const status = resource.status;
+    const namespace = resource.metadata?.namespace;
 
     if (!spec) {
       return { sections: [] };
@@ -260,25 +262,54 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
     });
 
     // Issuer Reference
+    const issuerKind = spec.issuerRef.kind ?? 'Issuer';
+    const isClusterIssuer = issuerKind === 'ClusterIssuer';
+    // Determine resource type: ClusterIssuer is cluster-scoped, Issuer is namespaced
+    const issuerResourceType = isClusterIssuer 
+      ? 'clusterissuers.cert-manager.io' 
+      : 'issuers.cert-manager.io';
+    
     sections.push({
       id: 'issuer',
       title: 'Issuer',
       data: {
         type: 'custom',
-        render: () => (
-          <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Key size={14} className="text-purple-400" />
-              <span className="text-sm font-medium text-purple-300">
-                {spec.issuerRef.kind ?? 'Issuer'}
-              </span>
+        render: () => {
+          const content = (
+            <div className={`bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 hover:bg-purple-500/15 transition-colors cursor-pointer`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Key size={14} className="text-purple-400" />
+                <span className="text-sm font-medium text-purple-300">
+                  {issuerKind}
+                </span>
+                <LinkIcon size={12} className="text-purple-400/60 ml-auto" />
+              </div>
+              <div className="text-sm text-neutral-700 dark:text-neutral-300">{spec.issuerRef.name}</div>
+              {spec.issuerRef.group && (
+                <div className="text-xs text-neutral-500 mt-1">{spec.issuerRef.group}</div>
+              )}
             </div>
-            <div className="text-sm text-neutral-700 dark:text-neutral-300">{spec.issuerRef.name}</div>
-            {spec.issuerRef.group && (
-              <div className="text-xs text-neutral-500 mt-1">{spec.issuerRef.group}</div>
-            )}
-          </div>
-        ),
+          );
+
+          // ClusterIssuer is cluster-scoped, Issuer needs namespace
+          const searchParams = isClusterIssuer 
+            ? (prev: Record<string, unknown>) => prev
+            : (prev: Record<string, unknown>) => ({ ...prev, namespace });
+
+          return (
+            <Link
+              to="/cluster/$context/$resourceType/$name"
+              params={{ 
+                context, 
+                resourceType: issuerResourceType, 
+                name: spec.issuerRef.name 
+              }}
+              search={searchParams}
+            >
+              {content}
+            </Link>
+          );
+        },
       },
     });
 
