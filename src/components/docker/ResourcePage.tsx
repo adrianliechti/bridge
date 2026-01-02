@@ -10,7 +10,12 @@ import {
 import type { TableRow, ResourceConfig, TableResponse } from '../../types/table';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
 import { ChatPanel } from '../ChatPanel';
-import { createDockerChatAdapter, type DockerEnvironment } from './Chat';
+import { 
+  dockerAdapterConfig, 
+  createDockerTools, 
+  buildDockerInstructions,
+  type DockerEnvironment 
+} from './ChatAdapter';
 import { ResourcePanel } from './ResourcePanel';
 import { usePanels } from '../../hooks/usePanelState';
 import { getConfig } from '../../config';
@@ -114,9 +119,6 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   });
   const isRefetching = isFetching && !loading;
 
-  // Chat adapter
-  const chatAdapter = createDockerChatAdapter();
-
   // Build config and table data
   const config: ResourceConfig = useMemo(() => ({
     name: resourceType,
@@ -155,6 +157,12 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
     };
   }, [resourceType, dockerContext]);
 
+  // Create tools for the current environment - memoized
+  const tools = useMemo(() => {
+    const env = getEnvironmentInfo(null);
+    return createDockerTools(env);
+  }, [dockerContext, resourceType, getEnvironmentInfo]);
+
   // Render AI chat button in header
   const renderHeaderActions = useCallback(() => {
     if (!getConfig().ai) return null;
@@ -182,11 +190,13 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
         isOpen={isChatPanelOpen}
         onClose={() => close(PANEL_AI)}
         otherPanelOpen={isDetailPanelOpen}
-        adapter={chatAdapter}
+        adapterConfig={dockerAdapterConfig}
         environment={environmentInfo}
+        tools={tools}
+        buildInstructions={buildDockerInstructions}
       />
     );
-  }, [isChatPanelOpen, close, chatAdapter, getEnvironmentInfo]);
+  }, [isChatPanelOpen, close, getEnvironmentInfo, tools]);
 
   // Custom detail panel for Docker resources using the new ResourcePanel
   const showDetailPanel = resourceType === 'containers' || resourceType === 'images' || resourceType === 'volumes' || resourceType === 'networks';
