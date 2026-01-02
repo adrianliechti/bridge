@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getResourceTable } from '../../api/kubernetes/kubernetesTable';
@@ -55,20 +55,20 @@ export function ResourcePage({ resource, context, namespace, selectedItem, onSel
   };
 
   // Environment info for AI chat
-  const getEnvironmentInfo = (item: TableRow<KubernetesObject> | null): KubernetesEnvironment => ({
+  const getEnvironmentInfo = useCallback((item: TableRow<KubernetesObject> | null): KubernetesEnvironment => ({
     currentContext: context,
     currentNamespace: item?.object.metadata?.namespace || namespace || 'all namespaces',
     selectedResourceKind: resource.group 
       ? `${resource.kind} (${resource.group}/${resource.version})` 
       : `${resource.kind} (${resource.version})`,
     selectedResourceName: item?.object.metadata?.name,
-  });
+  }), [context, namespace, resource.kind, resource.group, resource.version]);
 
   // Create tools for the current environment - memoized
   const tools = useMemo(() => {
     const env = getEnvironmentInfo(null);
     return createKubernetesTools(env);
-  }, [context, namespace, resource.kind, resource.group, resource.version]);
+  }, [getEnvironmentInfo]);
 
   // Render AI chat button in header
   const renderHeaderActions = () => {

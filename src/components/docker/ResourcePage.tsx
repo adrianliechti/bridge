@@ -161,7 +161,7 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   const tools = useMemo(() => {
     const env = getEnvironmentInfo(null);
     return createDockerTools(env);
-  }, [dockerContext, resourceType, getEnvironmentInfo]);
+  }, [getEnvironmentInfo]);
 
   // Render AI chat button in header
   const renderHeaderActions = useCallback(() => {
