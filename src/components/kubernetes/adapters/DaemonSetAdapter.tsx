@@ -12,7 +12,7 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
   kinds: ['DaemonSet', 'DaemonSets'],
 
   actions: [
-    createRestartAction<V1DaemonSet>(
+    createRestartAction(
       async (context, resource) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace;
