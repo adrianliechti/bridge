@@ -160,3 +160,142 @@ export async function getResourceEvents(
     return new Date(timeB as string).getTime() - new Date(timeA as string).getTime();
   });
 }
+
+// Delete a resource
+export async function deleteResource(
+  context: string,
+  config: V1APIResource,
+  resourceName: string,
+  namespace?: string
+): Promise<void> {
+  const apiBase = getApiBase(config);
+  const path =
+    config.namespaced && namespace
+      ? `${apiBase}/namespaces/${namespace}/${config.name}/${resourceName}`
+      : `${apiBase}/${config.name}/${resourceName}`;
+
+  const url = `/contexts/${context}${path}`;
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    let message = `Delete failed: ${response.status} ${response.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorBody);
+      if (errorJson.message) {
+        message = errorJson.message;
+      }
+    } catch {
+      // Use default message
+    }
+    throw new Error(message);
+  }
+}
+
+// Scale a resource (Deployment, StatefulSet, ReplicaSet)
+export async function scaleResource(
+  context: string,
+  config: V1APIResource,
+  resourceName: string,
+  replicas: number,
+  namespace?: string
+): Promise<void> {
+  const apiBase = getApiBase(config);
+  const path =
+    config.namespaced && namespace
+      ? `${apiBase}/namespaces/${namespace}/${config.name}/${resourceName}/scale`
+      : `${apiBase}/${config.name}/${resourceName}/scale`;
+
+  const url = `/contexts/${context}${path}`;
+
+  // First GET the current scale object
+  const getResponse = await fetch(url);
+  if (!getResponse.ok) {
+    throw new Error(`Failed to get scale: ${getResponse.status} ${getResponse.statusText}`);
+  }
+  const scale = await getResponse.json();
+
+  // Update the replicas
+  scale.spec.replicas = replicas;
+
+  // PUT the updated scale object
+  const putResponse = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(scale),
+  });
+
+  if (!putResponse.ok) {
+    const errorBody = await putResponse.text();
+    let message = `Scale failed: ${putResponse.status} ${putResponse.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorBody);
+      if (errorJson.message) {
+        message = errorJson.message;
+      }
+    } catch {
+      // Use default message
+    }
+    throw new Error(message);
+  }
+}
+
+// Restart a workload by adding a restart annotation to the pod template
+// This triggers a rolling restart
+export async function restartWorkload(
+  context: string,
+  config: V1APIResource,
+  resourceName: string,
+  namespace?: string
+): Promise<void> {
+  const apiBase = getApiBase(config);
+  const path =
+    config.namespaced && namespace
+      ? `${apiBase}/namespaces/${namespace}/${config.name}/${resourceName}`
+      : `${apiBase}/${config.name}/${resourceName}`;
+
+  const url = `/contexts/${context}${path}`;
+
+  // Use strategic merge patch to add restart annotation
+  const patch = {
+    spec: {
+      template: {
+        metadata: {
+          annotations: {
+            'kubectl.kubernetes.io/restartedAt': new Date().toISOString(),
+          },
+        },
+      },
+    },
+  };
+
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/strategic-merge-patch+json',
+    },
+    body: JSON.stringify(patch),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    let message = `Restart failed: ${response.status} ${response.statusText}`;
+    try {
+      const errorJson = JSON.parse(errorBody);
+      if (errorJson.message) {
+        message = errorJson.message;
+      }
+    } catch {
+      // Use default message
+    }
+    throw new Error(message);
+  }
+}

@@ -287,6 +287,28 @@ export interface ResourceSections {
 /** Visual style for action buttons */
 export type ActionVariant = 'primary' | 'secondary' | 'danger' | 'warning';
 
+/** Configuration for actions that require user input */
+export interface ActionInput {
+  /** Dialog title */
+  title: string;
+  /** Dialog description */
+  description?: string;
+  /** Input field label */
+  label: string;
+  /** Input type: 'number' for text input, 'slider' for compact slider UI */
+  type: 'number' | 'text' | 'slider';
+  /** Placeholder text */
+  placeholder?: string;
+  /** Minimum value (for number/slider inputs) */
+  min?: number;
+  /** Maximum value (for number/slider inputs) */
+  max?: number;
+  /** Function to get the default value from the resource */
+  defaultValue?: (resource: unknown) => string | number;
+  /** Submit button label */
+  submitLabel?: string;
+}
+
 /**
  * An action that can be performed on a resource.
  * Actions are displayed as buttons in the resource visualizer.
@@ -306,13 +328,16 @@ export interface ResourceAction<T = unknown> {
     message: string;
     confirmLabel?: string;
   };
+  /** Whether the action requires user input (mutually exclusive with confirm) */
+  input?: ActionInput;
   /** 
    * Execute the action. 
    * @param context - The context name (cluster for K8s, host for Docker)
    * @param resource - The resource to act upon
+   * @param inputValues - Optional input values if the action has input fields
    * @returns A promise that resolves when the action completes
    */
-  execute: (context: string, resource: T) => Promise<void>;
+  execute: (context: string, resource: T, inputValues?: Record<string, string | number>) => Promise<void>;
   /** 
    * Optional function to determine if action should be shown.
    * @param resource - The resource to check

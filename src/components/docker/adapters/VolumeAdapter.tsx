@@ -4,8 +4,7 @@
 import type { DockerAdapter, StatusCardData, InfoRowData, Section } from './types';
 import type { DockerVolume } from '../../../api/docker/docker';
 import { removeVolume } from '../../../api/docker/docker';
-import { Trash2, HardDrive } from 'lucide-react';
-import { createElement } from 'react';
+import { createDeleteAction } from '../../sections/actionHelpers';
 
 // Format bytes to human readable size
 function formatBytes(bytes?: number): string {
@@ -100,27 +99,19 @@ export const VolumeAdapter: DockerAdapter<DockerVolume> = {
   },
 
   actions: [
-    {
-      id: 'delete',
-      label: 'Delete',
-      icon: createElement(Trash2, { size: 14 }),
-      variant: 'danger',
-      confirm: {
-        title: 'Delete Volume',
+    createDeleteAction<DockerVolume>(
+      async (context, resource) => {
+        await removeVolume(context, resource.Name!);
+      },
+      {
         message: 'Are you sure you want to delete this volume? This action cannot be undone and all data will be lost.',
-        confirmLabel: 'Delete',
-      },
-      execute: async (context, resource) => {
-        const volume = resource as DockerVolume;
-        await removeVolume(context, volume.Name!);
-      },
-      isDisabled: (resource) => {
-        const volume = resource as DockerVolume;
-        if (volume.UsageData?.RefCount && volume.UsageData.RefCount > 0) {
-          return 'Volume is in use by containers';
-        }
-        return false;
-      },
-    },
+        isDisabled: (resource) => {
+          if (resource.UsageData?.RefCount && resource.UsageData.RefCount > 0) {
+            return 'Volume is in use by containers';
+          }
+          return false;
+        },
+      }
+    ),
   ],
 };

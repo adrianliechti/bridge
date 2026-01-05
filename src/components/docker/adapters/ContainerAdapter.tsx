@@ -11,9 +11,10 @@ import {
   unpauseContainer,
   removeContainer,
 } from '../../../api/docker/docker';
-import { Play, Pause, Square, RefreshCw, Trash2, Link as LinkIcon, LayoutGrid } from 'lucide-react';
+import { Play, Pause, Square, RefreshCw, Link as LinkIcon, LayoutGrid } from 'lucide-react';
 import { createElement } from 'react';
 import { Link } from '@tanstack/react-router';
+import { createDeleteAction } from '../../sections/actionHelpers';
 
 // Docker Compose label constants
 const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project';
@@ -346,24 +347,14 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
         return container.State?.Paused === true;
       },
     },
-    {
-      id: 'delete',
-      label: 'Delete',
-      icon: createElement(Trash2, { size: 14 }),
-      variant: 'danger',
-      confirm: {
-        title: 'Delete Container',
+    createDeleteAction<ContainerInspectResponse>(
+      async (context, resource) => {
+        await removeContainer(context, resource.Id!);
+      },
+      {
         message: 'Are you sure you want to delete this container? This action cannot be undone.',
-        confirmLabel: 'Delete',
-      },
-      execute: async (context, resource) => {
-        const container = resource as ContainerInspectResponse;
-        await removeContainer(context, container.Id!);
-      },
-      isVisible: (resource) => {
-        const container = resource as ContainerInspectResponse;
-        return !container.State?.Running;
-      },
-    },
+        isVisible: (resource) => !resource.State?.Running,
+      }
+    ),
   ],
 };
