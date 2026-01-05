@@ -1,7 +1,6 @@
 // ReplicaSet Adapter
 // Extracts display data from ReplicaSet resources
 
-import { createElement } from 'react';
 import { Link as LinkIcon } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { ResourceAdapter, ResourceSections } from './types';
@@ -14,7 +13,7 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
   kinds: ['ReplicaSet', 'ReplicaSets'],
 
   actions: [
-    createScaleAction<V1ReplicaSet>(
+    createScaleAction(
       async (context, resource, replicas) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace;
@@ -23,7 +22,7 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
         if (!config) throw new Error('Could not get replicaset configuration');
         await scaleResource(context, config, name, replicas, namespace);
       },
-      (resource) => resource.spec?.replicas ?? 1,
+      (resource) => (resource.spec as V1ReplicaSet['spec'])?.replicas ?? 1,
       { 
         title: 'Scale ReplicaSet',
         description: 'Set the desired number of replicas. Note: If this ReplicaSet is managed by a Deployment, the Deployment may override this change.',
