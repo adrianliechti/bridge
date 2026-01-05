@@ -222,12 +222,20 @@ export function ClusterLayout() {
       context: context || '',
       namespace: search.namespace,
       namespaces,
+      contexts: kubernetesContexts.map(name => ({ name })),
+      currentContext: context || '',
       setNamespace,
+      setContext: (ctx) => {
+        navigate({
+          to: '/cluster/$context',
+          params: { context: ctx },
+        });
+      },
       setSelectedResource: setResource,
       setSelectedItem: navigateToResourceItem,
       onClose: closeCommandPalette,
     });
-  }, [context, search.namespace, namespaces, setNamespace, setResource, navigateToResourceItem, closeCommandPalette]);
+  }, [context, search.namespace, namespaces, kubernetesContexts, setNamespace, setResource, navigateToResourceItem, closeCommandPalette, navigate]);
 
   // Global keyboard shortcut for command palette
   useEffect(() => {

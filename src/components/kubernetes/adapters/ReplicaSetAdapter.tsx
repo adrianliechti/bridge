@@ -6,9 +6,29 @@ import { Link } from '@tanstack/react-router';
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1ReplicaSet } from '@kubernetes/client-node';
 import { getContainerSections, getResourceQuotaSection } from './utils';
+import { getResourceConfig, scaleResource } from '../../../api/kubernetes/kubernetes';
+import { createScaleAction } from '../../sections/actionHelpers';
 
 export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
   kinds: ['ReplicaSet', 'ReplicaSets'],
+
+  actions: [
+    createScaleAction(
+      async (context, resource, replicas) => {
+        const name = resource.metadata?.name;
+        const namespace = resource.metadata?.namespace;
+        if (!name || !namespace) throw new Error('ReplicaSet name/namespace missing');
+        const config = await getResourceConfig(context, 'replicasets');
+        if (!config) throw new Error('Could not get replicaset configuration');
+        await scaleResource(context, config, name, replicas, namespace);
+      },
+      (resource) => (resource.spec as V1ReplicaSet['spec'])?.replicas ?? 1,
+      { 
+        title: 'Scale ReplicaSet',
+        description: 'Set the desired number of replicas. Note: If this ReplicaSet is managed by a Deployment, the Deployment may override this change.',
+      }
+    ),
+  ],
 
   adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;
