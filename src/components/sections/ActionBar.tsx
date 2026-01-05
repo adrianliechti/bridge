@@ -12,26 +12,37 @@ export interface ActionBarProps<T> {
 export function ActionBar<T>({ context, actions, resource, onActionComplete }: ActionBarProps<T>) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction<T> | null>(null);
+  const [inputAction, setInputAction] = useState<ResourceAction<T> | null>(null);
+  const [inputValues, setInputValues] = useState<Record<string, string | number>>({});
   const [error, setError] = useState<string | null>(null);
 
   if (actions.length === 0) return null;
 
-  const executeAction = async (action: ResourceAction<T>) => {
+  const executeAction = async (action: ResourceAction<T>, values?: Record<string, string | number>) => {
     setError(null);
     setLoadingAction(action.id);
     try {
-      await action.execute(context, resource);
+      await action.execute(context, resource, values);
       onActionComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
     } finally {
       setLoadingAction(null);
       setConfirmAction(null);
+      setInputAction(null);
+      setInputValues({});
     }
   };
 
   const handleActionClick = (action: ResourceAction<T>) => {
-    if (action.confirm) {
+    if (action.input) {
+      // Initialize input value with default
+      const defaultValue = action.input.defaultValue
+        ? action.input.defaultValue(resource)
+        : action.input.type === 'number' ? 0 : '';
+      setInputValues({ value: defaultValue });
+      setInputAction(action);
+    } else if (action.confirm) {
       setConfirmAction(action);
     } else {
       executeAction(action);
@@ -123,6 +134,76 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
                 {confirmAction.confirm?.confirmLabel || 'Confirm'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Input Dialog */}
+      {inputAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-4 max-w-md mx-4 shadow-xl">
+            <h3 className="text-sm font-semibold text-neutral-200 mb-2">
+              {inputAction.input?.title}
+            </h3>
+            {inputAction.input?.description && (
+              <p className="text-xs text-neutral-400 mb-4">
+                {inputAction.input.description}
+              </p>
+            )}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                executeAction(inputAction, inputValues);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-xs text-neutral-400 mb-1">
+                  {inputAction.input?.label}
+                </label>
+                <input
+                  type={inputAction.input?.type}
+                  value={inputValues.value ?? ''}
+                  onChange={(e) => {
+                    const value = inputAction.input?.type === 'number' 
+                      ? parseInt(e.target.value, 10) || 0
+                      : e.target.value;
+                    setInputValues({ value });
+                  }}
+                  min={inputAction.input?.min}
+                  max={inputAction.input?.max}
+                  placeholder={inputAction.input?.placeholder}
+                  className="w-full px-3 py-2 text-sm bg-neutral-900 border border-neutral-600 rounded text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputAction(null);
+                    setInputValues({});
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium rounded border border-neutral-600 bg-neutral-700 hover:bg-neutral-600 text-neutral-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loadingAction === inputAction.id}
+                  className={`
+                    flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border
+                    ${getVariantClasses(inputAction.variant)}
+                    ${loadingAction === inputAction.id ? 'opacity-75' : ''}
+                  `}
+                >
+                  {loadingAction === inputAction.id && (
+                    <RefreshCw size={14} className="animate-spin" />
+                  )}
+                  {inputAction.input?.submitLabel || 'Submit'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

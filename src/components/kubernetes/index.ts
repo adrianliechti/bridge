@@ -3,6 +3,9 @@
 
 import type { ResourceAdapter, ResourceSections, ResourceAction } from './adapters/types';
 import type { KubernetesResource } from '../../api/kubernetes/kubernetes';
+import { deleteResource } from '../../api/kubernetes/kubernetes';
+import { getResourceConfigByKind } from '../../api/kubernetes/kubernetesDiscovery';
+import { createDeleteAction } from '../sections/actionHelpers';
 
 // Import all adapters
 import { DeploymentAdapter } from './adapters/DeploymentAdapter';
@@ -89,20 +92,50 @@ export function adaptResource(context: string, resource: KubernetesResource): Re
   return adapter.adapt(context, resource);
 }
 
+// Default delete action for all Kubernetes resources
+const defaultDeleteAction = createDeleteAction<KubernetesResource>(
+  async (context, resource) => {
+    const kind = resource.kind;
+    const apiVersion = resource.apiVersion;
+    const name = resource.metadata?.name;
+    const namespace = resource.metadata?.namespace;
+    
+    if (!kind || !name) {
+      throw new Error('Resource kind and name are required');
+    }
+    
+    const config = await getResourceConfigByKind(context, kind, apiVersion);
+    if (!config) {
+      throw new Error(`Could not find API configuration for ${kind}`);
+    }
+    
+    await deleteResource(context, config, name, namespace);
+  }
+);
+
 /**
- * Get actions available for a resource
+ * Get actions available for a resource.
+ * Includes adapter-specific actions plus a default delete action.
  */
 export function getResourceActions(resource: KubernetesResource): ResourceAction[] {
   const kind = resource.kind;
   if (!kind) return [];
   
   const adapter = getAdapter(kind);
-  if (!adapter?.actions) return [];
-  
-  // Filter actions based on visibility
-  return adapter.actions.filter(action => 
-    !action.isVisible || action.isVisible(resource)
-  );
+  const actions: ResourceAction[] = [];
+
+  // Add adapter actions (filtered by visibility), excluding any delete (we add our own)
+  if (adapter?.actions) {
+    const adapterActions = adapter.actions.filter(action => 
+      action.id !== 'delete' && (!action.isVisible || action.isVisible(resource))
+    );
+    actions.push(...adapterActions);
+  }
+
+  // Always add delete action at the end
+  actions.push(defaultDeleteAction);
+
+  return actions;
 }
 
 /**

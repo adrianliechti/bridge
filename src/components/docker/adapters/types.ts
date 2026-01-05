@@ -48,6 +48,6 @@ export interface DockerAdapter<T = DockerResource> {
   /** Extract all display sections from the resource */
   adapt(context: string, resource: T): ResourceSections;
 
-  /** Optional actions that can be performed on this resource type */
+  /** Actions that can be performed on this resource type */
   readonly actions?: ResourceAction[];
 }

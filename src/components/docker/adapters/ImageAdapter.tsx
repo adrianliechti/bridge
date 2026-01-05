@@ -4,8 +4,7 @@
 import type { DockerAdapter, StatusCardData, InfoRowData, Section } from './types';
 import type { DockerImage } from '../../../api/docker/docker';
 import { removeImage, formatImageSize } from '../../../api/docker/docker';
-import { Trash2, Layers, Tag } from 'lucide-react';
-import { createElement } from 'react';
+import { createDeleteAction } from '../../sections/actionHelpers';
 
 // Format unix timestamp to date string
 function formatUnixTime(timestamp?: number): string {
@@ -151,27 +150,19 @@ export const ImageAdapter: DockerAdapter<DockerImage> = {
   },
 
   actions: [
-    {
-      id: 'delete',
-      label: 'Delete',
-      icon: createElement(Trash2, { size: 14 }),
-      variant: 'danger',
-      confirm: {
-        title: 'Delete Image',
+    createDeleteAction<DockerImage>(
+      async (context, resource) => {
+        await removeImage(context, resource.Id!);
+      },
+      {
         message: 'Are you sure you want to delete this image? This action cannot be undone.',
-        confirmLabel: 'Delete',
-      },
-      execute: async (context, resource) => {
-        const image = resource as DockerImage;
-        await removeImage(context, image.Id!);
-      },
-      isDisabled: (resource) => {
-        const image = resource as DockerImage;
-        if (image.Containers && image.Containers > 0) {
-          return 'Image is used by containers';
-        }
-        return false;
-      },
-    },
+        isDisabled: (resource) => {
+          if (resource.Containers && resource.Containers > 0) {
+            return 'Image is used by containers';
+          }
+          return false;
+        },
+      }
+    ),
   ],
 };
