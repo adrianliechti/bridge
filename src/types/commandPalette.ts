@@ -8,6 +8,8 @@ export interface ResourceTypeItem {
   label: string;
   icon: LucideIcon;
   category: string;
+  /** Short aliases for the resource type (e.g., 'po' for pods, 'deploy' for deployments) */
+  aliases?: string[];
 }
 
 /**
@@ -18,23 +20,50 @@ export interface NamespaceItem {
 }
 
 /**
+ * Represents a Kubernetes context (cluster)
+ */
+export interface ContextItem {
+  name: string;
+  cluster?: string;
+  isCurrent?: boolean;
+}
+
+/**
  * Generic search result from command palette
  */
 export interface SearchResult {
   id: string;
-  type: 'resource-type' | 'namespace' | 'resource';
+  type: 'resource-type' | 'namespace' | 'context' | 'resource';
   label: string;
   sublabel?: string;
   icon: LucideIcon;
   category?: string;
   /** Platform-specific data payload */
   data: Record<string, unknown>;
+  /** Value to use when completing this result (e.g., the resource name) */
+  completionValue?: string;
 }
 
 /**
  * Search modes supported by the command palette
  */
-export type SearchMode = 'default' | 'resources' | 'namespaces' | 'search' | 'searchAll';
+export type SearchMode = 'default' | 'resources' | 'namespaces' | 'contexts' | 'search' | 'searchAll' | 'filter';
+
+/**
+ * Parsed query from command palette input
+ */
+export interface ParsedQuery {
+  /** The search mode determined from prefix */
+  mode: SearchMode;
+  /** The resource kind if specified (e.g., 'pods' from ':pods nginx') */
+  resourceKind?: string;
+  /** The search query after prefix and kind extraction */
+  query: string;
+  /** Whether to search all namespaces (:: prefix) */
+  allNamespaces: boolean;
+  /** Original prefix used */
+  prefix: string;
+}
 
 /**
  * Configuration for search mode prefixes
@@ -60,6 +89,9 @@ export interface CommandPaletteAdapter {
   /** Whether this platform supports namespaces */
   supportsNamespaces: boolean;
   
+  /** Whether this platform supports contexts */
+  supportsContexts?: boolean;
+  
   /**
    * Initialize the adapter (e.g., load resource configs)
    */
@@ -76,6 +108,11 @@ export interface CommandPaletteAdapter {
   getNamespaces(): NamespaceItem[];
   
   /**
+   * Get contexts/clusters (if supported)
+   */
+  getContexts?(): ContextItem[];
+  
+  /**
    * Convert a resource type to a search result
    */
   resourceTypeToSearchResult(item: ResourceTypeItem): SearchResult;
@@ -86,11 +123,17 @@ export interface CommandPaletteAdapter {
   namespaceToSearchResult?(item: NamespaceItem): SearchResult;
   
   /**
+   * Convert a context to a search result
+   */
+  contextToSearchResult?(item: ContextItem): SearchResult;
+  
+  /**
    * Search for resources matching the query
    * @param query Search term
    * @param allScopes Whether to search all namespaces/scopes
+   * @param resourceKind Optional resource kind to filter by
    */
-  searchResources(query: string, allScopes: boolean): Promise<SearchResult[]>;
+  searchResources(query: string, allScopes: boolean, resourceKind?: string): Promise<SearchResult[]>;
   
   /**
    * Handle selection of a search result
@@ -112,4 +155,9 @@ export interface CommandPaletteAdapter {
    * Get current scope label for footer (if applicable)
    */
   getCurrentScopeLabel?(): string | null;
+  
+  /**
+   * Find a resource type by name, kind, or alias
+   */
+  findResourceType?(query: string): ResourceTypeItem | undefined;
 }

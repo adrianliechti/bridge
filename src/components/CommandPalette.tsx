@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
-import type { CommandPaletteAdapter, SearchResult, SearchMode } from '../types/commandPalette';
+import type { CommandPaletteAdapter, SearchResult, ParsedQuery } from '../types/commandPalette';
 
 // Normalize string for fuzzy matching (remove hyphens, underscores, dots)
 function normalizeForSearch(str: string): string {
@@ -20,6 +20,9 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   const [asyncResults, setAsyncResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Track pre-completion input for escape revert behavior
+  const [preCompletionInput, setPreCompletionInput] = useState<string | null>(null);
   
   // Track adapter.id and isOpen in state to detect changes during render
   const [trackedAdapterId, setTrackedAdapterId] = useState(adapter.id);
@@ -54,25 +57,94 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     setQuery('');
     setFocusedIndex(0);
     setAsyncResults([]);
+    setPreCompletionInput(null);
   } else if (!isOpen && wasOpen) {
     setWasOpen(false);
   }
 
-  // Determine search mode from query prefix
-  const { searchMode, searchQuery } = useMemo(() => {
-    // Check prefixes in order (longer prefixes first, e.g., @@ before @)
-    const sortedPrefixes = [...adapter.searchModePrefixes].sort(
-      (a, b) => b.prefix.length - a.prefix.length
-    );
+  // Parse query to extract mode, resource kind, and search term
+  // Examples:
+  //   ":pods" -> { mode: 'resources', resourceKind: 'pods', query: '', allNamespaces: false }
+  //   ":pods nginx" -> { mode: 'search', resourceKind: 'pods', query: 'nginx', allNamespaces: false }
+  //   "::pods nginx" -> { mode: 'search', resourceKind: 'pods', query: 'nginx', allNamespaces: true }
+  //   ":ns prod" -> { mode: 'namespaces', query: 'prod', allNamespaces: false }
+  //   ":ctx staging" -> { mode: 'contexts', query: 'staging', allNamespaces: false }
+  //   "/filter" -> { mode: 'filter', query: 'filter', allNamespaces: false }
+  const parsedQuery = useMemo((): ParsedQuery => {
+    const trimmed = query.trim();
     
-    for (const { prefix, mode } of sortedPrefixes) {
-      if (query.startsWith(prefix)) {
-        return { searchMode: mode, searchQuery: query.slice(prefix.length).trim() };
-      }
+    // Check for filter mode first (/)
+    if (trimmed.startsWith('/')) {
+      return {
+        mode: 'filter',
+        query: trimmed.slice(1).trim(),
+        allNamespaces: false,
+        prefix: '/',
+      };
     }
     
-    return { searchMode: 'search' as SearchMode, searchQuery: query.trim() };
-  }, [query, adapter.searchModePrefixes]);
+    // Check for all-namespaces search (::)
+    const allNamespaces = trimmed.startsWith('::');
+    const prefix = allNamespaces ? '::' : (trimmed.startsWith(':') ? ':' : '');
+    
+    if (!prefix) {
+      // Plain search in current namespace
+      return {
+        mode: 'search',
+        query: trimmed,
+        allNamespaces: false,
+        prefix: '',
+      };
+    }
+    
+    // Parse ":resourceType query" or "::resourceType query"
+    const afterPrefix = trimmed.slice(prefix.length).trim();
+    const spaceIndex = afterPrefix.indexOf(' ');
+    
+    if (spaceIndex === -1) {
+      // No space: either typing resource type or exact match
+      // Check if it matches a known resource type
+      const resourceType = adapter.findResourceType?.(afterPrefix);
+      
+      if (resourceType) {
+        // Check for special types
+        if (resourceType.kind === 'namespaces') {
+          return { mode: 'namespaces', query: '', allNamespaces, prefix };
+        }
+        if (resourceType.kind === 'contexts') {
+          return { mode: 'contexts', query: '', allNamespaces: false, prefix };
+        }
+        // Exact resource type match, show that type's resources
+        return { mode: 'resources', resourceKind: resourceType.kind, query: '', allNamespaces, prefix };
+      }
+      
+      // Partial match or no match - show resource types filtered
+      return { mode: 'resources', query: afterPrefix, allNamespaces, prefix };
+    }
+    
+    // Has space: "resourceType query"
+    const firstWord = afterPrefix.slice(0, spaceIndex);
+    const searchQuery = afterPrefix.slice(spaceIndex + 1).trim();
+    
+    const resourceType = adapter.findResourceType?.(firstWord);
+    
+    if (resourceType) {
+      // Check for special types with query
+      if (resourceType.kind === 'namespaces') {
+        return { mode: 'namespaces', query: searchQuery, allNamespaces, prefix };
+      }
+      if (resourceType.kind === 'contexts') {
+        return { mode: 'contexts', query: searchQuery, allNamespaces: false, prefix };
+      }
+      // Search within specific resource type
+      return { mode: 'search', resourceKind: resourceType.kind, query: searchQuery, allNamespaces, prefix };
+    }
+    
+    // Unknown resource type, treat as plain search
+    return { mode: 'search', query: afterPrefix, allNamespaces, prefix };
+  }, [query, adapter]);
+
+  const { mode: searchMode, resourceKind, query: searchQuery, allNamespaces } = parsedQuery;
 
   // Get available resource types from adapter
   const availableResourceTypes = useMemo(() => {
@@ -80,13 +152,14 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     return adapter.getAvailableResourceTypes();
   }, [adapter, isInitialized]);
 
-  // Filter resource types (synchronous)
+  // Filter resource types (synchronous) - includes matching by aliases
   const filteredResourceTypes = useMemo(() => {
     const q = normalizeForSearch(searchQuery);
     return availableResourceTypes.filter(rt => 
       normalizeForSearch(rt.label).includes(q) ||
       normalizeForSearch(rt.kind).includes(q) ||
-      normalizeForSearch(rt.category).includes(q)
+      normalizeForSearch(rt.category).includes(q) ||
+      rt.aliases?.some(alias => normalizeForSearch(alias).includes(q))
     );
   }, [searchQuery, availableResourceTypes]);
 
@@ -96,6 +169,16 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     const q = normalizeForSearch(searchQuery);
     return adapter.getNamespaces().filter(ns => 
       normalizeForSearch(ns.name).includes(q)
+    );
+  }, [searchQuery, adapter]);
+
+  // Filter contexts (synchronous)
+  const filteredContexts = useMemo(() => {
+    if (!adapter.supportsContexts || !adapter.getContexts) return [];
+    const q = normalizeForSearch(searchQuery);
+    return adapter.getContexts().filter(ctx => 
+      normalizeForSearch(ctx.name).includes(q) ||
+      (ctx.cluster && normalizeForSearch(ctx.cluster).includes(q))
     );
   }, [searchQuery, adapter]);
 
@@ -109,15 +192,19 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
       return filteredNamespaces.map(ns => adapter.namespaceToSearchResult!(ns));
     }
     
-    // search and searchAll modes use async results
+    if (searchMode === 'contexts' && adapter.supportsContexts && adapter.contextToSearchResult && adapter.getContexts) {
+      return filteredContexts.map(ctx => adapter.contextToSearchResult!(ctx));
+    }
+    
+    // search, searchAll, and filter modes use async results
     return [];
-  }, [searchMode, filteredResourceTypes, filteredNamespaces, adapter]);
+  }, [searchMode, filteredResourceTypes, filteredNamespaces, filteredContexts, adapter]);
 
   // Final results: sync results or async results depending on mode
-  const results = (searchMode === 'search' || searchMode === 'searchAll') ? asyncResults : syncResults;
+  const results = (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') ? asyncResults : syncResults;
   
   // Compute isSearching synchronously based on search state changes
-  const shouldStartSearching = (searchMode === 'search' || searchMode === 'searchAll') && 
+  const shouldStartSearching = (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') && 
     searchQuery.length >= 2 && isInitialized;
   
   // Track previous searchMode and syncResults for focusedIndex reset using state
@@ -128,10 +215,10 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   if (searchMode !== trackedSearchMode) {
     setTrackedSearchMode(searchMode);
     setTrackedSyncResultsLength(syncResults.length);
-    if (searchMode !== 'search' && searchMode !== 'searchAll') {
+    if (searchMode !== 'search' && searchMode !== 'searchAll' && searchMode !== 'filter') {
       setFocusedIndex(0);
     }
-  } else if (searchMode !== 'search' && searchMode !== 'searchAll' && syncResults.length !== trackedSyncResultsLength) {
+  } else if (searchMode !== 'search' && searchMode !== 'searchAll' && searchMode !== 'filter' && syncResults.length !== trackedSyncResultsLength) {
     setTrackedSyncResultsLength(syncResults.length);
     setFocusedIndex(0);
   }
@@ -154,7 +241,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     if (shouldStartSearching) {
       // isSearching is set during render, not here
       searchTimeoutRef.current = setTimeout(async () => {
-        const results = await adapter.searchResources(searchQuery, searchMode === 'searchAll');
+        const results = await adapter.searchResources(searchQuery, allNamespaces, resourceKind);
         setAsyncResults(results);
         setFocusedIndex(0);
         setIsSearching(false);
@@ -166,10 +253,10 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [shouldStartSearching, searchMode, searchQuery, adapter]);
+  }, [shouldStartSearching, searchMode, searchQuery, allNamespaces, resourceKind, adapter]);
   
   // Clear async state synchronously when search mode changes or query is too short
-  const shouldClearSearch = (searchMode === 'search' || searchMode === 'searchAll') && 
+  const shouldClearSearch = (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') && 
     searchQuery.length < 2 && asyncResults.length > 0;
   if (shouldClearSearch) {
     setAsyncResults([]);
@@ -180,6 +267,58 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   const handleSelect = useCallback((result: SearchResult) => {
     adapter.handleSelect(result);
   }, [adapter]);
+
+  // Handle tab completion
+  const handleTabComplete = useCallback((shift: boolean) => {
+    if (results.length === 0) return;
+    
+    // Store current input before completion if not already stored
+    if (preCompletionInput === null) {
+      setPreCompletionInput(query);
+    }
+    
+    // Get the focused result
+    const focusedResult = results[focusedIndex];
+    if (!focusedResult) return;
+    
+    // Get completion value from the focused result
+    const completionValue = focusedResult.completionValue || focusedResult.label;
+    
+    // Build the new query based on current mode
+    let newQuery: string;
+    const prefix = parsedQuery.prefix;
+    
+    if (searchMode === 'resources' && focusedResult.type === 'resource-type') {
+      // Completing a resource type - add space after for search
+      newQuery = `${prefix}${completionValue} `;
+    } else if (searchMode === 'namespaces' || searchMode === 'contexts') {
+      // Completing namespace or context
+      const typePrefix = searchMode === 'namespaces' ? 'ns' : 'ctx';
+      newQuery = `${prefix}${typePrefix} ${completionValue}`;
+    } else if (searchMode === 'search' || searchMode === 'searchAll') {
+      // Completing a resource name within a type search
+      if (parsedQuery.resourceKind) {
+        newQuery = `${prefix}${parsedQuery.resourceKind} ${completionValue}`;
+      } else {
+        newQuery = `${prefix}${completionValue}`;
+      }
+    } else if (searchMode === 'filter') {
+      newQuery = `/${completionValue}`;
+    } else {
+      newQuery = completionValue;
+    }
+    
+    setQuery(newQuery);
+    
+    // If there are multiple results with the same completion, cycle through them
+    if (results.length > 1) {
+      if (shift) {
+        setFocusedIndex(prev => (prev - 1 + results.length) % results.length);
+      } else {
+        setFocusedIndex(prev => (prev + 1) % results.length);
+      }
+    }
+  }, [results, focusedIndex, preCompletionInput, query, searchMode, parsedQuery]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -192,6 +331,10 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         e.preventDefault();
         setFocusedIndex(prev => Math.max(prev - 1, 0));
         break;
+      case 'Tab':
+        e.preventDefault();
+        handleTabComplete(e.shiftKey);
+        break;
       case 'Enter':
         e.preventDefault();
         if (results[focusedIndex]) {
@@ -200,10 +343,16 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         break;
       case 'Escape':
         e.preventDefault();
-        onClose();
+        // If we have a pre-completion input, revert to it first
+        if (preCompletionInput !== null) {
+          setQuery(preCompletionInput);
+          setPreCompletionInput(null);
+        } else {
+          onClose();
+        }
         break;
     }
-  }, [results, focusedIndex, handleSelect, onClose]);
+  }, [results, focusedIndex, handleSelect, handleTabComplete, preCompletionInput, onClose]);
 
   // Focus input when opened
   useEffect(() => {
@@ -308,6 +457,8 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
                       className={`shrink-0 ${
                         result.type === 'namespace' 
                           ? 'text-blue-500' 
+                          : result.type === 'context'
+                          ? 'text-purple-500'
                           : result.type === 'resource'
                           ? 'text-green-500'
                           : 'text-neutral-400 dark:text-neutral-500'
@@ -323,10 +474,16 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
                         </div>
                       )}
                     </div>
-                    <div className="shrink-0 text-xs text-neutral-400 dark:text-neutral-500">
-                      {result.type === 'resource-type' && 'Type'}
-                      {result.type === 'namespace' && 'Namespace'}
-                      {result.type === 'resource' && 'Resource'}
+                    <div className="shrink-0 flex items-center gap-2">
+                      {isFocused && (
+                        <span className="text-xs text-neutral-400 dark:text-neutral-500">⇥</span>
+                      )}
+                      <span className="text-xs text-neutral-400 dark:text-neutral-500">
+                        {result.type === 'resource-type' && 'Type'}
+                        {result.type === 'namespace' && 'Namespace'}
+                        {result.type === 'context' && 'Context'}
+                        {result.type === 'resource' && 'Resource'}
+                      </span>
                     </div>
                   </div>
                 );
@@ -339,8 +496,9 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         <div className="flex items-center justify-between px-4 py-2 border-t border-neutral-200 dark:border-neutral-700 text-xs text-neutral-400 dark:text-neutral-500">
           <div className="flex items-center gap-4">
             <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">↑↓</kbd> Navigate</span>
+            <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">⇥</kbd> Complete</span>
             <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">↵</kbd> Select</span>
-            <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">esc</kbd> Close</span>
+            <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">esc</kbd> {preCompletionInput !== null ? 'Revert' : 'Close'}</span>
           </div>
           {adapter.getCurrentScopeLabel?.() && searchMode === 'search' && (
             <span>Scope: {adapter.getCurrentScopeLabel()}</span>

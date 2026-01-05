@@ -12,7 +12,7 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
   kinds: ['StatefulSet', 'StatefulSets'],
 
   actions: [
-    createScaleAction<V1StatefulSet>(
+    createScaleAction(
       async (context, resource, replicas) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace;
@@ -21,10 +21,10 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
         if (!config) throw new Error('Could not get statefulset configuration');
         await scaleResource(context, config, name, replicas, namespace);
       },
-      (resource) => resource.spec?.replicas ?? 1,
+      (resource) => (resource.spec as V1StatefulSet['spec'])?.replicas ?? 1,
       { title: 'Scale StatefulSet' }
     ),
-    createRestartAction<V1StatefulSet>(
+    createRestartAction(
       async (context, resource) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace;

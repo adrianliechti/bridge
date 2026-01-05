@@ -12,7 +12,7 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
   kinds: ['Deployment', 'Deployments'],
 
   actions: [
-    createScaleAction<V1Deployment>(
+    createScaleAction(
       async (context, resource, replicas) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace;
@@ -21,10 +21,10 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
         if (!config) throw new Error('Could not get deployment configuration');
         await scaleResource(context, config, name, replicas, namespace);
       },
-      (resource) => resource.spec?.replicas ?? 1,
+      (resource) => (resource.spec as V1Deployment['spec'])?.replicas ?? 1,
       { title: 'Scale Deployment' }
     ),
-    createRestartAction<V1Deployment>(
+    createRestartAction(
       async (context, resource) => {
         const name = resource.metadata?.name;
         const namespace = resource.metadata?.namespace;
