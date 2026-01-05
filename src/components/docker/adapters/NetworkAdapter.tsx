@@ -1,6 +1,8 @@
 // Docker Network Adapter
 // Extracts display data from Docker networks
 
+import { createElement } from 'react';
+import { Network, Globe, Lock } from 'lucide-react';
 import type { DockerAdapter, StatusCardData, InfoRowData, Section } from './types';
 import type { DockerNetworkInspect } from '../../../api/docker/docker';
 import { removeNetwork } from '../../../api/docker/docker';
@@ -139,26 +141,28 @@ export const NetworkAdapter: DockerAdapter<DockerNetworkInspect> = {
   },
 
   actions: [
-    createDeleteAction<DockerNetworkInspect>(
+    createDeleteAction(
       async (context, resource) => {
-        await removeNetwork(context, resource.Id!);
+        await removeNetwork(context, (resource as DockerNetworkInspect).Id!);
       },
       {
         message: 'Are you sure you want to delete this network? This action cannot be undone.',
         isDisabled: (resource) => {
+          const network = resource as DockerNetworkInspect;
           // Can't delete built-in networks
-          if (resource.Name && BUILTIN_NETWORKS.includes(resource.Name)) {
+          if (network.Name && BUILTIN_NETWORKS.includes(network.Name)) {
             return 'Cannot delete built-in network';
           }
           // Can't delete networks with connected containers
-          if (resource.Containers && Object.keys(resource.Containers).length > 0) {
+          if (network.Containers && Object.keys(network.Containers).length > 0) {
             return 'Network has connected containers';
           }
           return false;
         },
         isVisible: (resource) => {
+          const network = resource as DockerNetworkInspect;
           // Hide delete for built-in networks
-          return !resource.Name || !BUILTIN_NETWORKS.includes(resource.Name);
+          return !network.Name || !BUILTIN_NETWORKS.includes(network.Name);
         },
       }
     ),

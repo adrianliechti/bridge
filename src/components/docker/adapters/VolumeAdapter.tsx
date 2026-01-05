@@ -1,6 +1,8 @@
 // Docker Volume Adapter
 // Extracts display data from Docker volumes
 
+import { createElement } from 'react';
+import { HardDrive } from 'lucide-react';
 import type { DockerAdapter, StatusCardData, InfoRowData, Section } from './types';
 import type { DockerVolume } from '../../../api/docker/docker';
 import { removeVolume } from '../../../api/docker/docker';
@@ -99,14 +101,15 @@ export const VolumeAdapter: DockerAdapter<DockerVolume> = {
   },
 
   actions: [
-    createDeleteAction<DockerVolume>(
+    createDeleteAction(
       async (context, resource) => {
-        await removeVolume(context, resource.Name!);
+        await removeVolume(context, (resource as DockerVolume).Name!);
       },
       {
         message: 'Are you sure you want to delete this volume? This action cannot be undone and all data will be lost.',
         isDisabled: (resource) => {
-          if (resource.UsageData?.RefCount && resource.UsageData.RefCount > 0) {
+          const volume = resource as DockerVolume;
+          if (volume.UsageData?.RefCount && volume.UsageData.RefCount > 0) {
             return 'Volume is in use by containers';
           }
           return false;

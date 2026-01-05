@@ -347,13 +347,13 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
         return container.State?.Paused === true;
       },
     },
-    createDeleteAction<ContainerInspectResponse>(
+    createDeleteAction(
       async (context, resource) => {
-        await removeContainer(context, resource.Id!);
+        await removeContainer(context, (resource as ContainerInspectResponse).Id!);
       },
       {
         message: 'Are you sure you want to delete this container? This action cannot be undone.',
-        isVisible: (resource) => !resource.State?.Running,
+        isVisible: (resource) => !(resource as ContainerInspectResponse).State?.Running,
       }
     ),
   ],

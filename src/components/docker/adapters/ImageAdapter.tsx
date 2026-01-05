@@ -1,6 +1,8 @@
 // Docker Image Adapter
 // Extracts display data from Docker images
 
+import { createElement } from 'react';
+import { Layers, Tag } from 'lucide-react';
 import type { DockerAdapter, StatusCardData, InfoRowData, Section } from './types';
 import type { DockerImage } from '../../../api/docker/docker';
 import { removeImage, formatImageSize } from '../../../api/docker/docker';
@@ -150,14 +152,15 @@ export const ImageAdapter: DockerAdapter<DockerImage> = {
   },
 
   actions: [
-    createDeleteAction<DockerImage>(
+    createDeleteAction(
       async (context, resource) => {
-        await removeImage(context, resource.Id!);
+        await removeImage(context, (resource as DockerImage).Id!);
       },
       {
         message: 'Are you sure you want to delete this image? This action cannot be undone.',
         isDisabled: (resource) => {
-          if (resource.Containers && resource.Containers > 0) {
+          const image = resource as DockerImage;
+          if (image.Containers && image.Containers > 0) {
             return 'Image is used by containers';
           }
           return false;
