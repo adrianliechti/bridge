@@ -13,6 +13,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/adrianliechti/bridge/pkg/ssh"
 )
 
 func (s *Server) dockerProxy(name string) (http.Handler, error) {
@@ -88,6 +90,24 @@ func (s *Server) dockerProxy(name string) (http.Handler, error) {
 			target = &url.URL{
 				Scheme: "https",
 				Host:   u.Host,
+			}
+
+		case "ssh":
+			sshClient, err := ssh.New(u)
+
+			if err != nil {
+				return nil, err
+			}
+
+			tr = &http.Transport{
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return sshClient.Dial("unix", "/var/run/docker.sock")
+				},
+			}
+
+			target = &url.URL{
+				Scheme: "http",
+				Host:   "localhost",
 			}
 
 		default:
