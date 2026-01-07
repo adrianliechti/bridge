@@ -2,7 +2,7 @@ import {
   MonitorCog,
   FolderOpen,
 } from 'lucide-react';
-import { getResourceConfig } from '../../api/kubernetes/kubernetesDiscovery';
+import { getResourceConfig, discoverResources } from '../../api/kubernetes/kubernetesDiscovery';
 import { getResourceTable, type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import type {
   CommandPaletteAdapter,
@@ -17,6 +17,7 @@ import {
   categoryLabels,
   getResourceIcon,
   getResourceAliases,
+  defaultResourceIcon,
   type ResourceTypeConfig,
 } from './resourceTypes';
 
@@ -108,7 +109,8 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
 
     async initialize() {
       const configs = new Map<string, V1APIResource>();
-      const items: ResourceTypeItem[] = [];
+      const builtInItems: ResourceTypeItem[] = [];
+      const crdItems: ResourceTypeItem[] = [];
       
       // Fetch configs for built-in resource types
       for (const rt of builtInResourceTypes) {
@@ -116,16 +118,41 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
           const config = await getResourceConfig(context, rt.kind);
           if (config) {
             configs.set(rt.kind, config);
-            items.push(buildResourceTypeItem(config, rt));
+            builtInItems.push(buildResourceTypeItem(config, rt));
           }
         } catch {
           // Resource type not available in cluster
         }
       }
       
+      // Discover all API resources (including CRDs) - metadata only, not instances
+      try {
+        const allResources = await discoverResources(context);
+        for (const [, config] of allResources) {
+          // Skip if already loaded as built-in
+          if (configs.has(config.name)) continue;
+          
+          // Add CRD to cache and items
+          configs.set(config.name, config);
+          const aliases = getResourceAliases(config);
+          crdItems.push({
+            kind: config.name,
+            label: config.kind,
+            icon: defaultResourceIcon,
+            category: 'Custom Resources',
+            aliases: aliases.length > 0 ? aliases : undefined,
+          });
+        }
+      } catch {
+        // Discovery failed, continue with built-in types only
+      }
+      
+      // Sort CRDs alphabetically by label
+      crdItems.sort((a, b) => a.label.localeCompare(b.label));
+      
       resourceConfigCache = configs;
-      resourceTypeItems = items;
-      adapter.resourceTypes = [...items, ...commandPaletteVirtualResources];
+      resourceTypeItems = [...builtInItems, ...crdItems];
+      adapter.resourceTypes = [...builtInItems, ...crdItems, ...commandPaletteVirtualResources];
     },
 
     getAvailableResourceTypes(): ResourceTypeItem[] {
