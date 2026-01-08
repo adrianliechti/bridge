@@ -1,4 +1,3 @@
-import { Box, Layers } from 'lucide-react';
 import { listContainers, listImages } from '../../api/docker/docker';
 import type {
   CommandPaletteAdapter,
