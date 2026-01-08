@@ -1,0 +1,14 @@
+{
+  "ai": {
+    "model": "gpt-5.2"
+  },
+
+  "docker": {
+    "contexts": ["local-docker"],
+    "defaultContext": "local-docker"
+  },
+  "kubernetes": {
+    "contexts": ["local-cluster"],
+    "defaultContext": "local-cluster"
+  }
+}

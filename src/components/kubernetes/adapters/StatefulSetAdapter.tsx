@@ -2,13 +2,39 @@
 // Extracts display data from StatefulSet resources
 
 import type { ResourceAdapter, ResourceSections, PVCData } from './types';
-import { getResourceList, getResourceConfig } from '../../../api/kubernetes/kubernetes';
+import { getResourceList, getResourceConfig, restartWorkload, scaleResource } from '../../../api/kubernetes/kubernetes';
 import type { V1StatefulSet } from '@kubernetes/client-node';
 import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
+import { createScaleAction, createRestartAction } from '../../sections/actionHelpers';
 
 export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
   kinds: ['StatefulSet', 'StatefulSets'],
+
+  actions: [
+    createScaleAction(
+      async (context, resource, replicas) => {
+        const name = resource.metadata?.name;
+        const namespace = resource.metadata?.namespace;
+        if (!name || !namespace) throw new Error('StatefulSet name/namespace missing');
+        const config = await getResourceConfig(context, 'statefulsets');
+        if (!config) throw new Error('Could not get statefulset configuration');
+        await scaleResource(context, config, name, replicas, namespace);
+      },
+      (resource) => (resource.spec as V1StatefulSet['spec'])?.replicas ?? 1,
+      { title: 'Scale StatefulSet' }
+    ),
+    createRestartAction(
+      async (context, resource) => {
+        const name = resource.metadata?.name;
+        const namespace = resource.metadata?.namespace;
+        if (!name || !namespace) throw new Error('StatefulSet name/namespace missing');
+        const config = await getResourceConfig(context, 'statefulsets');
+        if (!config) throw new Error('Could not get statefulset configuration');
+        await restartWorkload(context, config, name, namespace);
+      }
+    ),
+  ],
 
   adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;

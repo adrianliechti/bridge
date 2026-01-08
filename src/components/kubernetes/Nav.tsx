@@ -1,91 +1,25 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  Box,
-  Rocket,
-  Layers,
-  Ghost,
-  Database,
-  Zap,
-  Clock,
-  FileText,
-  KeyRound,
-  Plug,
-  Globe,
-  HardDrive,
-  Disc,
-  FolderOpen,
-  Server,
-  Newspaper,
   ChevronDown,
   ChevronRight,
   Hexagon,
   Network,
-  ShieldCheck,
-  FileCheck,
-  AppWindow,
-  LayoutGrid,
-  type LucideIcon,
 } from 'lucide-react';
 import { getCustomResourceDefinitions, crdToResourceConfig } from '../../api/kubernetes/kubernetes';
 import { getResourceConfig } from '../../api/kubernetes/kubernetesDiscovery';
 import { ScopeSelector } from './ScopeSelector';
 import { type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getConfig } from '../../config';
+import {
+  builtInResourceTypes,
+  categoryLabels,
+  type ResourceTypeConfig,
+} from './resourceTypes';
 
 // Compare two resources for equality (by name and group)
 function isSameResource(a: V1APIResource, b: V1APIResource): boolean {
   return a.name === b.name && (a.group || '') === (b.group || '');
 }
-
-interface BuiltInNavItem {
-  kind: string;
-  label: string;
-  icon: LucideIcon;
-  category: 'workloads' | 'config' | 'network' | 'storage' | 'cluster';
-}
-
-const builtInNavItems: BuiltInNavItem[] = [
-  // Workloads
-  { kind: 'pods', label: 'Pods', icon: Box, category: 'workloads' },
-  { kind: 'deployments', label: 'Deployments', icon: Rocket, category: 'workloads' },
-  { kind: 'daemonsets', label: 'DaemonSets', icon: Ghost, category: 'workloads' },
-  { kind: 'statefulsets', label: 'StatefulSets', icon: Database, category: 'workloads' },
-  { kind: 'replicasets', label: 'ReplicaSets', icon: Layers, category: 'workloads' },
-  { kind: 'jobs', label: 'Jobs', icon: Zap, category: 'workloads' },
-  { kind: 'cronjobs', label: 'CronJobs', icon: Clock, category: 'workloads' },
-  // Config
-  { kind: 'secrets', label: 'Secrets', icon: KeyRound, category: 'config' },
-  { kind: 'configmaps', label: 'ConfigMaps', icon: FileText, category: 'config' },
-  { kind: 'applications', label: 'Applications', icon: AppWindow, category: 'config' },
-  { kind: 'applicationsets', label: 'ApplicationSets', icon: LayoutGrid, category: 'config' },
-  { kind: 'certificates', label: 'Certificates', icon: ShieldCheck, category: 'config' },
-  { kind: 'certificaterequests', label: 'CertificateRequests', icon: FileCheck, category: 'config' },
-  // Network
-  { kind: 'services', label: 'Services', icon: Plug, category: 'network' },
-  { kind: 'ingresses', label: 'Ingresses', icon: Globe, category: 'network' },
-  { kind: 'gateways', label: 'Gateways', icon: Network, category: 'network' },
-  { kind: 'httproutes', label: 'HTTPRoutes', icon: Globe, category: 'network' },
-  { kind: 'grpcroutes', label: 'GRPCRoutes', icon: Globe, category: 'network' },
-  { kind: 'tcproutes', label: 'TCPRoutes', icon: Network, category: 'network' },
-  { kind: 'udproutes', label: 'UDPRoutes', icon: Network, category: 'network' },
-  { kind: 'tlsroutes', label: 'TLSRoutes', icon: Network, category: 'network' },
-  // Storage
-  { kind: 'persistentvolumes', label: 'PersistentVolumes', icon: HardDrive, category: 'storage' },
-  { kind: 'persistentvolumeclaims', label: 'PersistentVolumeClaims', icon: Disc, category: 'storage' },
-  // Cluster
-  { kind: 'namespaces', label: 'Namespaces', icon: FolderOpen, category: 'cluster' },
-  { kind: 'nodes', label: 'Nodes', icon: Server, category: 'cluster' },
-  { kind: 'events', label: 'Events', icon: Newspaper, category: 'cluster' },
-];
-
-const categoryLabels: Record<string, string> = {
-  workloads: 'Workloads',
-  config: 'Config',
-  network: 'Network',
-  storage: 'Storage',
-  cluster: 'Cluster',
-  crd: 'Custom Resources',
-};
 
 interface NavProps {
   context: string;
@@ -123,7 +57,7 @@ export function Nav({
   useEffect(() => {
     const loadBuiltInConfigs = async () => {
       const configs = new Map<string, V1APIResource>();
-      for (const item of builtInNavItems) {
+      for (const item of builtInResourceTypes) {
         const config = await getResourceConfig(context, item.kind);
         if (config) {
           configs.set(item.kind, config);
@@ -155,11 +89,11 @@ export function Nav({
   }, []);
 
   // Group built-in items by category
-  const groupedBuiltIn = builtInNavItems.reduce((acc, item) => {
+  const groupedBuiltIn = builtInResourceTypes.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
     return acc;
-  }, {} as Record<string, BuiltInNavItem[]>);
+  }, {} as Record<string, ResourceTypeConfig[]>);
 
   // Group CRDs by API group
   const groupedCRDs = crdConfigs.reduce((acc, config) => {
