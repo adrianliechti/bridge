@@ -11,3 +11,31 @@ tasks:
     cmds:
       - socat -4 TCP-LISTEN:2375,bind=127.0.0.1,fork UNIX-CONNECT:/var/run/docker.sock
   
+  install:
+    cmds:
+      - cmd: go install ./cmd/kubectl-bridge
+      - task: install-darwin
+      - task: install-windows      
+      
+  install-darwin:
+    platforms: [darwin]
+    cmds:      
+      - task: build
+      - cmd: mkdir -p ~/Applications
+      - cmd: rm -rf ~/Applications/Bridge.app
+      - cmd: mv app/build/bin/Bridge.app ~/Applications/
+
+  install-windows:
+    platforms: [windows]
+    cmds:
+      - task: build
+      - cmd: mkdir -p %LOCALAPPDATA%\Programs
+      - cmd: rm -f %LOCALAPPDATA%\Programs\Bridge.exe
+      - cmd: mv app/build/bin/Bridge.exe %LOCALAPPDATA%\Programs\
+
+  build:
+    dir: app
+    cmds:
+      - go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - wails build
+  
