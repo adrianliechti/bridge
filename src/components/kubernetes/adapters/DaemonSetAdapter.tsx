@@ -5,9 +5,24 @@ import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1DaemonSet } from '@kubernetes/client-node';
 import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
+import { getResourceConfig, restartWorkload } from '../../../api/kubernetes/kubernetes';
+import { createRestartAction } from '../../sections/actionHelpers';
 
 export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
   kinds: ['DaemonSet', 'DaemonSets'],
+
+  actions: [
+    createRestartAction(
+      async (context, resource) => {
+        const name = resource.metadata?.name;
+        const namespace = resource.metadata?.namespace;
+        if (!name || !namespace) throw new Error('DaemonSet name/namespace missing');
+        const config = await getResourceConfig(context, 'daemonsets');
+        if (!config) throw new Error('Could not get daemonset configuration');
+        await restartWorkload(context, config, name, namespace);
+      }
+    ),
+  ],
 
   adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;

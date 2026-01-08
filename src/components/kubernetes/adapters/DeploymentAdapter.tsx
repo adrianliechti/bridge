@@ -2,13 +2,39 @@
 // Extracts display data from Deployment resources
 
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
-import { getResourceList, getResourceConfig } from '../../../api/kubernetes/kubernetes';
+import { getResourceList, getResourceConfig, restartWorkload, scaleResource } from '../../../api/kubernetes/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
 import { getContainerSections, getResourceQuotaSection } from './utils';
 import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
+import { createScaleAction, createRestartAction } from '../../sections/actionHelpers';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
   kinds: ['Deployment', 'Deployments'],
+
+  actions: [
+    createScaleAction(
+      async (context, resource, replicas) => {
+        const name = resource.metadata?.name;
+        const namespace = resource.metadata?.namespace;
+        if (!name || !namespace) throw new Error('Deployment name/namespace missing');
+        const config = await getResourceConfig(context, 'deployments');
+        if (!config) throw new Error('Could not get deployment configuration');
+        await scaleResource(context, config, name, replicas, namespace);
+      },
+      (resource) => (resource.spec as V1Deployment['spec'])?.replicas ?? 1,
+      { title: 'Scale Deployment' }
+    ),
+    createRestartAction(
+      async (context, resource) => {
+        const name = resource.metadata?.name;
+        const namespace = resource.metadata?.namespace;
+        if (!name || !namespace) throw new Error('Deployment name/namespace missing');
+        const config = await getResourceConfig(context, 'deployments');
+        if (!config) throw new Error('Could not get deployment configuration');
+        await restartWorkload(context, config, name, namespace);
+      }
+    ),
+  ],
 
   adapt(context: string, resource): ResourceSections {
     const spec = resource.spec;

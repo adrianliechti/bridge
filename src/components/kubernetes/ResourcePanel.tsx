@@ -1,4 +1,4 @@
-import { X, Loader2, RefreshCw } from 'lucide-react';
+import { X, Loader2, RefreshCw, Check } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -50,8 +50,33 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
+  const [inputAction, setInputAction] = useState<ResourceAction | null>(null);
+  const [inputValues, setInputValues] = useState<Record<string, string | number>>({});
   const resourceConfigRef = useRef<Awaited<ReturnType<typeof getResourceConfigByKind>> | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const sliderPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Close slider popover on click outside
+  useEffect(() => {
+    if (!inputAction || inputAction.input?.type !== 'slider') return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sliderPopoverRef.current && !sliderPopoverRef.current.contains(e.target as Node)) {
+        setInputAction(null);
+        setInputValues({});
+      }
+    };
+    
+    // Delay to avoid immediate close from the click that opened it
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [inputAction]);
 
   // Fetch resource data using React Query with structural sharing
   const { 
@@ -91,22 +116,31 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   // Get actions for the current resource
   const resourceActions = fullObject ? getResourceActions(fullObject) : [];
 
-  const executeAction = async (action: ResourceAction) => {
+  const executeAction = async (action: ResourceAction, values?: Record<string, string | number>) => {
     setActionError(null);
     setLoadingAction(action.id);
     try {
-      await action.execute(context, fullObject!);
+      await action.execute(context, fullObject!, values);
       refetchResource(); // Refresh after action
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Action failed');
     } finally {
       setLoadingAction(null);
       setConfirmAction(null);
+      setInputAction(null);
+      setInputValues({});
     }
   };
 
   const handleActionClick = (action: ResourceAction) => {
-    if (action.confirm) {
+    if (action.input) {
+      // Initialize input value with default
+      const defaultValue = action.input.defaultValue
+        ? action.input.defaultValue(fullObject)
+        : action.input.type === 'text' ? '' : 0;
+      setInputValues({ value: defaultValue });
+      setInputAction(action);
+    } else if (action.confirm) {
       setConfirmAction(action);
     } else {
       executeAction(action);
@@ -326,32 +360,71 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                 const isDisabled = disabled === true || typeof disabled === 'string';
                 const disabledReason = typeof disabled === 'string' ? disabled : undefined;
                 const isLoading = loadingAction === action.id;
+                const isSliderOpen = inputAction?.id === action.id && action.input?.type === 'slider';
 
                 return (
-                  <button
-                    key={action.id}
-                    onClick={() => handleActionClick(action)}
-                    disabled={isDisabled || isLoading}
-                    title={disabledReason || action.label}
-                    className={`
-                      flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors
-                      ${isDisabled || isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                      ${action.variant === 'primary' 
-                        ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800' 
-                        : action.variant === 'warning'
-                        ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
-                        : action.variant === 'danger'
-                        ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
-                        : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800'
-                      }
-                    `}
-                  >
-                    {isLoading ? (
-                      <RefreshCw size={12} className="animate-spin" />
-                    ) : (
-                      action.icon
+                  <div key={action.id} className="relative">
+                    <button
+                      onClick={() => handleActionClick(action)}
+                      disabled={isDisabled || isLoading}
+                      title={disabledReason || action.label}
+                      className={`
+                        flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors
+                        ${isDisabled || isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+                        ${isSliderOpen ? 'bg-neutral-200 dark:bg-neutral-700' : ''}
+                        ${action.variant === 'primary' 
+                          ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800' 
+                          : action.variant === 'warning'
+                          ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                          : action.variant === 'danger'
+                          ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                        }
+                      `}
+                    >
+                      {isLoading ? (
+                        <RefreshCw size={12} className="animate-spin" />
+                      ) : (
+                        action.icon
+                      )}
+                    </button>
+                    {/* Inline slider popover */}
+                    {isSliderOpen && (
+                      <div 
+                        ref={sliderPopoverRef}
+                        className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded shadow-lg px-2 py-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={action.input?.min ?? 0}
+                            max={action.input?.max ?? 10}
+                            value={inputValues.value as number ?? 0}
+                            onChange={(e) => setInputValues({ value: parseInt(e.target.value, 10) })}
+                            className="w-24 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-blue-500"
+                          />
+                          <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100 w-4 text-center tabular-nums">
+                            {inputValues.value as number ?? 0}
+                          </span>
+                          <button
+                            onClick={() => executeAction(action, inputValues)}
+                            disabled={isLoading}
+                            className="p-0.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                            title="Apply"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => { setInputAction(null); setInputValues({}); }}
+                            className="p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded transition-colors"
+                            title="Close"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </>
@@ -403,6 +476,81 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                 {confirmAction.confirm?.confirmLabel || 'Confirm'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Input Dialog - only for non-slider types */}
+      {inputAction && inputAction.input?.type !== 'slider' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 max-w-md mx-4 shadow-xl">
+            <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-200 mb-2">
+              {inputAction.input?.title}
+            </h3>
+            {inputAction.input?.description && (
+              <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-4">
+                {inputAction.input.description}
+              </p>
+            )}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                executeAction(inputAction, inputValues);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block text-xs text-neutral-600 dark:text-neutral-400 mb-1">
+                  {inputAction.input?.label}
+                </label>
+                <input
+                  type={inputAction.input?.type}
+                  value={inputValues.value ?? ''}
+                  onChange={(e) => {
+                    const value = inputAction.input?.type === 'number' 
+                      ? parseInt(e.target.value, 10) || 0
+                      : e.target.value;
+                    setInputValues({ value });
+                  }}
+                  min={inputAction.input?.min}
+                  max={inputAction.input?.max}
+                  placeholder={inputAction.input?.placeholder}
+                  className="w-full px-3 py-2 text-sm bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-600 rounded text-neutral-900 dark:text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                  autoFocus
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInputAction(null);
+                    setInputValues({});
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loadingAction === inputAction.id}
+                  className={`
+                    px-3 py-1.5 text-xs font-medium text-white rounded transition-colors
+                    ${inputAction.variant === 'danger' 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : inputAction.variant === 'warning'
+                      ? 'bg-amber-600 hover:bg-amber-700'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                    }
+                    ${loadingAction === inputAction.id ? 'opacity-50 cursor-not-allowed' : ''}
+                  `}
+                >
+                  {loadingAction === inputAction.id ? (
+                    <RefreshCw size={12} className="animate-spin inline mr-1" />
+                  ) : null}
+                  {inputAction.input?.submitLabel || 'Submit'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
