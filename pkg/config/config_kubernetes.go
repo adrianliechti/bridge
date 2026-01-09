@@ -1,9 +1,10 @@
 package config
 
 import (
+	"context"
 	"errors"
-	"fmt"
 
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -32,16 +33,12 @@ func applyKubernetesConfig(cfg *Config) error {
 	for contextName := range config.Contexts {
 		contextConfig := clientcmd.NewNonInteractiveClientConfig(config, contextName, &clientcmd.ConfigOverrides{}, loader)
 
-		restConfig, err := contextConfig.ClientConfig()
-
-		if err != nil {
-			fmt.Printf("Warning: failed to load context %q: %v\n", contextName, err)
-			continue
-		}
-
 		contexts = append(contexts, Context{
-			Name:   contextName,
-			Config: restConfig,
+			Name: contextName,
+
+			Config: func(ctx context.Context) (*rest.Config, error) {
+				return contextConfig.ClientConfig()
+			},
 		})
 	}
 

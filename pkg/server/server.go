@@ -106,7 +106,7 @@ func New(cfg *config.Config) (*Server, error) {
 
 		switch context.Type {
 		case "docker":
-			proxy, err := s.dockerProxy(context.Name)
+			proxy, err := s.dockerProxy(r.Context(), context.Name)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -117,7 +117,7 @@ func New(cfg *config.Config) (*Server, error) {
 			proxy.ServeHTTP(w, r)
 
 		case "kubernetes":
-			proxy, err := s.kubernetesProxy(context.Name)
+			proxy, err := s.kubernetesProxy(r.Context(), context.Name)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)

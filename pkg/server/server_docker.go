@@ -17,7 +17,7 @@ import (
 	"github.com/adrianliechti/bridge/pkg/ssh"
 )
 
-func (s *Server) dockerProxy(name string) (http.Handler, error) {
+func (s *Server) dockerProxy(ctx context.Context, name string) (http.Handler, error) {
 	for _, c := range s.config.Docker.Contexts {
 		if !strings.EqualFold(c.Name, name) {
 			continue

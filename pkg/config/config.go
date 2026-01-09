@@ -1,6 +1,8 @@
 package config
 
 import (
+	"context"
+
 	"k8s.io/client-go/rest"
 )
 
@@ -12,8 +14,9 @@ type Config struct {
 }
 
 type Context struct {
-	Name   string
-	Config *rest.Config
+	Name string
+
+	Config func(ctx context.Context) (*rest.Config, error)
 }
 
 type OpenAIConfig struct {

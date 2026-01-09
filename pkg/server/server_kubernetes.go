@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -11,19 +12,25 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func (s *Server) kubernetesProxy(name string) (http.Handler, error) {
+func (s *Server) kubernetesProxy(ctx context.Context, name string) (http.Handler, error) {
 	for _, c := range s.config.Kubernetes.Contexts {
 		if !strings.EqualFold(c.Name, name) {
 			continue
 		}
 
-		tr, err := rest.TransportFor(c.Config)
+		config, err := c.Config(ctx)
 
 		if err != nil {
 			return nil, err
 		}
 
-		target, path, err := rest.DefaultServerUrlFor(c.Config)
+		tr, err := rest.TransportFor(config)
+
+		if err != nil {
+			return nil, err
+		}
+
+		target, path, err := rest.DefaultServerUrlFor(config)
 
 		if err != nil {
 			return nil, err
