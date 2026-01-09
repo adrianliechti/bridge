@@ -53,7 +53,7 @@ func New(cfg *config.Config) (*Server, error) {
 
 	s := &Server{
 		config:  cfg,
-		Handler: mux,
+		Handler: BearerTokenMiddleware(mux),
 	}
 
 	mux.HandleFunc("GET /config.json", func(w http.ResponseWriter, r *http.Request) {

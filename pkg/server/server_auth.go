@@ -33,13 +33,6 @@ func AuthInfoFromContext(ctx context.Context) *config.AuthInfo {
 	return authInfo
 }
 
-func BearerTokenFromContext(ctx context.Context) string {
-	if authInfo := AuthInfoFromContext(ctx); authInfo != nil {
-		return authInfo.Bearer
-	}
-	return ""
-}
-
 func extractBearerToken(r *http.Request) string {
 	if token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
 		return token
