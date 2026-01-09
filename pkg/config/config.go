@@ -1,11 +1,5 @@
 package config
 
-import (
-	"context"
-
-	"k8s.io/client-go/rest"
-)
-
 type Config struct {
 	OpenAI *OpenAIConfig
 
@@ -13,10 +7,8 @@ type Config struct {
 	Kubernetes *KubernetesConfig
 }
 
-type Context struct {
-	Name string
-
-	Config func(ctx context.Context) (*rest.Config, error)
+type AuthInfo struct {
+	Bearer string
 }
 
 type OpenAIConfig struct {

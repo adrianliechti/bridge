@@ -97,6 +97,8 @@ func New(cfg *config.Config) (*Server, error) {
 	mux.HandleFunc("/contexts/{context}/{path...}", func(w http.ResponseWriter, r *http.Request) {
 		path := r.PathValue("path")
 
+		auth := AuthInfoFromContext(r.Context())
+
 		context, ok := contexts[r.PathValue("context")]
 
 		if !ok {
@@ -106,7 +108,7 @@ func New(cfg *config.Config) (*Server, error) {
 
 		switch context.Type {
 		case "docker":
-			proxy, err := s.dockerProxy(r.Context(), context.Name)
+			proxy, err := s.dockerProxy(r.Context(), context.Name, auth)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -117,7 +119,7 @@ func New(cfg *config.Config) (*Server, error) {
 			proxy.ServeHTTP(w, r)
 
 		case "kubernetes":
-			proxy, err := s.kubernetesProxy(r.Context(), context.Name)
+			proxy, err := s.kubernetesProxy(r.Context(), context.Name, auth)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)

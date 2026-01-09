@@ -9,16 +9,17 @@ import (
 	"net/http/httputil"
 	"strings"
 
+	"github.com/adrianliechti/bridge/pkg/config"
 	"k8s.io/client-go/rest"
 )
 
-func (s *Server) kubernetesProxy(ctx context.Context, name string) (http.Handler, error) {
+func (s *Server) kubernetesProxy(ctx context.Context, name string, auth *config.AuthInfo) (http.Handler, error) {
 	for _, c := range s.config.Kubernetes.Contexts {
 		if !strings.EqualFold(c.Name, name) {
 			continue
 		}
 
-		config, err := c.Config(ctx)
+		config, err := c.Config(ctx, auth)
 
 		if err != nil {
 			return nil, err

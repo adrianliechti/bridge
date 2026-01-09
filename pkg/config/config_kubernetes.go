@@ -9,13 +9,19 @@ import (
 )
 
 type KubernetesConfig struct {
-	Contexts []Context
+	Contexts []KubernetesContext
 
 	CurrentContext   string
 	CurrentNamespace string
 
 	TenancyLabels      []string
 	PlatformNamespaces []string
+}
+
+type KubernetesContext struct {
+	Name string
+
+	Config func(ctx context.Context, auth *AuthInfo) (*rest.Config, error)
 }
 
 func applyKubernetesConfig(cfg *Config) error {
@@ -28,15 +34,15 @@ func applyKubernetesConfig(cfg *Config) error {
 		return err
 	}
 
-	contexts := make([]Context, 0)
+	contexts := make([]KubernetesContext, 0)
 
 	for contextName := range config.Contexts {
 		contextConfig := clientcmd.NewNonInteractiveClientConfig(config, contextName, &clientcmd.ConfigOverrides{}, loader)
 
-		contexts = append(contexts, Context{
+		contexts = append(contexts, KubernetesContext{
 			Name: contextName,
 
-			Config: func(ctx context.Context) (*rest.Config, error) {
+			Config: func(ctx context.Context, auth *AuthInfo) (*rest.Config, error) {
 				return contextConfig.ClientConfig()
 			},
 		})
