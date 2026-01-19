@@ -82,7 +82,7 @@ export function ContainerImagesSection({ containers }: { containers: Array<{ nam
         <div key={container.name} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 px-2 py-1.5 rounded flex items-center gap-2">
           <Box size={12} className="text-blue-400" />
           <span className="text-neutral-900 dark:text-neutral-300">{container.name}:</span>
-          <span className="text-cyan-400 truncate">{container.image}</span>
+          <span className="text-cyan-400 truncate" title={container.image}>{container.image}</span>
         </div>
       ))}
     </div>

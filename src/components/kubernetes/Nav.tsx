@@ -170,7 +170,7 @@ export function Nav({
                         onClick={() => onSelectResource(config)}
                       >
                         <item.icon size={16} className="mr-2.5 shrink-0 opacity-70" />
-                        <span className="truncate">{item.label}</span>
+                        <span className="truncate" title={item.label}>{item.label}</span>
                       </button>
                     </li>
                   );
@@ -217,7 +217,7 @@ export function Nav({
                               title={`${config.kind} (${config.group})`}
                             >
                               <Hexagon size={16} className="mr-2.5 shrink-0 opacity-70" />
-                              <span className="truncate">{config.kind}</span>
+                              <span className="truncate" title={config.kind}>{config.kind}</span>
                             </button>
                           </li>
                         );

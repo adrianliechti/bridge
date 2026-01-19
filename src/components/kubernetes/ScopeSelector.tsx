@@ -283,7 +283,7 @@ export function ScopeSelector({
                             : 'text-neutral-600 dark:text-neutral-400'
                         }`}
                       >
-                        <span className="truncate">{name}</span>
+                        <span className="truncate" title={name}>{name}</span>
                         {isSelected && (
                           <Check size={16} className="text-neutral-500 dark:text-neutral-400" />
                         )}

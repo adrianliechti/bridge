@@ -236,7 +236,7 @@ export function TerminalViewer({
                 onClick={() => setShowContainerDropdown(!showContainerDropdown)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
               >
-                <span className="max-w-30 truncate">{selectedContainer}</span>
+                <span className="max-w-30 truncate" title={selectedContainer}>{selectedContainer}</span>
                 <ChevronDown size={12} />
               </button>
               

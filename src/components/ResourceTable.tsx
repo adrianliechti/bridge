@@ -141,10 +141,10 @@ export function ResourceTable<T = any>({
 
             // Name column styling
             if (isName) {
-              return <span className="text-neutral-900 dark:text-neutral-300">{formatted}</span>;
+              return <span className="text-neutral-900 dark:text-neutral-300" title={formatted}>{formatted}</span>;
             }
 
-            return <span className="text-neutral-500 dark:text-neutral-500">{formatted}</span>;
+            return <span className="text-neutral-500 dark:text-neutral-500" title={formatted}>{formatted}</span>;
           },
           meta: { description: colDef.description, format: colDef.format },
         }) as ColumnDef<TableRow<T>, unknown>
@@ -160,7 +160,7 @@ export function ResourceTable<T = any>({
             sortUndefined: 'last',
             cell: (info) => {
               const value = info.getValue() ?? '<none>';
-              return <span className="text-neutral-500 dark:text-neutral-500">{value}</span>;
+              return <span className="text-neutral-500 dark:text-neutral-500" title={value}>{value}</span>;
             },
             meta: { description: 'Namespace of the resource', format: '' },
           }) as ColumnDef<TableRow<T>, unknown>

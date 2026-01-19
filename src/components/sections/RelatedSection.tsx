@@ -122,7 +122,7 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
                 <HardDrive size={16} className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-600 dark:text-neutral-500'} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{pvc.name}</span>
+                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={pvc.name}>{pvc.name}</span>
                   </div>
                   <div className="text-xs text-neutral-600 dark:text-neutral-500">
                     {pvc.storageClass || 'default'} storage class
