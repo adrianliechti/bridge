@@ -78,7 +78,19 @@ export function ChatPanel<T extends ChatEnvironment>({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-    sendMessage(input.trim());
+    
+    // Inject current context into the message so LLM knows current state
+    const contextInfo = [];
+    const env = environment as { currentNamespace?: string; selectedResourceKind?: string; selectedResourceName?: string };
+    if (env.currentNamespace) contextInfo.push(`Namespace: ${env.currentNamespace}`);
+    if (env.selectedResourceKind) contextInfo.push(`Viewing: ${env.selectedResourceKind}`);
+    if (env.selectedResourceName) contextInfo.push(`Selected: ${env.selectedResourceName}`);
+    
+    const messageWithContext = contextInfo.length > 0
+      ? `[Current context: ${contextInfo.join(', ')}]\n\n${input.trim()}`
+      : input.trim();
+    
+    sendMessage(messageWithContext);
     setInput('');
   };
 

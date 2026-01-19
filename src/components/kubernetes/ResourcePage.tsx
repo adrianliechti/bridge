@@ -1,23 +1,11 @@
-import { useMemo, useCallback } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getResourceTable } from '../../api/kubernetes/kubernetesTable';
 import type { TableRow, KubernetesObject } from '../../types/table';
 import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
-import { usePanels } from '../../hooks/usePanelState';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
-import { ChatPanel } from '../ChatPanel';
-import { 
-  kubernetesAdapterConfig, 
-  createKubernetesTools, 
-  buildKubernetesInstructions,
-  type KubernetesEnvironment 
-} from './ChatAdapter';
 import { ResourcePanel } from './ResourcePanel';
 import { getConfig } from '../../config';
-
-// Panel IDs
-const PANEL_AI = 'ai';
 
 type TabType = 'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal';
 
@@ -29,11 +17,22 @@ interface ResourcePageProps {
   onSelectItem?: (name: string | undefined) => void;
   tab?: TabType;
   onTabChange?: (tab: TabType | undefined) => void;
+  // Chat panel state from ClusterLayout
+  isChatPanelOpen?: boolean;
+  onToggleChatPanel?: () => void;
 }
 
-export function ResourcePage({ resource, context, namespace, selectedItem, onSelectItem, tab, onTabChange }: ResourcePageProps) {
-  const { isOpen, toggle, close } = usePanels();
-  const isChatPanelOpen = isOpen(PANEL_AI);
+export function ResourcePage({ 
+  resource, 
+  context, 
+  namespace, 
+  selectedItem, 
+  onSelectItem, 
+  tab, 
+  onTabChange,
+  isChatPanelOpen = false,
+  onToggleChatPanel,
+}: ResourcePageProps) {
 
   // Fetch data using useKubernetesQuery
   const { data, loading, error, refetch, isRefetching } = useKubernetesQuery(
@@ -54,28 +53,12 @@ export function ResourcePage({ resource, context, namespace, selectedItem, onSel
     };
   };
 
-  // Environment info for AI chat
-  const getEnvironmentInfo = useCallback((item: TableRow<KubernetesObject> | null): KubernetesEnvironment => ({
-    currentContext: context,
-    currentNamespace: item?.object.metadata?.namespace || namespace || 'all namespaces',
-    selectedResourceKind: resource.group 
-      ? `${resource.kind} (${resource.group}/${resource.version})` 
-      : `${resource.kind} (${resource.version})`,
-    selectedResourceName: item?.object.metadata?.name,
-  }), [context, namespace, resource.kind, resource.group, resource.version]);
-
-  // Create tools for the current environment - memoized
-  const tools = useMemo(() => {
-    const env = getEnvironmentInfo(null);
-    return createKubernetesTools(env);
-  }, [getEnvironmentInfo]);
-
-  // Render AI chat button in header
+  // Render AI chat button in header (toggles chat panel in ClusterLayout)
   const renderHeaderActions = () => {
-    if (!getConfig().ai) return null;
+    if (!getConfig().ai || !onToggleChatPanel) return null;
     return (
       <button
-        onClick={() => toggle(PANEL_AI)}
+        onClick={onToggleChatPanel}
         className={`p-2 rounded-md transition-colors ${
           isChatPanelOpen 
             ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800' 
@@ -85,23 +68,6 @@ export function ResourcePage({ resource, context, namespace, selectedItem, onSel
       >
         <Sparkles size={18} />
       </button>
-    );
-  };
-
-  // Render chat panel
-  const renderExtraPanels = (selectedItem: TableRow<KubernetesObject> | null, isDetailPanelOpen: boolean) => {
-    const environmentInfo = getEnvironmentInfo(selectedItem);
-
-    return (
-      <ChatPanel 
-        isOpen={isChatPanelOpen}
-        onClose={() => close(PANEL_AI)}
-        otherPanelOpen={isDetailPanelOpen}
-        adapterConfig={kubernetesAdapterConfig}
-        environment={environmentInfo}
-        tools={tools}
-        buildInstructions={buildKubernetesInstructions}
-      />
     );
   };
 
@@ -138,7 +104,7 @@ export function ResourcePage({ resource, context, namespace, selectedItem, onSel
       isRefetching={isRefetching}
       renderDetailPanel={renderDetailPanel}
       renderHeaderActions={renderHeaderActions}
-      renderExtraPanels={renderExtraPanels}
+      isChatPanelOpen={isChatPanelOpen}
       selectedItemName={selectedItem}
       onSelectItemName={onSelectItem}
       getItemName={getItemName}
