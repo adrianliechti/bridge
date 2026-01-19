@@ -27,6 +27,8 @@ import {
   LayoutGrid,
   MonitorCog,
   Hexagon,
+  UserCircle,
+  Shield,
   type LucideIcon,
 } from 'lucide-react';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
@@ -34,7 +36,7 @@ import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 /**
  * Category types for resource grouping
  */
-export type ResourceCategory = 'workloads' | 'config' | 'network' | 'storage' | 'cluster' | 'crd';
+export type ResourceCategory = 'workloads' | 'config' | 'network' | 'storage' | 'access' | 'cluster' | 'crd';
 
 /**
  * Built-in resource type definition with icon and category
@@ -58,6 +60,7 @@ export const categoryLabels: Record<ResourceCategory | string, string> = {
   config: 'Config',
   network: 'Network',
   storage: 'Storage',
+  access: 'Access Control',
   cluster: 'Cluster',
   crd: 'Custom Resources',
 };
@@ -94,6 +97,12 @@ export const builtInResourceTypes: ResourceTypeConfig[] = [
   // Storage
   { kind: 'persistentvolumes', label: 'PersistentVolumes', icon: HardDrive, category: 'storage' },
   { kind: 'persistentvolumeclaims', label: 'PersistentVolumeClaims', icon: Disc, category: 'storage' },
+  // Access Control (RBAC)
+  { kind: 'serviceaccounts', label: 'ServiceAccounts', icon: UserCircle, category: 'access' },
+  { kind: 'roles', label: 'Roles', icon: Shield, category: 'access' },
+  { kind: 'rolebindings', label: 'RoleBindings', icon: ShieldCheck, category: 'access' },
+  { kind: 'clusterroles', label: 'ClusterRoles', icon: Shield, category: 'access' },
+  { kind: 'clusterrolebindings', label: 'ClusterRoleBindings', icon: ShieldCheck, category: 'access' },
   // Cluster
   { kind: 'namespaces', label: 'Namespaces', icon: FolderOpen, category: 'cluster' },
   { kind: 'nodes', label: 'Nodes', icon: Server, category: 'cluster' },

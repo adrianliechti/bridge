@@ -49,6 +49,7 @@ export function Nav({
     config: true,
     network: true,
     storage: true,
+    access: true,
     cluster: true,
     crd: false,
   });

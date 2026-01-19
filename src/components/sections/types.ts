@@ -175,6 +175,36 @@ export interface PVCData {
   context?: string;
 }
 
+/** RoleBinding/ClusterRoleBinding display data */
+export interface RoleBindingData {
+  name: string;
+  namespace?: string;
+  context?: string;
+  /** Whether this is a ClusterRoleBinding */
+  isClusterBinding: boolean;
+  /** The role being bound */
+  roleRef: {
+    kind: 'Role' | 'ClusterRole';
+    name: string;
+  };
+  /** Brief summary of what this binding grants */
+  summary?: string;
+}
+
+/** RBAC rule display data */
+export interface RoleRuleData {
+  /** API groups (empty string = core) */
+  apiGroups: string[];
+  /** Resources this rule applies to */
+  resources: string[];
+  /** Verbs allowed on these resources */
+  verbs: string[];
+  /** Optional: specific resource names */
+  resourceNames?: string[];
+  /** Whether this rule contains dangerous permissions */
+  isDangerous?: boolean;
+}
+
 /** Volume Claim Template data */
 export interface VolumeClaimTemplateData {
   name: string;
@@ -258,6 +288,7 @@ export type SectionData =
   | { type: 'related-replicasets'; loader: () => Promise<ReplicaSetData[]>; title?: string }
   | { type: 'related-pvcs'; loader: () => Promise<PVCData[]>; title?: string }
   | { type: 'related-jobs'; loader: () => Promise<JobData[]>; title?: string }
+  | { type: 'related-rolebindings'; loader: () => Promise<RoleBindingData[]>; title?: string }
   | { type: 'volume-claim-templates'; items: VolumeClaimTemplateData[] }
   | { type: 'schedule'; schedule: string; description: string }
   | { type: 'job-progress'; completions: number; succeeded: number; failed: number; active: number }
