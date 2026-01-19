@@ -154,13 +154,14 @@ export function ScopeSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Focus input when opening
+  // Focus input when opening and scroll to selected namespace
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
-      setFocusedIndex(-1);
+      const selectedIndex = flatOptions.findIndex(opt => opt.value === (selectedNamespace || ''));
+      setFocusedIndex(selectedIndex >= 0 ? selectedIndex : -1);
     }
-  }, [isOpen]);
+  }, [isOpen, selectedNamespace, flatOptions]);
 
   const handleSelect = (value: string) => {
     onSelectNamespace(value || undefined);
