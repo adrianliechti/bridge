@@ -90,7 +90,7 @@ export function ResourceTable<T = any>({
       const isDateTime = colDef.format === 'date-time';
 
       cols.push(
-        columnHelper.accessor((row) => row.cells[idx], {
+        columnHelper.accessor((row) => row.cells?.[idx], {
           id: colDef.name.toLowerCase(),
           header: colDef.name,
           sortingFn: isDateTime ? 'datetime' : 'auto',
@@ -252,7 +252,7 @@ export function ResourceTable<T = any>({
     );
   }
 
-  if (!data || !data.columnDefinitions || data.rows.length === 0) {
+  if (!data || !data.columnDefinitions || !data.rows || data.rows.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center text-neutral-400 dark:text-neutral-500">

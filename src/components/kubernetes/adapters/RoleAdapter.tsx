@@ -64,7 +64,7 @@ function isRuleDangerous(rule: V1PolicyRule): boolean {
 
 // Component to render RBAC rules table
 function RulesTable({ rules }: { rules: V1PolicyRule[] }) {
-  if (rules.length === 0) {
+  if (!rules || rules.length === 0) {
     return (
       <div className="text-xs text-neutral-500 dark:text-neutral-500 italic">
         No rules defined
