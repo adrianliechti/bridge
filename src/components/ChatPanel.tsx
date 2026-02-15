@@ -11,6 +11,9 @@ interface ChatPanelProps<T extends ChatEnvironment = ChatEnvironment> {
   onClose: () => void;
   otherPanelOpen?: boolean;
   adapterConfig: ChatAdapterConfig;
+  /** Unique identifier for the current context (e.g., cluster name, docker context).
+   *  Chat history is cleared when this changes. */
+  contextId?: string;
   environment: T;
   tools: AnyClientTool[];
   buildInstructions: (environment: T) => string;
@@ -21,6 +24,7 @@ export function ChatPanel<T extends ChatEnvironment>({
   onClose, 
   otherPanelOpen = false, 
   adapterConfig, 
+  contextId,
   environment,
   tools,
   buildInstructions,
@@ -29,39 +33,56 @@ export function ChatPanel<T extends ChatEnvironment>({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   
-  // Track adapter changes to reset chat
+  // Track adapter + context changes to reset chat
   const prevAdapterIdRef = useRef(adapterConfig.id);
+  const prevContextIdRef = useRef(contextId);
 
-  // Create connection adapter that wraps the chat() function
+  // Keep latest environment in a ref so the connection callback always reads
+  // the current value without causing connection recreation on every nav change.
+  const environmentRef = useRef(environment);
+  environmentRef.current = environment;
+
+  const buildInstructionsRef = useRef(buildInstructions);
+  buildInstructionsRef.current = buildInstructions;
+
+  const toolsRef = useRef(tools);
+  toolsRef.current = tools;
+
+  // Stable connection — only recreated when adapter or context changes,
+  // NOT on every navigation/environment change.
   const connection = useMemo(() => {
     const model = getConfiguredModel();
     const adapter = createChatAdapter(model);
-    const instructions = buildInstructions(environment);
 
-    return stream((messages) => 
-      chat({
+    return stream((messages) => {
+      const instructions = buildInstructionsRef.current(environmentRef.current as T);
+      return chat({
         adapter,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         messages: messages as any,
-        tools,
+        tools: toolsRef.current,
         systemPrompts: [instructions],
         agentLoopStrategy: maxIterations(10),
-      })
-    );
-  }, [environment, tools, buildInstructions]);
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adapterConfig.id, contextId]);
 
   const { messages, sendMessage, isLoading, stop, clear } = useChat({
     connection,
     tools,
   });
 
-  // Reset chat when adapter changes
+  // Reset chat when adapter or context changes
   useEffect(() => {
-    if (prevAdapterIdRef.current !== adapterConfig.id) {
+    const adapterChanged = prevAdapterIdRef.current !== adapterConfig.id;
+    const contextChanged = prevContextIdRef.current !== contextId;
+    if (adapterChanged || contextChanged) {
       clear();
       prevAdapterIdRef.current = adapterConfig.id;
+      prevContextIdRef.current = contextId;
     }
-  }, [adapterConfig.id, clear]);
+  }, [adapterConfig.id, contextId, clear]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {

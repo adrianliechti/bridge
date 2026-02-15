@@ -9,23 +9,12 @@ import {
 } from '../../api/docker/docker';
 import type { TableRow, ResourceConfig, TableResponse } from '../../types/table';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
-import { ChatPanel } from '../ChatPanel';
-import { 
-  dockerAdapterConfig, 
-  createDockerTools, 
-  buildDockerInstructions,
-  type DockerEnvironment 
-} from './ChatAdapter';
 import { ResourcePanel } from './ResourcePanel';
-import { usePanels } from '../../hooks/usePanelState';
 import { getConfig } from '../../config';
 
 export type DockerResourceType = 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
 
 type DockerResourceObject = DockerContainer | DockerImage | DockerVolume | DockerNetwork | DockerNetworkInspect | ComposeApplication;
-
-// Panel IDs
-const PANEL_AI = 'ai';
 
 // Get stable sort key for each resource type
 function getResourceSortKey(resource: DockerResourceObject, resourceType: DockerResourceType): string {
@@ -114,11 +103,11 @@ interface ResourcePageProps {
   context: string;
   selectedItem?: string;
   onSelectItem?: (name: string | undefined) => void;
+  isChatPanelOpen?: boolean;
+  onToggleChatPanel?: () => void;
 }
 
-export function ResourcePage({ resourceType, context: dockerContext, selectedItem, onSelectItem }: ResourcePageProps) {
-  const { isOpen, toggle, close } = usePanels();
-  const isChatPanelOpen = isOpen(PANEL_AI);
+export function ResourcePage({ resourceType, context: dockerContext, selectedItem, onSelectItem, isChatPanelOpen = false, onToggleChatPanel }: ResourcePageProps) {
 
   // Fetch Docker data using TanStack Query
   const { data = [], isLoading: loading, error, refetch, isFetching } = useQuery({
@@ -158,29 +147,12 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   };
   const title = titleMap[resourceType];
 
-  // Environment info for AI chat
-  const getEnvironmentInfo = useCallback((item: TableRow<DockerResourceObject> | null): DockerEnvironment => {
-    const container = item?.object as DockerContainer | undefined;
-    return {
-      context: dockerContext,
-      selectedResourceType: resourceType,
-      selectedContainerId: resourceType === 'containers' ? container?.Id?.substring(0, 12) : undefined,
-      selectedContainerName: resourceType === 'containers' && container?.Names ? formatContainerName(container.Names) : undefined,
-    };
-  }, [resourceType, dockerContext]);
-
-  // Create tools for the current environment - memoized
-  const tools = useMemo(() => {
-    const env = getEnvironmentInfo(null);
-    return createDockerTools(env);
-  }, [getEnvironmentInfo]);
-
   // Render AI chat button in header
   const renderHeaderActions = useCallback(() => {
-    if (!getConfig().ai) return null;
+    if (!getConfig().ai || !onToggleChatPanel) return null;
     return (
       <button
-        onClick={() => toggle(PANEL_AI)}
+        onClick={onToggleChatPanel}
         className={`p-2 rounded-md transition-colors ${
           isChatPanelOpen 
             ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800' 
@@ -191,24 +163,7 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
         <Sparkles size={18} />
       </button>
     );
-  }, [isChatPanelOpen, toggle]);
-
-  // Render chat panel
-  const renderExtraPanels = useCallback((selectedItem: TableRow<DockerResourceObject> | null, isDetailPanelOpen: boolean) => {
-    const environmentInfo = getEnvironmentInfo(selectedItem);
-
-    return (
-      <ChatPanel 
-        isOpen={isChatPanelOpen}
-        onClose={() => close(PANEL_AI)}
-        otherPanelOpen={isDetailPanelOpen}
-        adapterConfig={dockerAdapterConfig}
-        environment={environmentInfo}
-        tools={tools}
-        buildInstructions={buildDockerInstructions}
-      />
-    );
-  }, [isChatPanelOpen, close, getEnvironmentInfo, tools]);
+  }, [isChatPanelOpen, onToggleChatPanel]);
 
   // Custom detail panel for Docker resources using the new ResourcePanel
   const showDetailPanel = resourceType === 'applications' || resourceType === 'containers' || resourceType === 'images' || resourceType === 'volumes' || resourceType === 'networks';
@@ -246,7 +201,7 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
       showDetailPanel={showDetailPanel}
       renderDetailPanel={renderDetailPanel}
       renderHeaderActions={renderHeaderActions}
-      renderExtraPanels={renderExtraPanels}
+      isChatPanelOpen={isChatPanelOpen}
       selectedItemName={selectedItem}
       onSelectItemName={onSelectItem}
       getItemName={getItemName}

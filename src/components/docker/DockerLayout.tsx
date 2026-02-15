@@ -1,9 +1,18 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
+import { Search, Sparkles } from 'lucide-react';
 import { Nav as DockerNav, type DockerResourceType } from './Nav';
 import { ContextSelector } from '../ContextSelector';
 import { CommandPalette } from '../CommandPalette';
+import { ChatPanel } from '../ChatPanel';
 import { createDockerAdapter } from './Commands';
+import {
+  dockerAdapterConfig,
+  createDockerTools,
+  buildDockerInstructions,
+  type DockerEnvironment,
+} from './ChatAdapter';
+import { usePanels } from '../../hooks/usePanelState';
 import { ResourcePage } from './ResourcePage';
 import { getConfig } from '../../config';
 
@@ -19,6 +28,12 @@ export function DockerLayout() {
   const config = getConfig();
   
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Chat panel state - persists across resource switches
+  const { isOpen: isPanelOpen, toggle: togglePanel, close: closePanel } = usePanels();
+  const isChatPanelOpen = isPanelOpen('ai');
+  const toggleChatPanel = useCallback(() => togglePanel('ai'), [togglePanel]);
+  const closeChatPanel = useCallback(() => closePanel('ai'), [closePanel]);
 
   const kubernetesContexts = config.kubernetes?.contexts || [];
   const dockerContexts = config.docker?.contexts || [];
@@ -108,6 +123,15 @@ export function DockerLayout() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Environment info for AI chat - updates when resource type or context changes
+  const chatEnvironment = useMemo((): DockerEnvironment => ({
+    context: context || '',
+    selectedResourceType: currentResourceType || undefined,
+  }), [context, currentResourceType]);
+
+  // Create tools for the current environment
+  const chatTools = useMemo(() => createDockerTools(chatEnvironment), [chatEnvironment]);
+
   return (
     <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <div className="py-2 pl-2 shrink-0 h-full">
@@ -133,7 +157,30 @@ export function DockerLayout() {
 
       {/* Main content */}
       {isWelcome ? (
-        <main className="flex-1 flex flex-col h-full min-w-0 items-center justify-center">
+        <main className="flex-1 flex flex-col h-full min-w-0 items-center justify-center relative">
+          {/* Header actions for welcome page */}
+          <div className="absolute top-0 right-0 h-14 flex items-center gap-2 px-5 mt-2">
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="p-2 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
+              title="Command Palette (⌘K)"
+            >
+              <Search size={18} />
+            </button>
+            {config.ai && (
+              <button
+                onClick={toggleChatPanel}
+                className={`p-2 rounded-md transition-colors ${
+                  isChatPanelOpen
+                    ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
+                }`}
+                title="AI Assistant"
+              >
+                <Sparkles size={18} />
+              </button>
+            )}
+          </div>
           <div className="text-center">
             <img src="/logo.png" alt="Logo" className="w-48 h-48 mx-auto dark:hidden" />
             <img src="/logo_dark.png" alt="Logo" className="w-48 h-48 mx-auto hidden dark:block" />
@@ -149,6 +196,8 @@ export function DockerLayout() {
           resourceType={currentResourceType}
           selectedItem={name}
           onSelectItem={setSelectedItem}
+          isChatPanelOpen={isChatPanelOpen}
+          onToggleChatPanel={toggleChatPanel}
         />
       ) : null}
 
@@ -157,6 +206,20 @@ export function DockerLayout() {
         onClose={closeCommandPalette}
         adapter={commandPaletteAdapter}
       />
+
+      {/* AI Chat Panel - persists across resource switches */}
+      {config.ai && (
+        <ChatPanel
+          isOpen={isChatPanelOpen}
+          onClose={closeChatPanel}
+          otherPanelOpen={!!name}
+          adapterConfig={dockerAdapterConfig}
+          contextId={context}
+          environment={chatEnvironment}
+          tools={chatTools}
+          buildInstructions={buildDockerInstructions}
+        />
+      )}
     </div>
   );
 }
