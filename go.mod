@@ -3,8 +3,8 @@ module github.com/adrianliechti/bridge
 go 1.25.0
 
 require (
-	github.com/docker/cli v29.1.3+incompatible
-	golang.org/x/crypto v0.44.0
+	github.com/docker/cli v29.2.0+incompatible
+	golang.org/x/crypto v0.45.0
 	k8s.io/client-go v0.35.0
 )
 
