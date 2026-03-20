@@ -13,8 +13,22 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func (s *Server) kubernetesProxy(ctx context.Context, name string, auth *config.AuthInfo) (http.Handler, error) {
-	for _, c := range s.config.Kubernetes.Contexts {
+func resolveKubernetesContexts(k *config.KubernetesConfig, r *http.Request) ([]config.KubernetesContext, error) {
+	if k.ContextResolver != nil {
+		return k.ContextResolver(r)
+	}
+
+	return k.Contexts, nil
+}
+
+func (s *Server) kubernetesProxy(ctx context.Context, name string, auth *config.AuthInfo, r *http.Request) (http.Handler, error) {
+	contexts, err := resolveKubernetesContexts(s.config.Kubernetes, r)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, c := range contexts {
 		if !strings.EqualFold(c.Name, name) {
 			continue
 		}
@@ -47,6 +61,10 @@ func (s *Server) kubernetesProxy(ctx context.Context, name string, auth *config.
 			Rewrite: func(r *httputil.ProxyRequest) {
 				r.SetURL(target)
 				r.Out.Host = target.Host
+
+				if auth := r.In.Header.Get("Authorization"); auth != "" {
+					r.Out.Header.Set("Authorization", auth)
+				}
 			},
 		}
 

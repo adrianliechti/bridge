@@ -3,13 +3,15 @@ package config
 import (
 	"context"
 	"errors"
+	"net/http"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type KubernetesConfig struct {
-	Contexts []KubernetesContext
+	Contexts        []KubernetesContext
+	ContextResolver func(r *http.Request) ([]KubernetesContext, error)
 
 	CurrentContext   string
 	CurrentNamespace string

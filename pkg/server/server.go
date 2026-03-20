@@ -86,7 +86,8 @@ func New(cfg *config.Config) (*Server, error) {
 				PlatformNamespaces: cfg.Kubernetes.PlatformNamespaces,
 			}
 
-			for _, c := range cfg.Kubernetes.Contexts {
+			contexts, _ := resolveKubernetesContexts(cfg.Kubernetes, r)
+			for _, c := range contexts {
 				config.Kubernetes.Contexts = append(config.Kubernetes.Contexts, c.Name)
 			}
 		}
@@ -119,7 +120,7 @@ func New(cfg *config.Config) (*Server, error) {
 			proxy.ServeHTTP(w, r)
 
 		case "kubernetes":
-			proxy, err := s.kubernetesProxy(r.Context(), context.Name, auth)
+			proxy, err := s.kubernetesProxy(r.Context(), context.Name, auth, r)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
