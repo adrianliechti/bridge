@@ -100,9 +100,16 @@ func New(cfg *config.Config) (*Server, error) {
 
 		auth := AuthInfoFromContext(r.Context())
 
-		context, ok := contexts[r.PathValue("context")]
+		contextName := r.PathValue("context")
+		context := contexts[contextName]
 
-		if !ok {
+		// If not found in the static map but a dynamic ContextResolver is configured,
+		// treat as kubernetes — the resolver will validate existence and RBAC at proxy time.
+		if context == nil && cfg.Kubernetes != nil && cfg.Kubernetes.ContextResolver != nil {
+			context = &Context{Type: "kubernetes", Name: contextName}
+		}
+
+		if context == nil {
 			http.Error(w, "context not found", http.StatusNotFound)
 			return
 		}
