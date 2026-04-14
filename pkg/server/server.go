@@ -86,7 +86,8 @@ func New(cfg *config.Config) (*Server, error) {
 				PlatformNamespaces: cfg.Kubernetes.PlatformNamespaces,
 			}
 
-			for _, c := range cfg.Kubernetes.Contexts {
+			contexts, _ := resolveKubernetesContexts(cfg.Kubernetes, r)
+			for _, c := range contexts {
 				config.Kubernetes.Contexts = append(config.Kubernetes.Contexts, c.Name)
 			}
 		}
@@ -99,9 +100,16 @@ func New(cfg *config.Config) (*Server, error) {
 
 		auth := AuthInfoFromContext(r.Context())
 
-		context, ok := contexts[r.PathValue("context")]
+		contextName := r.PathValue("context")
+		context := contexts[contextName]
 
-		if !ok {
+		// If not found in the static map but a dynamic ContextResolver is configured,
+		// treat as kubernetes — the resolver will validate existence and RBAC at proxy time.
+		if context == nil && cfg.Kubernetes != nil && cfg.Kubernetes.ContextResolver != nil {
+			context = &Context{Type: "kubernetes", Name: contextName}
+		}
+
+		if context == nil {
 			http.Error(w, "context not found", http.StatusNotFound)
 			return
 		}
@@ -119,7 +127,7 @@ func New(cfg *config.Config) (*Server, error) {
 			proxy.ServeHTTP(w, r)
 
 		case "kubernetes":
-			proxy, err := s.kubernetesProxy(r.Context(), context.Name, auth)
+			proxy, err := s.kubernetesProxy(r.Context(), context.Name, auth, r)
 
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
