@@ -19,14 +19,11 @@ import { WelcomePage } from './components/WelcomePage';
 // Search params schema for cluster routes
 const clusterSearchSchema = z.object({
   namespace: z.string().optional(),
-  panel: z.enum(['ai']).optional(),
   tab: z.enum(['overview', 'metadata', 'yaml', 'events', 'logs', 'terminal']).optional(),
 });
 
 // Search params schema for docker routes  
-const dockerSearchSchema = z.object({
-  panel: z.enum(['ai']).optional(),
-});
+const dockerSearchSchema = z.object({});
 
 export type ClusterSearch = z.infer<typeof clusterSearchSchema>;
 export type DockerSearch = z.infer<typeof dockerSearchSchema>;

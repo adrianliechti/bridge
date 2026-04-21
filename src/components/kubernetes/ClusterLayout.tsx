@@ -50,7 +50,7 @@ const shouldUseShortName = (resource: V1APIResource) => {
 export function ClusterLayout() {
   const { context, resourceType, name } = useParams({ strict: false });
   const search = useSearch({ from: clusterRoute.id }) as ClusterSearch;
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: clusterRoute.fullPath });
   const config = getConfig();
   
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -62,8 +62,8 @@ export function ClusterLayout() {
   const toggleChatPanel = useCallback(() => togglePanel('ai'), [togglePanel]);
   const closeChatPanel = useCallback(() => closePanel('ai'), [closePanel]);
 
-  const kubernetesContexts = config.kubernetes?.contexts || [];
-  const dockerContexts = config.docker?.contexts || [];
+  const kubernetesContexts = useMemo(() => config.kubernetes?.contexts || [], [config.kubernetes?.contexts]);
+  const dockerContexts = useMemo(() => config.docker?.contexts || [], [config.docker?.contexts]);
 
   // Fetch namespaces for namespace selector
   const { data: namespacesData } = useKubernetesQuery(
@@ -385,6 +385,7 @@ export function ClusterLayout() {
           onClose={closeChatPanel}
           otherPanelOpen={!!name} // Detail panel is open when an item is selected
           adapterConfig={kubernetesAdapterConfig}
+          contextId={context}
           environment={chatEnvironment}
           tools={chatTools}
           buildInstructions={buildKubernetesInstructions}
