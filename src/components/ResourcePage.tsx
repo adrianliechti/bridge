@@ -25,8 +25,10 @@ interface ResourcePageProps<T = any> {
   renderDetailPanel?: (item: TableRow<T>, onClose: () => void, otherPanelOpen: boolean) => React.ReactNode;
   // Optional header actions (e.g., AI button)
   renderHeaderActions?: (columns: TableColumnDefinition[]) => React.ReactNode;
-  // Optional extra panels (e.g., ChatPanel)
+  // Optional extra panels (e.g., ChatPanel) - for backward compatibility
   renderExtraPanels?: (selectedItem: TableRow<T> | null, isDetailPanelOpen: boolean) => React.ReactNode;
+  // Chat panel state (for header padding calculation)
+  isChatPanelOpen?: boolean;
   // URL-driven selection (optional)
   selectedItemName?: string;
   onSelectItemName?: (name: string | undefined) => void;
@@ -47,6 +49,7 @@ export function ResourcePage<T = any>({
   renderDetailPanel,
   renderHeaderActions,
   renderExtraPanels,
+  isChatPanelOpen = false,
   selectedItemName,
   onSelectItemName,
   getItemName,
@@ -131,7 +134,9 @@ export function ResourcePage<T = any>({
 
   // Calculate right padding for header actions based on which panels are open
   const getHeaderActionsPadding = () => {
+    if (isDetailPanelOpen && isChatPanelOpen) return 'pr-[68rem]'; // Both panels: 40rem + 28rem
     if (isDetailPanelOpen) return 'pr-[40rem]';
+    if (isChatPanelOpen) return 'pr-[28rem]';
     return '';
   };
 
@@ -181,7 +186,7 @@ export function ResourcePage<T = any>({
           />
         </section>
       </main>
-      {/* Extra panels (e.g., ChatPanel) */}
+      {/* Extra panels (e.g., ChatPanel) - for backward compatibility */}
       {renderExtraPanels?.(selectedItem, isDetailPanelOpen)}
       {/* Detail panel */}
       {renderDetailPanel && selectedItem && (
@@ -192,7 +197,7 @@ export function ResourcePage<T = any>({
           if (onSelectItemName) {
             onSelectItemName(undefined);
           }
-        }, false)
+        }, isChatPanelOpen)
       )}
     </>
   );

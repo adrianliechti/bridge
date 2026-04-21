@@ -30,6 +30,11 @@ import { GatewayAdapter } from './adapters/GatewayAdapter';
 import { HTTPRouteAdapter } from './adapters/HTTPRouteAdapter';
 import { GRPCRouteAdapter } from './adapters/GRPCRouteAdapter';
 import { IngressAdapter } from './adapters/IngressAdapter';
+import { ServiceAccountAdapter } from './adapters/ServiceAccountAdapter';
+import { RoleAdapter } from './adapters/RoleAdapter';
+import { ClusterRoleAdapter } from './adapters/ClusterRoleAdapter';
+import { RoleBindingAdapter } from './adapters/RoleBindingAdapter';
+import { ClusterRoleBindingAdapter } from './adapters/ClusterRoleBindingAdapter';
 
 // All registered adapters (using generic type to allow specific implementations)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,6 +61,11 @@ const adapters: ResourceAdapter<any>[] = [
   HTTPRouteAdapter,
   GRPCRouteAdapter,
   IngressAdapter,
+  ServiceAccountAdapter,
+  RoleAdapter,
+  ClusterRoleAdapter,
+  RoleBindingAdapter,
+  ClusterRoleBindingAdapter,
 ];
 
 // Build lookup map (kind -> adapter)

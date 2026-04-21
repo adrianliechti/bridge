@@ -8,8 +8,10 @@ import {
   Clock,
   ChevronDown,
   ChevronRight,
+  Shield,
+  ShieldCheck,
 } from 'lucide-react';
-import type { ReplicaSetData, PVCData, JobData } from './types';
+import type { ReplicaSetData, PVCData, JobData, RoleBindingData } from './types';
 import { formatTimeAgo } from './utils';
 
 export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Promise<ReplicaSetData[]>; title?: string }) {
@@ -122,7 +124,7 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
                 <HardDrive size={16} className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-600 dark:text-neutral-500'} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{pvc.name}</span>
+                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={pvc.name}>{pvc.name}</span>
                   </div>
                   <div className="text-xs text-neutral-600 dark:text-neutral-500">
                     {pvc.storageClass || 'default'} storage class
@@ -248,6 +250,92 @@ export function RelatedJobsSection({ loader, title }: { loader: () => Promise<Jo
             {expanded ? 'Show less' : `Show ${items.length - 3} more`}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+export function RelatedRoleBindingsSection({ loader, title }: { loader: () => Promise<RoleBindingData[]>; title?: string }) {
+  const [items, setItems] = useState<RoleBindingData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loader().then(setItems).finally(() => setLoading(false));
+  }, [loader]);
+
+  if (loading) {
+    return (
+      <div>
+        {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+        <div className="text-xs text-neutral-600 dark:text-neutral-500">Loading role bindings...</div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div>
+        {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+        <div className="text-xs text-neutral-500 italic">No role bindings found</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+      <div className="space-y-2">
+        {items.map(binding => {
+          const Icon = binding.isClusterBinding ? ShieldCheck : Shield;
+          const iconColor = binding.isClusterBinding ? 'text-purple-500' : 'text-blue-500';
+          const borderColor = binding.isClusterBinding 
+            ? 'border-purple-500/30 bg-purple-500/5' 
+            : 'border-blue-500/30 bg-blue-500/5';
+          
+          const content = (
+            <div className={`border rounded-lg p-3 ${borderColor} ${
+              binding.context ? 'hover:border-blue-500/50 transition-colors cursor-pointer' : ''
+            }`}>
+              <div className="flex items-center gap-3">
+                <Icon size={16} className={iconColor} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={binding.name}>
+                      {binding.name}
+                    </span>
+                    {binding.isClusterBinding && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-400">
+                        Cluster
+                      </span>
+                    )}
+                  </div>
+                  {binding.summary && (
+                    <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">
+                      {binding.summary}
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-neutral-500">
+                  {binding.roleRef.kind}: {binding.roleRef.name}
+                </div>
+              </div>
+            </div>
+          );
+
+          const resourceType = binding.isClusterBinding ? 'clusterrolebindings' : 'rolebindings';
+          
+          return binding.context ? (
+            <Link
+              key={`${binding.isClusterBinding ? 'crb' : 'rb'}-${binding.name}`}
+              to="/cluster/$context/$resourceType/$name"
+              params={{ context: binding.context, resourceType, name: binding.name }}
+              search={binding.namespace ? (prev) => ({ ...prev, namespace: binding.namespace }) : undefined}
+            >
+              {content}
+            </Link>
+          ) : (
+            <div key={`${binding.isClusterBinding ? 'crb' : 'rb'}-${binding.name}`}>{content}</div>
+          );
+        })}
       </div>
     </div>
   );

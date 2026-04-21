@@ -23,6 +23,8 @@ export type {
   JobData,
   ReplicaSetData,
   PVCData,
+  RoleBindingData,
+  RoleRuleData,
   VolumeClaimTemplateData,
   EnvVarData,
   EnvFromData,

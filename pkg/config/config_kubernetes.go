@@ -1,20 +1,27 @@
 package config
 
 import (
+	"context"
 	"errors"
-	"fmt"
 
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type KubernetesConfig struct {
-	Contexts []Context
+	Contexts []KubernetesContext
 
 	CurrentContext   string
 	CurrentNamespace string
 
 	TenancyLabels      []string
 	PlatformNamespaces []string
+}
+
+type KubernetesContext struct {
+	Name string
+
+	Config func(ctx context.Context, auth *AuthInfo) (*rest.Config, error)
 }
 
 func applyKubernetesConfig(cfg *Config) error {
@@ -27,21 +34,17 @@ func applyKubernetesConfig(cfg *Config) error {
 		return err
 	}
 
-	contexts := make([]Context, 0)
+	contexts := make([]KubernetesContext, 0)
 
 	for contextName := range config.Contexts {
 		contextConfig := clientcmd.NewNonInteractiveClientConfig(config, contextName, &clientcmd.ConfigOverrides{}, loader)
 
-		restConfig, err := contextConfig.ClientConfig()
+		contexts = append(contexts, KubernetesContext{
+			Name: contextName,
 
-		if err != nil {
-			fmt.Printf("Warning: failed to load context %q: %v\n", contextName, err)
-			continue
-		}
-
-		contexts = append(contexts, Context{
-			Name:   contextName,
-			Config: restConfig,
+			Config: func(ctx context.Context, auth *AuthInfo) (*rest.Config, error) {
+				return contextConfig.ClientConfig()
+			},
 		})
 	}
 

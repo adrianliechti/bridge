@@ -1,8 +1,16 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useSearch, useNavigate } from '@tanstack/react-router';
-import { Search } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 import { clusterRoute, type ClusterSearch } from '../../router';
 import { getResourceConfig, getResourceConfigByQualifiedName } from '../../api/kubernetes/kubernetesDiscovery';
+import { usePanels } from '../../hooks/usePanelState';
+import { ChatPanel } from '../ChatPanel';
+import {
+  kubernetesAdapterConfig,
+  createKubernetesTools,
+  buildKubernetesInstructions,
+  type KubernetesEnvironment,
+} from './ChatAdapter';
 import { preloadDiscovery, clearDiscoveryCache } from '../../api/kubernetes/kubernetesDiscovery';
 import { resetMetricsCache } from '../../api/kubernetes/kubernetesMetrics';
 import { ClusterNav } from './Nav';
@@ -42,14 +50,20 @@ const shouldUseShortName = (resource: V1APIResource) => {
 export function ClusterLayout() {
   const { context, resourceType, name } = useParams({ strict: false });
   const search = useSearch({ from: clusterRoute.id }) as ClusterSearch;
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: clusterRoute.fullPath });
   const config = getConfig();
   
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [resourceConfig, setResourceConfig] = useState<V1APIResource | null>(null);
 
-  const kubernetesContexts = config.kubernetes?.contexts || [];
-  const dockerContexts = config.docker?.contexts || [];
+  // Chat panel state - persists across resource switches
+  const { isOpen: isPanelOpen, toggle: togglePanel, close: closePanel } = usePanels();
+  const isChatPanelOpen = isPanelOpen('ai');
+  const toggleChatPanel = useCallback(() => togglePanel('ai'), [togglePanel]);
+  const closeChatPanel = useCallback(() => closePanel('ai'), [closePanel]);
+
+  const kubernetesContexts = useMemo(() => config.kubernetes?.contexts || [], [config.kubernetes?.contexts]);
+  const dockerContexts = useMemo(() => config.docker?.contexts || [], [config.docker?.contexts]);
 
   // Fetch namespaces for namespace selector
   const { data: namespacesData } = useKubernetesQuery(
@@ -92,8 +106,23 @@ export function ClusterLayout() {
     }
   }, [context, resourceType]);
 
-  // Reset resource config when leaving resource view
-  const currentResourceConfig = resourceType ? resourceConfig : null;
+  // Only use resource config when viewing a specific resource (not overview or welcome)
+  const currentResourceConfig = resourceType && resourceType !== 'overview' ? resourceConfig : null;
+
+  // Environment info for AI chat - updates automatically when resource/namespace changes
+  const chatEnvironment = useMemo((): KubernetesEnvironment => ({
+    currentContext: context || '',
+    currentNamespace: search.namespace || 'all namespaces',
+    selectedResourceKind: currentResourceConfig
+      ? currentResourceConfig.group
+        ? `${currentResourceConfig.kind} (${currentResourceConfig.group}/${currentResourceConfig.version})`
+        : `${currentResourceConfig.kind} (${currentResourceConfig.version})`
+      : undefined,
+    selectedResourceName: name,
+  }), [context, search.namespace, currentResourceConfig, name]);
+
+  // Create tools for the current environment
+  const chatTools = useMemo(() => createKubernetesTools(chatEnvironment), [chatEnvironment]);
 
   // Navigation helpers
   const setContext = useCallback((newContext: string) => {
@@ -305,6 +334,19 @@ export function ClusterLayout() {
               >
                 <Search size={18} />
               </button>
+              {config.ai && (
+                <button
+                  onClick={toggleChatPanel}
+                  className={`p-2 rounded-md transition-colors ${
+                    isChatPanelOpen
+                      ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
+                  }`}
+                  title="AI Assistant"
+                >
+                  <Sparkles size={18} />
+                </button>
+              )}
             </div>
           </header>
           <section className="flex-1 overflow-hidden min-h-0">
@@ -321,6 +363,8 @@ export function ClusterLayout() {
           onSelectItem={setSelectedItem}
           tab={search.tab}
           onTabChange={setTab}
+          isChatPanelOpen={isChatPanelOpen}
+          onToggleChatPanel={toggleChatPanel}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center text-neutral-500">
@@ -333,6 +377,20 @@ export function ClusterLayout() {
         onClose={closeCommandPalette}
         adapter={commandPaletteAdapter}
       />
+
+      {/* AI Chat Panel - persists across resource switches */}
+      {config.ai && (
+        <ChatPanel
+          isOpen={isChatPanelOpen}
+          onClose={closeChatPanel}
+          otherPanelOpen={!!name} // Detail panel is open when an item is selected
+          adapterConfig={kubernetesAdapterConfig}
+          contextId={context}
+          environment={chatEnvironment}
+          tools={chatTools}
+          buildInstructions={buildKubernetesInstructions}
+        />
+      )}
     </div>
   );
 }

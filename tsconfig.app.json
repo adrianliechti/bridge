@@ -18,9 +18,6 @@
 
     /* Linting */
     "strict": true,
-    "paths": {
-      "openai-original": ["./node_modules/openai"]
-    },
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,

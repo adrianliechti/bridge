@@ -90,7 +90,7 @@ export function ResourceTable<T = any>({
       const isDateTime = colDef.format === 'date-time';
 
       cols.push(
-        columnHelper.accessor((row) => row.cells[idx], {
+        columnHelper.accessor((row) => row.cells?.[idx], {
           id: colDef.name.toLowerCase(),
           header: colDef.name,
           sortingFn: isDateTime ? 'datetime' : 'auto',
@@ -141,10 +141,10 @@ export function ResourceTable<T = any>({
 
             // Name column styling
             if (isName) {
-              return <span className="text-neutral-900 dark:text-neutral-300">{formatted}</span>;
+              return <span className="text-neutral-900 dark:text-neutral-300" title={formatted}>{formatted}</span>;
             }
 
-            return <span className="text-neutral-500 dark:text-neutral-500">{formatted}</span>;
+            return <span className="text-neutral-500 dark:text-neutral-500" title={formatted}>{formatted}</span>;
           },
           meta: { description: colDef.description, format: colDef.format },
         }) as ColumnDef<TableRow<T>, unknown>
@@ -160,7 +160,7 @@ export function ResourceTable<T = any>({
             sortUndefined: 'last',
             cell: (info) => {
               const value = info.getValue() ?? '<none>';
-              return <span className="text-neutral-500 dark:text-neutral-500">{value}</span>;
+              return <span className="text-neutral-500 dark:text-neutral-500" title={value}>{value}</span>;
             },
             meta: { description: 'Namespace of the resource', format: '' },
           }) as ColumnDef<TableRow<T>, unknown>
@@ -252,7 +252,7 @@ export function ResourceTable<T = any>({
     );
   }
 
-  if (!data || !data.columnDefinitions || data.rows.length === 0) {
+  if (!data || !data.columnDefinitions || !data.rows || data.rows.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center text-neutral-400 dark:text-neutral-500">

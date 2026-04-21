@@ -154,13 +154,14 @@ export function ScopeSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Focus input when opening
+  // Focus input when opening and scroll to selected namespace
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
-      setFocusedIndex(-1);
+      const selectedIndex = flatOptions.findIndex(opt => opt.value === (selectedNamespace || ''));
+      setFocusedIndex(selectedIndex >= 0 ? selectedIndex : -1);
     }
-  }, [isOpen]);
+  }, [isOpen, selectedNamespace, flatOptions]);
 
   const handleSelect = (value: string) => {
     onSelectNamespace(value || undefined);
@@ -208,13 +209,14 @@ export function ScopeSelector({
           ref={inputRef}
           type="text"
           className="w-full px-3 py-1.5 pr-8 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg text-sm text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-neutral-400/50 dark:focus:ring-neutral-500/50 cursor-default placeholder:text-neutral-400"
-          value={isOpen ? query : (disabled ? 'Cluster' : (selectedNamespace || 'All Namespaces'))}
+          value={isOpen ? query : (selectedNamespace || 'All Namespaces')}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => !disabled && setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={isOpen ? "Search..." : undefined}
           disabled={disabled}
           readOnly={!isOpen}
+          title={disabled ? 'Cluster-scoped resource' : undefined}
         />
         <button
           type="button"
@@ -283,7 +285,7 @@ export function ScopeSelector({
                             : 'text-neutral-600 dark:text-neutral-400'
                         }`}
                       >
-                        <span className="truncate">{name}</span>
+                        <span className="truncate" title={name}>{name}</span>
                         {isSelected && (
                           <Check size={16} className="text-neutral-500 dark:text-neutral-400" />
                         )}

@@ -260,7 +260,7 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
       <header className="shrink-0 h-16 flex items-center justify-between pl-5 pr-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 truncate" title={resourceName}>
               {resourceName}
             </h3>
             <p className="text-xs text-neutral-500 dark:text-neutral-500">{resourceId.namespace || 'cluster-scoped'}</p>
