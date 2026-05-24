@@ -207,9 +207,12 @@ export function DockerLayout() {
         adapter={commandPaletteAdapter}
       />
 
-      {/* AI Chat Panel - persists across resource switches */}
+      {/* AI Chat Panel - persists across resource switches.
+          Keyed on context so switching contexts tears down the prior
+          useChat subscription (and any in-flight token stream) cleanly. */}
       {config.ai && (
         <ChatPanel
+          key={`${dockerAdapterConfig.id}/${context}`}
           isOpen={isChatPanelOpen}
           onClose={closeChatPanel}
           otherPanelOpen={!!name}

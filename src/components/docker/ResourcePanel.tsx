@@ -78,23 +78,22 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
 
   const displayName = getDisplayName(resource);
 
+  // Manual refetch (used after actions complete). Returns silently on errors
+  // — actions surface their own errors, and background updates shouldn't
+  // flicker the UI on transient failures.
   const fetchResourceData = useCallback(async () => {
     if (!resourceId) return;
-    
+
     try {
       let data;
       if (resourceType === 'containers') {
         data = await inspectContainer(dockerContext, resourceId);
-      } else if (resourceType === 'images') {
-        // Images don't need separate inspect - use the resource directly
-        return;
-      } else if (resourceType === 'applications') {
-        // Applications don't need separate inspect - use the resource directly
-        return;
       } else if (resourceType === 'volumes') {
         data = await inspectVolume(dockerContext, resourceId);
       } else if (resourceType === 'networks') {
         data = await inspectNetwork(dockerContext, resourceId);
+      } else {
+        return;
       }
       if (data) setFullObject(data);
     } catch {
@@ -102,45 +101,41 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
     }
   }, [resourceId, resourceType, dockerContext]);
 
-  // Auto-refresh polling
+  // Reset the active tab only when the resource identity actually changes
+  // (not when the parent re-passes a new object reference for the same id).
+  const lastResourceIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isOpen || !resourceId || !fullObject) return;
-    // No auto-refresh for images or applications since they are already aggregated
-    if (resourceType === 'images' || resourceType === 'applications') return;
+    if (lastResourceIdRef.current !== resourceId) {
+      lastResourceIdRef.current = resourceId;
+      setActiveTab('overview');
+    }
+  }, [resourceId]);
 
-    const interval = setInterval(() => {
-      fetchResourceData();
-    }, REFRESH_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [isOpen, resourceId, fullObject, fetchResourceData, resourceType]);
-
-  // Fetch the resource when it changes
+  // Initial fetch on resource change. Uses a cancellation flag so stale
+  // responses from a previous resource can't overwrite the new fullObject
+  // and can't setState after unmount.
   useEffect(() => {
-    setActiveTab('overview');
-    
     if (!resourceId) {
       setFullObject(null);
       setError(null);
       return;
     }
 
-    // For images, use the resource directly (no inspect needed)
+    // Images and applications are already aggregated; use the resource directly.
     if (resourceType === 'images') {
       setFullObject(resource as DockerImage);
       return;
     }
-
-    // For applications, use the resource directly (already aggregated)
     if (resourceType === 'applications') {
       setFullObject(resource as ComposeApplication);
       return;
     }
 
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    (async () => {
       try {
         let data;
         if (resourceType === 'containers') {
@@ -150,16 +145,53 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
         } else if (resourceType === 'networks') {
           data = await inspectNetwork(dockerContext, resourceId);
         }
+        if (cancelled) return;
         if (data) setFullObject(data);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to fetch resource details');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    };
+    })();
 
-    fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, [resourceId, resourceType, resource, dockerContext]);
+
+  // Auto-refresh polling. Polls inside the interval rather than scheduling a
+  // new interval on every render of fetchResourceData.
+  useEffect(() => {
+    if (!isOpen || !resourceId) return;
+    if (resourceType === 'images' || resourceType === 'applications') return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      if (cancelled) return;
+      try {
+        let data;
+        if (resourceType === 'containers') {
+          data = await inspectContainer(dockerContext, resourceId);
+        } else if (resourceType === 'volumes') {
+          data = await inspectVolume(dockerContext, resourceId);
+        } else if (resourceType === 'networks') {
+          data = await inspectNetwork(dockerContext, resourceId);
+        } else {
+          return;
+        }
+        if (cancelled) return;
+        if (data) setFullObject(data);
+      } catch {
+        // Silent fail for background refreshes
+      }
+    }, REFRESH_INTERVAL);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isOpen, resourceId, resourceType, dockerContext]);
 
   // Determine adapter type based on resource type
   const adapterType = resourceType === 'applications' ? 'application'

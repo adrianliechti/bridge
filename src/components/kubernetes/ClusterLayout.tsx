@@ -80,30 +80,38 @@ export function ClusterLayout() {
     }
   }, [context]);
 
-  // Load resource config when resourceType changes
+  // Load resource config when resourceType changes. The two-stage lookup
+  // (alias, then qualified CRD name) must respect a cancellation flag so a
+  // late CRD response can't overwrite a newer resourceType's config.
   useEffect(() => {
-    if (context && resourceType) {
-      // Try alias lookup first (handles short names like 'deployments')
-      // Then fall back to qualified name lookup (for CRDs like 'applications.argoproj.io')
-      getResourceConfig(context, resourceType)
-        .then((config) => {
-          if (config) {
-            setResourceConfig(config);
-          } else if (resourceType.includes('.')) {
-            // Try qualified name lookup for CRDs
-            return getResourceConfigByQualifiedName(context, resourceType);
-          }
-          return null;
-        })
-        .then((config) => {
-          if (config) {
-            setResourceConfig(config);
-          }
-        })
-        .catch(() => {
-          setResourceConfig(null);
-        });
-    }
+    let cancelled = false;
+
+    (async () => {
+      if (!context || !resourceType) {
+        if (!cancelled) setResourceConfig(null);
+        return;
+      }
+      try {
+        const config = await getResourceConfig(context, resourceType);
+        if (cancelled) return;
+        if (config) {
+          setResourceConfig(config);
+          return;
+        }
+        if (resourceType.includes('.')) {
+          const crdConfig = await getResourceConfigByQualifiedName(context, resourceType);
+          if (cancelled) return;
+          if (crdConfig) setResourceConfig(crdConfig);
+        }
+      } catch {
+        if (cancelled) return;
+        setResourceConfig(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [context, resourceType]);
 
   // Only use resource config when viewing a specific resource (not overview or welcome)
@@ -378,9 +386,13 @@ export function ClusterLayout() {
         adapter={commandPaletteAdapter}
       />
 
-      {/* AI Chat Panel - persists across resource switches */}
+      {/* AI Chat Panel - persists across resource switches.
+          Keyed on context so switching clusters tears down the prior useChat
+          subscription cleanly — without the key, an in-flight token stream
+          from the previous context can land in the new context's UI. */}
       {config.ai && (
         <ChatPanel
+          key={`${kubernetesAdapterConfig.id}/${context}`}
           isOpen={isChatPanelOpen}
           onClose={closeChatPanel}
           otherPanelOpen={!!name} // Detail panel is open when an item is selected

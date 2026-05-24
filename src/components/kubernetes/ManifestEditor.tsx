@@ -31,6 +31,11 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const [editorReady, setEditorReady] = useState(false);
+  // Track which resource identity we last initialised the editor for.
+  // Used to distinguish "user opened a different resource" (full re-init,
+  // fold sections, reset cursor) from "background refetch of the same
+  // resource" (silently update, preserve cursor / fold / scroll).
+  const initialisedForRef = useRef<string | null>(null);
 
   // Update dark mode when it changes
   useEffect(() => {
@@ -87,31 +92,42 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
 
   // Convert resource to YAML when it changes
   useEffect(() => {
-    if (resource) {
-      const yaml = toYaml(resource, { lineWidth: 0 });
-      
-      // Only update if the server content actually changed
-      // and user hasn't made local edits
-      if (yaml !== originalValue) {
-        if (!isDirty) {
-          // No local changes, safe to update
-          setValue(yaml);
-          setOriginalValue(yaml);
-          setParseError(null);
-          setSaveError(null);
-          
-          // Re-collapse noisy sections when content changes
-          if (editorRef.current) {
-            setEditorReady(false);
-            setTimeout(() => collapseNoisySections(editorRef.current!), 100);
-          }
-        } else {
-          // User has local changes, just update the original for comparison
-          // This means if they reset, they'll get the latest server version
-          setOriginalValue(yaml);
-        }
+    if (!resource) return;
+
+    const identity = `${resource.apiVersion ?? ''}/${resource.kind ?? ''}/${resource.metadata?.namespace ?? ''}/${resource.metadata?.name ?? ''}`;
+    const yaml = toYaml(resource, { lineWidth: 0 });
+    const isNewResource = initialisedForRef.current !== identity;
+
+    if (isNewResource) {
+      // Different resource (or first load): reset everything, fold sections, reset cursor.
+      initialisedForRef.current = identity;
+      setValue(yaml);
+      setOriginalValue(yaml);
+      setIsDirty(false);
+      setParseError(null);
+      setSaveError(null);
+      if (editorRef.current) {
+        setEditorReady(false);
+        setTimeout(() => collapseNoisySections(editorRef.current!), 100);
       }
+      return;
     }
+
+    // Same resource — background refetch.
+    if (yaml === originalValue) return;
+
+    if (isDirty) {
+      // Preserve the user's edits AND their original baseline so "Reset"
+      // still returns to the version they started editing from. Stale
+      // server state will surface as a conflict at save time.
+      return;
+    }
+
+    // Silent in-place update: preserve cursor, scroll, and fold state.
+    setValue(yaml);
+    setOriginalValue(yaml);
+    setParseError(null);
+    setSaveError(null);
   }, [resource, originalValue, isDirty, collapseNoisySections]);
 
   // Validate YAML on change

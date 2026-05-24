@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { streamCombinedLogs, getWorkloadPods, getPodContainers, type LogEntry as KubeLogEntry } from '../api/kubernetes/kubernetesLogs';
 import type { LogEntry } from '../components/sections/LogViewer';
 import type { KubernetesResource } from '../api/kubernetes/kubernetes';
@@ -26,172 +26,139 @@ export function useKubernetesLogs({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [fetchedPods, setFetchedPods] = useState<string[]>([]);
   const [podContainers, setPodContainers] = useState<string[]>([]);
+  // The resource identity (`context/namespace/kind/name`) that `fetchedPods`
+  // and `podContainers` were last resolved for. The streaming effect uses
+  // this to refuse to stream until the resolver has caught up with a fresh
+  // resource — otherwise a workload→Pod switch could open streams against
+  // stale container names from the previous resource for one render.
+  const [resolvedFor, setResolvedFor] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasStarted, setHasStarted] = useState(false);
-  
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const kind = resource.kind;
   const name = resource.metadata?.name;
   const namespace = resource.metadata?.namespace;
+  const identity = `${context}/${namespace ?? ''}/${kind ?? ''}/${name ?? ''}`;
 
-  // For Pods, use name directly; otherwise use fetched pods
   const sources = useMemo(() => {
-    if (kind === 'Pod' && name) {
-      return [name];
-    }
+    if (kind === 'Pod' && name) return [name];
     return fetchedPods;
   }, [kind, name, fetchedPods]);
 
-  // Fetch pods for workload resources (not Pods)
+  // Resolver: produce the pod/container set for the current resource.
   useEffect(() => {
-    if (!kind || !name || !namespace || kind === 'Pod') {
-      return;
-    }
+    if (!kind || !name || !namespace) return;
 
     let cancelled = false;
 
-    async function fetchPods() {
+    const resolve = async () => {
       setIsLoading(true);
+      setError(null);
       try {
-        const pods = await getWorkloadPods(context, namespace!, kind!, name!);
-        if (!cancelled) {
-          setFetchedPods(pods);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError((err as Error).message);
-          setIsLoading(false);
-        }
-      }
-    }
-
-    fetchPods();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [context, namespace, kind, name]);
-
-  // Fetch containers for Pod resources
-  useEffect(() => {
-    if (!kind || !name || !namespace || kind !== 'Pod') {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchContainers() {
-      setIsLoading(true);
-      try {
-        const containers = await getPodContainers(context, namespace!, name!);
-        if (!cancelled) {
+        if (kind === 'Pod') {
+          const containers = await getPodContainers(context, namespace, name);
+          if (cancelled) return;
           setPodContainers(containers);
-          setIsLoading(false);
+          setResolvedFor(identity);
+        } else {
+          const pods = await getWorkloadPods(context, namespace, kind, name);
+          if (cancelled) return;
+          setFetchedPods(pods);
+          setPodContainers([]);
+          setResolvedFor(identity);
         }
       } catch (err) {
-        if (!cancelled) {
-          setError((err as Error).message);
-          setIsLoading(false);
-        }
+        if (cancelled) return;
+        setError((err as Error).message);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-    }
+    };
 
-    fetchContainers();
+    resolve();
 
     return () => {
       cancelled = true;
     };
-  }, [context, namespace, kind, name]);
+  }, [context, namespace, kind, name, identity]);
 
-  // Start streaming logs when sources are available
-  // For pods with multiple containers, we need to wait for container list to be ready
-  const isPodWithMultipleContainers = kind === 'Pod' && podContainers.length > 1;
-  const shouldAutoStart = sources.length > 0 && !hasStarted && !isLoading && 
-    (kind !== 'Pod' || podContainers.length > 0);
-  
+  // Streaming effect. Refuses to run until the resolver has produced state
+  // for *this* identity; otherwise sources/podContainers may still describe
+  // the previous resource.
   useEffect(() => {
-    if (shouldAutoStart && namespace) {
-      const timer = setTimeout(() => {
-        setHasStarted(true);
-        
-        // For pods with multiple containers, start separate streams for each container
-        if (isPodWithMultipleContainers) {
-          const controllers: AbortController[] = [];
-          for (const container of podContainers) {
-            const controller = streamCombinedLogs({
-              context,
-              namespace,
-              podNames: sources,
+    if (resolvedFor !== identity) return;
+    if (!namespace || sources.length === 0) return;
+    if (kind === 'Pod' && podContainers.length === 0) return;
+
+    let cancelled = false;
+    const controllers: AbortController[] = [];
+    const isPodWithMultipleContainers = kind === 'Pod' && podContainers.length > 1;
+
+    // Reset the log buffer for the new source set. setLogs is wrapped in a
+    // microtask so the effect body itself stays setState-free (per the
+    // react-hooks/set-state-in-effect rule); the closure check inside still
+    // honours `cancelled` if the effect tears down before the microtask runs.
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLogs([]);
+    });
+
+    if (isPodWithMultipleContainers) {
+      const perContainerTail = Math.ceil(tailLines / podContainers.length);
+      for (const container of podContainers) {
+        controllers.push(streamCombinedLogs({
+          context,
+          namespace,
+          podNames: sources,
+          container,
+          follow: true,
+          tailLines: perContainerTail,
+          timestamps: true,
+          onLog: (log: KubeLogEntry) => {
+            if (cancelled) return;
+            setLogs(prev => [...prev, {
+              timestamp: log.timestamp,
+              message: log.message,
+              source: log.podName,
               container,
-              follow: true,
-              tailLines: Math.ceil(tailLines / podContainers.length), // Split tail lines across containers
-              timestamps: true,
-              onLog: (log: KubeLogEntry) => {
-                const entry: LogEntry = {
-                  timestamp: log.timestamp,
-                  message: log.message,
-                  source: log.podName,
-                  container: container,
-                };
-                setLogs(prev => [...prev, entry]);
-              },
-              onError: (err) => {
-                setError(err.message);
-              },
-            });
-            controllers.push(controller);
-          }
-          // Create a combined abort controller
-          abortControllerRef.current = {
-            abort: () => controllers.forEach(c => c.abort()),
-            signal: controllers[0]?.signal,
-          } as AbortController;
-        } else {
-          // Single container or workload - use original logic
-          abortControllerRef.current = streamCombinedLogs({
-            context,
-            namespace,
-            podNames: sources,
-            container: podContainers.length === 1 ? podContainers[0] : undefined,
-            follow: true,
-            tailLines,
-            timestamps: true,
-            onLog: (log: KubeLogEntry) => {
-              const entry: LogEntry = {
-                timestamp: log.timestamp,
-                message: log.message,
-                source: log.podName,
-                container: log.container,
-              };
-              setLogs(prev => [...prev, entry]);
-            },
-            onError: (err) => {
-              setError(err.message);
-            },
-          });
-        }
-      }, 0);
-      
-      return () => clearTimeout(timer);
+            }]);
+          },
+          onError: (err) => {
+            if (cancelled) return;
+            setError(err.message);
+          },
+        }));
+      }
+    } else {
+      controllers.push(streamCombinedLogs({
+        context,
+        namespace,
+        podNames: sources,
+        container: podContainers.length === 1 ? podContainers[0] : undefined,
+        follow: true,
+        tailLines,
+        timestamps: true,
+        onLog: (log: KubeLogEntry) => {
+          if (cancelled) return;
+          setLogs(prev => [...prev, {
+            timestamp: log.timestamp,
+            message: log.message,
+            source: log.podName,
+            container: log.container,
+          }]);
+        },
+        onError: (err) => {
+          if (cancelled) return;
+          setError(err.message);
+        },
+      }));
     }
-  }, [shouldAutoStart, context, namespace, sources, tailLines, isPodWithMultipleContainers, podContainers, kind]);
 
-  // Cleanup on unmount or when resource identity changes
-  useEffect(() => {
     return () => {
-      abortControllerRef.current?.abort();
-      abortControllerRef.current = null;
+      cancelled = true;
+      for (const c of controllers) c.abort();
     };
-  }, [kind, name, namespace]);
+  }, [resolvedFor, identity, context, namespace, kind, sources, podContainers, tailLines]);
 
-  return {
-    logs,
-    sources,
-    isLoading,
-    error,
-  };
+  return { logs, sources, isLoading, error };
 }
-

@@ -211,6 +211,10 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
   const [selectedNode, setSelectedNode] = useState<LayoutNode | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Monotonic counter for in-flight loadResources calls. Effect cleanup and
+  // every new call bump it so stale responses (from a previous namespace or
+  // refresh-spam) can detect they are no longer current and bail.
+  const loadSessionRef = useRef(0);
   
   // Detect dark mode (supports both class and media query strategies)
   useEffect(() => {
@@ -243,9 +247,10 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
   }, []);
 
   const loadResources = useCallback(async () => {
+    const session = ++loadSessionRef.current;
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // If no namespace is selected, fetch from all namespaces
       const namespacePath = namespace ? `/namespaces/${namespace}` : '';
@@ -282,6 +287,8 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
         })
       );
 
+      if (session !== loadSessionRef.current) return;
+
       const allResources: K8sResource[] = [];
       results.forEach((result) => {
         if (result.status === 'fulfilled') {
@@ -293,14 +300,23 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
       const layoutApps = buildLayout(allResources);
       setApplications(layoutApps);
     } catch (err) {
+      if (session !== loadSessionRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to load resources');
     } finally {
-      setIsLoading(false);
+      if (session === loadSessionRef.current) setIsLoading(false);
     }
   }, [context, namespace]);
 
   useEffect(() => {
     loadResources();
+    // Bump on cleanup so an in-flight load from the previous context/namespace
+    // can detect it is no longer current when its fetches eventually resolve.
+    // The lint warning about ref-in-cleanup doesn't apply: loadSessionRef is
+    // a counter, not a DOM ref, and we want the current counter at cleanup time.
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      loadSessionRef.current++;
+    };
   }, [loadResources]);
 
   // Pan handlers

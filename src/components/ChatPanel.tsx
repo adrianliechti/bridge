@@ -73,16 +73,27 @@ export function ChatPanel<T extends ChatEnvironment>({
     tools,
   });
 
-  // Reset chat when adapter or context changes
+  // Reset chat when adapter or context changes. stop() aborts any in-flight
+  // stream first, otherwise late-arriving tokens from the previous context
+  // can land in the cleared message list.
   useEffect(() => {
     const adapterChanged = prevAdapterIdRef.current !== adapterConfig.id;
     const contextChanged = prevContextIdRef.current !== contextId;
     if (adapterChanged || contextChanged) {
+      stop();
       clear();
       prevAdapterIdRef.current = adapterConfig.id;
       prevContextIdRef.current = contextId;
     }
-  }, [adapterConfig.id, contextId, clear]);
+  }, [adapterConfig.id, contextId, clear, stop]);
+
+  // Abort any in-flight stream when the panel unmounts (e.g., parent remounts
+  // via key change on context switch). useChat does not guarantee teardown.
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, [stop]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {

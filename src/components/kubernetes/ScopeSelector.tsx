@@ -154,14 +154,15 @@ export function ScopeSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Focus input when opening and scroll to selected namespace
+  // Focus input and seed focusedIndex only when the dropdown opens.
+  // Re-running on flatOptions/selectedNamespace would reset focus on every keystroke.
   useEffect(() => {
-    if (isOpen) {
-      inputRef.current?.focus();
-      const selectedIndex = flatOptions.findIndex(opt => opt.value === (selectedNamespace || ''));
-      setFocusedIndex(selectedIndex >= 0 ? selectedIndex : -1);
-    }
-  }, [isOpen, selectedNamespace, flatOptions]);
+    if (!isOpen) return;
+    inputRef.current?.focus();
+    const selectedIndex = flatOptions.findIndex(opt => opt.value === (selectedNamespace || ''));
+    setFocusedIndex(selectedIndex >= 0 ? selectedIndex : -1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleSelect = (value: string) => {
     onSelectNamespace(value || undefined);

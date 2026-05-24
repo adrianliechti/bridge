@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { Terminal as XTerm } from '@xterm/xterm';
+import { useState, useRef, useEffect } from 'react';
+import { Terminal as XTerm, type IDisposable } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { ChevronDown } from 'lucide-react';
@@ -19,13 +19,12 @@ interface ContainerInfo {
   ready: boolean;
 }
 
-// Extract containers from a pod resource
 function getPodContainers(resource: KubernetesResource): ContainerInfo[] {
   const containers: ContainerInfo[] = [];
-  
+
   const spec = resource.spec as { containers?: Array<{ name: string }> } | undefined;
   const status = resource.status as { containerStatuses?: Array<{ name: string; ready: boolean }> } | undefined;
-  
+
   if (spec?.containers) {
     for (const container of spec.containers) {
       const containerStatus = status?.containerStatuses?.find(s => s.name === container.name);
@@ -35,11 +34,15 @@ function getPodContainers(resource: KubernetesResource): ContainerInfo[] {
       });
     }
   }
-  
+
   return containers;
 }
 
-export function TerminalViewer({
+function getResourceKey(context: string, resource: KubernetesResource): string {
+  return `${context}/${resource.metadata?.namespace ?? ''}/${resource.metadata?.name ?? ''}`;
+}
+
+function TerminalViewerInner({
   context,
   resource,
   toolbarRef,
@@ -48,27 +51,24 @@ export function TerminalViewer({
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const sessionRef = useRef<ExecSession | null>(null);
-  
+  const inputDisposableRef = useRef<IDisposable | null>(null);
+
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [selectedContainer, setSelectedContainer] = useState<string>('');
+  const [requestedContainer, setRequestedContainer] = useState<string | null>(null);
   const [showContainerDropdown, setShowContainerDropdown] = useState(false);
-  
+
   const namespace = resource.metadata?.namespace;
   const podName = resource.metadata?.name;
   const containers = getPodContainers(resource);
-  
-  // Initialize selected container
-  useEffect(() => {
-    if (containers.length > 0 && !selectedContainer) {
-      setSelectedContainer(containers[0].name);
-    }
-  }, [containers, selectedContainer]);
-  
-  // Initialize xterm
+
+  const selectedContainer = requestedContainer && containers.some(c => c.name === requestedContainer)
+    ? requestedContainer
+    : containers[0]?.name ?? '';
+
   useEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
-    
+
     const xterm = new XTerm({
       cursorBlink: true,
       fontSize: 13,
@@ -98,138 +98,130 @@ export function TerminalViewer({
       },
       allowProposedApi: true,
     });
-    
+
     const fitAddon = new FitAddon();
     const webLinksAddon = new WebLinksAddon();
-    
+
     xterm.loadAddon(fitAddon);
     xterm.loadAddon(webLinksAddon);
-    
+
     xterm.open(terminalRef.current);
     fitAddon.fit();
-    
+
     xtermRef.current = xterm;
     fitAddonRef.current = fitAddon;
-    
-    // Handle resize
+
     const handleResize = () => {
       fitAddon.fit();
       if (sessionRef.current?.isConnected) {
         sessionRef.current.resize(xterm.cols, xterm.rows);
       }
     };
-    
+
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(terminalRef.current);
     window.addEventListener('resize', handleResize);
-    
+
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
+      inputDisposableRef.current?.dispose();
+      inputDisposableRef.current = null;
       xterm.dispose();
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
   }, []);
-  
-  // Connect to the pod
-  const connect = useCallback(async () => {
-    if (!namespace || !podName || !selectedContainer || !xtermRef.current) return;
-    
-    // Disconnect existing session
-    sessionRef.current?.disconnect();
-    
-    setIsConnecting(true);
-    
+
+  useEffect(() => {
+    if (!namespace || !podName || !selectedContainer) return;
     const xterm = xtermRef.current;
+    if (!xterm) return;
+
+    let cancelled = false;
+
+    sessionRef.current?.disconnect();
+    sessionRef.current = null;
+    inputDisposableRef.current?.dispose();
+    inputDisposableRef.current = null;
+
+    setIsConnecting(true);
+    setIsConnected(false);
     xterm.clear();
     xterm.writeln(`Connecting to ${podName}/${selectedContainer}...`);
     xterm.writeln('');
-    
-    try {
-      const session = new ExecSession({
-        context,
-        namespace,
-        pod: podName,
-        container: selectedContainer,
-        onData: (data) => {
-          xterm.write(data);
-        },
-        onError: (err) => {
-          xterm.writeln(`\r\n\x1b[31mError: ${err}\x1b[0m`);
-        },
-        onClose: () => {
-          setIsConnected(false);
-          xterm.writeln('\r\n\x1b[33mConnection closed.\x1b[0m');
-        },
-      });
-      
-      await session.connect();
-      sessionRef.current = session;
-      setIsConnected(true);
-      
-      // Send initial terminal size
-      const fitAddon = fitAddonRef.current;
-      if (fitAddon) {
-        fitAddon.fit();
-        session.resize(xterm.cols, xterm.rows);
+
+    const session = new ExecSession({
+      context,
+      namespace,
+      pod: podName,
+      container: selectedContainer,
+      onData: (data) => {
+        if (cancelled) return;
+        xterm.write(data);
+      },
+      onError: (err) => {
+        if (cancelled) return;
+        xterm.writeln(`\r\n\x1b[31mError: ${err}\x1b[0m`);
+      },
+      onClose: () => {
+        if (cancelled) return;
+        setIsConnected(false);
+        xterm.writeln('\r\n\x1b[33mConnection closed.\x1b[0m');
+      },
+    });
+
+    (async () => {
+      try {
+        await session.connect();
+        if (cancelled) {
+          session.disconnect();
+          return;
+        }
+        sessionRef.current = session;
+        setIsConnected(true);
+
+        const fitAddon = fitAddonRef.current;
+        if (fitAddon) {
+          fitAddon.fit();
+          session.resize(xterm.cols, xterm.rows);
+        }
+
+        inputDisposableRef.current = xterm.onData((data: string) => {
+          session.send(data);
+        });
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : 'Failed to connect';
+        xterm.writeln(`\r\n\x1b[31mFailed to connect: ${message}\x1b[0m`);
+      } finally {
+        if (!cancelled) {
+          setIsConnecting(false);
+        }
       }
-      
-      // Handle user input
-      xterm.onData((data: string) => {
-        session.send(data);
-      });
-      
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to connect';
-      xterm.writeln(`\r\n\x1b[31mFailed to connect: ${message}\x1b[0m`);
-    } finally {
-      setIsConnecting(false);
-    }
-  }, [context, namespace, podName, selectedContainer]);
-  
-  // Disconnect from the pod
-  const disconnect = useCallback(() => {
-    sessionRef.current?.disconnect();
-    sessionRef.current = null;
-    setIsConnected(false);
-  }, []);
-  
-  // Auto-connect when container is selected
-  const hasAutoConnected = useRef(false);
-  useEffect(() => {
-    if (selectedContainer && !hasAutoConnected.current && xtermRef.current) {
-      hasAutoConnected.current = true;
-      // Small delay to ensure terminal is ready
-      const timer = setTimeout(() => {
-        connect();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedContainer, connect]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
+    })();
+
     return () => {
-      sessionRef.current?.disconnect();
-      sessionRef.current = null;
+      cancelled = true;
+      session.disconnect();
+      if (sessionRef.current === session) {
+        sessionRef.current = null;
+      }
+      inputDisposableRef.current?.dispose();
+      inputDisposableRef.current = null;
     };
-  }, []);
-  
-  // Handle container change
+  }, [context, namespace, podName, selectedContainer]);
+
   const handleContainerChange = (containerName: string) => {
-    setSelectedContainer(containerName);
     setShowContainerDropdown(false);
-    // Disconnect current session, will auto-reconnect via useEffect
-    disconnect();
+    if (containerName === selectedContainer) return;
+    setRequestedContainer(containerName);
   };
 
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a]">
-      {/* Toolbar actions rendered via portal to parent */}
       {toolbarRef && (
         <ToolbarPortal toolbarRef={toolbarRef}>
-          {/* Container selector */}
           {containers.length > 1 && (
             <div className="relative">
               <button
@@ -239,7 +231,7 @@ export function TerminalViewer({
                 <span className="max-w-30 truncate" title={selectedContainer}>{selectedContainer}</span>
                 <ChevronDown size={12} />
               </button>
-              
+
               {showContainerDropdown && (
                 <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 min-w-40">
                   {containers.map((container) => (
@@ -260,19 +252,15 @@ export function TerminalViewer({
               )}
             </div>
           )}
-          
-
         </ToolbarPortal>
       )}
 
-      {/* Terminal container */}
-      <div 
+      <div
         ref={terminalRef}
         className="flex-1 p-2"
         style={{ minHeight: 0 }}
       />
 
-      {/* Status bar */}
       <div className="shrink-0 px-4 py-1.5 border-t border-neutral-800 bg-neutral-900/50 flex items-center gap-3 text-xs text-neutral-500">
         <span className="flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : isConnecting ? 'bg-amber-500 animate-pulse' : 'bg-neutral-600'}`} />
@@ -285,5 +273,14 @@ export function TerminalViewer({
         )}
       </div>
     </div>
+  );
+}
+
+export function TerminalViewer(props: TerminalViewerProps) {
+  return (
+    <TerminalViewerInner
+      key={getResourceKey(props.context, props.resource)}
+      {...props}
+    />
   );
 }

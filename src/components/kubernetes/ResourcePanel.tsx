@@ -198,48 +198,66 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   const hasMetadata = filteredLabelsCount > 0 || filteredAnnotationsCount > 0;
   const hasEvents = events.length > 0;
 
-  // Helper to check if a tab is available
-  const isTabAvailable = useCallback((tab: TabType): boolean => {
-    switch (tab) {
-      case 'overview': return hasCustomAdapter;
-      case 'metadata': return hasMetadata;
-      case 'yaml': return true;
-      case 'events': return hasEvents;
-      case 'logs': return supportsLogs;
-      case 'terminal': return supportsTerminal;
-      default: return false;
-    }
-  }, [hasCustomAdapter, hasMetadata, hasEvents, supportsLogs, supportsTerminal]);
-
-  // Determine default tab
-  const getDefaultTab = useCallback((): TabType => {
-    return hasCustomAdapter ? 'overview' : 'yaml';
-  }, [hasCustomAdapter]);
-
-  // Sync tab from URL or set default when resource changes
+  // Stable ref for onTabChange so effects below depend only on primitives
+  const onTabChangeRef = useRef(onTabChange);
   useEffect(() => {
-    if (urlTab && isTabAvailable(urlTab)) {
-      // URL tab is valid, use it
+    onTabChangeRef.current = onTabChange;
+  }, [onTabChange]);
+
+  // Tracks the resource identity the tab-sync effect last reconciled for.
+  // We only auto-fall-back to the default tab when the resource ITSELF
+  // changes (or when the URL tab string changes). If the user is actively
+  // viewing this resource and a capability flag flips off (e.g. last event
+  // expires), we leave their active tab alone — they can click another tab
+  // to recover. Otherwise they'd be silently bumped mid-read.
+  const tabSyncIdentityRef = useRef<string | null>(null);
+  const resourceIdentity = `${resourceId?.kind ?? ''}/${resourceId?.namespace ?? ''}/${resourceId?.name ?? ''}`;
+
+  useEffect(() => {
+    const isAvailable = (tab: TabType): boolean => {
+      switch (tab) {
+        case 'overview': return hasCustomAdapter;
+        case 'metadata': return hasMetadata;
+        case 'yaml': return true;
+        case 'events': return hasEvents;
+        case 'logs': return supportsLogs;
+        case 'terminal': return supportsTerminal;
+        default: return false;
+      }
+    };
+    const defaultTab: TabType = hasCustomAdapter ? 'overview' : 'yaml';
+    const isResourceChange = tabSyncIdentityRef.current !== resourceIdentity;
+    tabSyncIdentityRef.current = resourceIdentity;
+
+    if (urlTab && isAvailable(urlTab)) {
       setActiveTabState(urlTab);
-    } else if (urlTab) {
-      // URL tab is not available, fall back and update URL
-      const fallback = getDefaultTab();
-      setActiveTabState(fallback);
-      onTabChange?.(fallback);
-    } else {
-      // No URL tab, use default
-      setActiveTabState(getDefaultTab());
+      return;
     }
-  }, [resourceId?.kind, resourceId?.name, resourceId?.namespace, urlTab, isTabAvailable, getDefaultTab, onTabChange]);
 
-  // Re-validate active tab when data changes (e.g., events load, metadata changes)
-  useEffect(() => {
-    if (!isTabAvailable(activeTab)) {
-      const fallback = getDefaultTab();
-      setActiveTabState(fallback);
-      onTabChange?.(fallback);
+    if (urlTab) {
+      // URL points at a tab that doesn't exist for this resource.
+      // Fall back only when we just navigated to this resource — otherwise
+      // a transient capability flip would yank the user off their tab.
+      if (isResourceChange) {
+        setActiveTabState(defaultTab);
+        onTabChangeRef.current?.(defaultTab);
+      }
+      return;
     }
-  }, [activeTab, isTabAvailable, getDefaultTab, onTabChange]);
+
+    // No URL tab — seed the default on resource change only.
+    if (isResourceChange) {
+      setActiveTabState(defaultTab);
+    }
+  }, [
+    resourceIdentity,
+    urlTab,
+    hasCustomAdapter,
+    hasMetadata,
+    hasEvents,
+    supportsLogs,
+    supportsTerminal,
+  ]);
 
   if (!isOpen || !resourceId || !resourceId.name) return null;
 

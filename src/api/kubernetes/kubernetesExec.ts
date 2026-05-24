@@ -34,13 +34,20 @@ export class ExecSession {
   // Try to connect with different shells until one works
   async connect(): Promise<void> {
     const shells = this.options.command || DEFAULT_SHELLS;
-    
+
     for (const shell of shells) {
+      if (this.isClosing) return;
       try {
         await this.tryConnect([shell]);
+        if (this.isClosing) {
+          this.ws?.close();
+          this.ws = null;
+          return;
+        }
         this.hasConnected = true; // Mark as connected only after successful shell
         return; // Success!
       } catch {
+        if (this.isClosing) return;
         // If this is the last shell, throw the error
         if (shell === shells[shells.length - 1]) {
           throw new Error(`No shell available (tried: ${shells.join(', ')})`);
@@ -89,7 +96,14 @@ export class ExecSession {
         // Don't resolve immediately - wait for first data or a short delay
         // to confirm the shell actually started
         setTimeout(() => {
-          if (!resolved && this.ws?.readyState === WebSocket.OPEN) {
+          if (resolved) return;
+          if (this.isClosing) {
+            clearTimeout(connectionTimeout);
+            resolved = true;
+            reject(new Error('Connection cancelled'));
+            return;
+          }
+          if (this.ws?.readyState === WebSocket.OPEN) {
             clearTimeout(connectionTimeout);
             resolved = true;
             resolve();
