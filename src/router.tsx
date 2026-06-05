@@ -16,19 +16,16 @@ import { ClusterLayout } from './components/kubernetes/ClusterLayout';
 import { DockerLayout } from './components/docker/DockerLayout';
 import { WelcomePage } from './components/WelcomePage';
 
-// Search params schema for cluster routes
 const clusterSearchSchema = z.object({
   namespace: z.string().optional(),
   tab: z.enum(['overview', 'metadata', 'yaml', 'events', 'logs', 'terminal']).optional(),
 });
 
-// Search params schema for docker routes  
 const dockerSearchSchema = z.object({});
 
 export type ClusterSearch = z.infer<typeof clusterSearchSchema>;
 export type DockerSearch = z.infer<typeof dockerSearchSchema>;
 
-// Root layout - wraps with providers
 const rootRoute = createRootRoute({
   component: () => (
     <QueryClientProvider client={queryClient}>
@@ -37,14 +34,12 @@ const rootRoute = createRootRoute({
   ),
 });
 
-// Welcome page (root) - shows logo and quick access to contexts
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: WelcomePage,
 });
 
-// Cluster (Kubernetes) routes
 const clusterRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'cluster/$context',
@@ -74,7 +69,6 @@ const clusterResourceDetailRoute = createRoute({
   path: '$name',
 });
 
-// Docker routes
 const dockerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'docker/$context',
@@ -104,7 +98,6 @@ const dockerResourceDetailRoute = createRoute({
   path: '$name',
 });
 
-// Route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   clusterRoute.addChildren([
@@ -121,23 +114,19 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-// Create router
 export const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
 });
 
-// Type registration for type-safe navigation
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router;
   }
 }
 
-// Re-export hooks for convenience
 export { useNavigate, useParams, useSearch };
 
-// Route exports for component use
 export {
   clusterRoute,
   clusterIndexRoute,

@@ -29,7 +29,6 @@ export function DockerLayout() {
   
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  // Chat panel state - persists across resource switches
   const { isOpen: isPanelOpen, toggle: togglePanel, close: closePanel } = usePanels();
   const isChatPanelOpen = isPanelOpen('ai');
   const toggleChatPanel = useCallback(() => togglePanel('ai'), [togglePanel]);
@@ -40,11 +39,9 @@ export function DockerLayout() {
 
   const isWelcome = !resourceType;
 
-  // Validate and normalize resource type
-  const currentResourceType: DockerResourceType | null = 
+  const currentResourceType: DockerResourceType | null =
     resourceType && isValidResourceType(resourceType) ? resourceType : null;
 
-  // Navigation helpers
   const setContext = useCallback((newContext: string) => {
     if (currentResourceType) {
       navigate({
@@ -88,12 +85,10 @@ export function DockerLayout() {
     });
   }, [navigate]);
 
-  // Close command palette handler
   const closeCommandPalette = useCallback(() => {
     setIsCommandPaletteOpen(false);
   }, []);
 
-  // Navigate to a specific resource item from command palette
   const navigateToItem = useCallback((resourceType: DockerResourceType, itemId: string) => {
     navigate({
       to: '/docker/$context/$resourceType/$name',
@@ -101,7 +96,6 @@ export function DockerLayout() {
     });
   }, [context, navigate]);
 
-  // Command palette adapter
   const commandPaletteAdapter = useMemo(() => {
     return createDockerAdapter({
       context: context || '',
@@ -111,7 +105,6 @@ export function DockerLayout() {
     });
   }, [context, setResource, navigateToItem, closeCommandPalette]);
 
-  // Global keyboard shortcut for command palette
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -123,13 +116,11 @@ export function DockerLayout() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Environment info for AI chat - updates when resource type or context changes
   const chatEnvironment = useMemo((): DockerEnvironment => ({
     context: context || '',
     selectedResourceType: currentResourceType || undefined,
   }), [context, currentResourceType]);
 
-  // Create tools for the current environment
   const chatTools = useMemo(() => createDockerTools(chatEnvironment), [chatEnvironment]);
 
   return (
@@ -155,10 +146,8 @@ export function DockerLayout() {
         </aside>
       </div>
 
-      {/* Main content */}
       {isWelcome ? (
         <main className="flex-1 flex flex-col h-full min-w-0 items-center justify-center relative">
-          {/* Header actions for welcome page */}
           <div className="absolute top-0 right-0 h-14 flex items-center gap-2 px-5 mt-2">
             <button
               onClick={() => setIsCommandPaletteOpen(true)}
@@ -207,9 +196,6 @@ export function DockerLayout() {
         adapter={commandPaletteAdapter}
       />
 
-      {/* AI Chat Panel - persists across resource switches.
-          Keyed on context so switching contexts tears down the prior
-          useChat subscription (and any in-flight token stream) cleanly. */}
       {config.ai && (
         <ChatPanel
           key={`${dockerAdapterConfig.id}/${context}`}
