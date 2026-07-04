@@ -46,7 +46,9 @@ function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource
 }
 
 export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false, resource: resourceId, tab: urlTab, onTabChange }: ResourcePanelProps) {
-  const [activeTab, setActiveTabState] = useState<TabType>('yaml');
+  // Fallback tab state for callers that don't sync the tab to the URL.
+  // When onTabChange is provided, the URL (urlTab) is the source of truth.
+  const [localTab, setLocalTab] = useState<TabType | undefined>(undefined);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
@@ -166,7 +168,7 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
 
   // Wrapper to update both local state and URL
   const setActiveTab = useCallback((tab: TabType) => {
-    setActiveTabState(tab);
+    setLocalTab(tab);
     onTabChange?.(tab);
   }, [onTabChange]);
 
@@ -189,17 +191,44 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   const rawMetadata = fullObject?.metadata as Record<string, unknown> | undefined;
   const rawLabels = rawMetadata?.labels as Record<string, string> | undefined;
   const rawAnnotations = rawMetadata?.annotations as Record<string, string> | undefined;
-  const filteredLabelsCount = rawLabels 
-    ? Object.keys(rawLabels).filter(key => !hiddenLabels.has(key)).length 
+  const filteredLabelsCount = rawLabels
+    ? Object.keys(rawLabels).filter(key => !hiddenLabels.has(key)).length
     : 0;
-  const filteredAnnotationsCount = rawAnnotations 
-    ? Object.keys(rawAnnotations).filter(key => !hiddenAnnotations.has(key)).length 
+  const filteredAnnotationsCount = rawAnnotations
+    ? Object.keys(rawAnnotations).filter(key => !hiddenAnnotations.has(key)).length
     : 0;
-  const hasMetadata = filteredLabelsCount > 0 || filteredAnnotationsCount > 0;
-  const hasEvents = events.length > 0;
+  const hasMetadataNow = filteredLabelsCount > 0 || filteredAnnotationsCount > 0;
+  const hasEventsNow = events.length > 0;
 
-  // Helper to check if a tab is available
-  const isTabAvailable = useCallback((tab: TabType): boolean => {
+  // Sticky per-resource capability flags. Once metadata/events have been seen
+  // for this resource, their tabs stay available even if a background refetch
+  // briefly (or permanently, e.g. events expiring) drops them — otherwise the
+  // user would be yanked off the tab they are reading. Reset when the resource
+  // itself changes, via state adjustment during render (not an effect).
+  const resourceIdentity = `${resourceId?.kind ?? ''}/${resourceId?.namespace ?? ''}/${resourceId?.name ?? ''}`;
+  const [caps, setCaps] = useState({ identity: resourceIdentity, sawMetadata: false, sawEvents: false });
+  if (caps.identity !== resourceIdentity) {
+    setCaps({ identity: resourceIdentity, sawMetadata: false, sawEvents: false });
+    setLocalTab(undefined);
+  } else if ((hasMetadataNow && !caps.sawMetadata) || (hasEventsNow && !caps.sawEvents)) {
+    setCaps({
+      identity: resourceIdentity,
+      sawMetadata: caps.sawMetadata || hasMetadataNow,
+      sawEvents: caps.sawEvents || hasEventsNow,
+    });
+  }
+  const sameResource = caps.identity === resourceIdentity;
+  const hasMetadata = hasMetadataNow || (sameResource && caps.sawMetadata);
+  const hasEvents = hasEventsNow || (sameResource && caps.sawEvents);
+
+  // Derive the active tab. The requested tab (URL or local fallback) wins when
+  // it is available. While the resource/events queries are still loading we
+  // honor the request optimistically so deep links like ?tab=events survive a
+  // page reload instead of being reset before the data arrives; only once the
+  // queries have settled do we fall back to the default tab.
+  const defaultTab: TabType = hasCustomAdapter ? 'overview' : 'yaml';
+  const requestedTab = onTabChange ? urlTab : localTab;
+  const isTabAvailable = (tab: TabType): boolean => {
     switch (tab) {
       case 'overview': return hasCustomAdapter;
       case 'metadata': return hasMetadata;
@@ -209,37 +238,13 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
       case 'terminal': return supportsTerminal;
       default: return false;
     }
-  }, [hasCustomAdapter, hasMetadata, hasEvents, supportsLogs, supportsTerminal]);
-
-  // Determine default tab
-  const getDefaultTab = useCallback((): TabType => {
-    return hasCustomAdapter ? 'overview' : 'yaml';
-  }, [hasCustomAdapter]);
-
-  // Sync tab from URL or set default when resource changes
-  useEffect(() => {
-    if (urlTab && isTabAvailable(urlTab)) {
-      // URL tab is valid, use it
-      setActiveTabState(urlTab);
-    } else if (urlTab) {
-      // URL tab is not available, fall back and update URL
-      const fallback = getDefaultTab();
-      setActiveTabState(fallback);
-      onTabChange?.(fallback);
-    } else {
-      // No URL tab, use default
-      setActiveTabState(getDefaultTab());
-    }
-  }, [resourceId?.kind, resourceId?.name, resourceId?.namespace, urlTab, isTabAvailable, getDefaultTab, onTabChange]);
-
-  // Re-validate active tab when data changes (e.g., events load, metadata changes)
-  useEffect(() => {
-    if (!isTabAvailable(activeTab)) {
-      const fallback = getDefaultTab();
-      setActiveTabState(fallback);
-      onTabChange?.(fallback);
-    }
-  }, [activeTab, isTabAvailable, getDefaultTab, onTabChange]);
+  };
+  // Data-dependent tabs may still prove available while their query loads.
+  const isTabPending = (tab: TabType): boolean =>
+    (tab === 'metadata' && loading) || (tab === 'events' && eventsLoading);
+  const activeTab: TabType = requestedTab
+    ? (isTabAvailable(requestedTab) || isTabPending(requestedTab) ? requestedTab : defaultTab)
+    : defaultTab;
 
   if (!isOpen || !resourceId || !resourceId.name) return null;
 
@@ -312,7 +317,7 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
           >
             Manifest
           </button>
-          {events.length > 0 && (
+          {hasEvents && (
             <button
               onClick={() => setActiveTab('events')}
               className={`px-4 py-2.5 text-sm font-medium transition-colors ${
@@ -495,6 +500,9 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                // An empty number field must not coerce to 0 (e.g. silently
+                // scaling a workload to zero) — block submit instead.
+                if (inputAction.input?.type === 'number' && typeof inputValues.value !== 'number') return;
                 executeAction(inputAction, inputValues);
               }}
               className="space-y-3"
@@ -507,9 +515,11 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                   type={inputAction.input?.type}
                   value={inputValues.value ?? ''}
                   onChange={(e) => {
-                    const value = inputAction.input?.type === 'number' 
-                      ? parseInt(e.target.value, 10) || 0
-                      : e.target.value;
+                    let value: string | number = e.target.value;
+                    if (inputAction.input?.type === 'number') {
+                      const parsed = parseInt(e.target.value, 10);
+                      value = Number.isNaN(parsed) ? '' : parsed;
+                    }
                     setInputValues({ value });
                   }}
                   min={inputAction.input?.min}

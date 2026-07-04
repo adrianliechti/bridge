@@ -5,7 +5,7 @@
 const CHANNEL_STDIN = 0;
 const CHANNEL_STDOUT = 1;
 const CHANNEL_STDERR = 2;
-// const CHANNEL_ERROR = 3;
+const CHANNEL_ERROR = 3;
 const CHANNEL_RESIZE = 4;
 
 export interface ExecSessionOptions {
@@ -34,13 +34,20 @@ export class ExecSession {
   // Try to connect with different shells until one works
   async connect(): Promise<void> {
     const shells = this.options.command || DEFAULT_SHELLS;
-    
+
     for (const shell of shells) {
+      if (this.isClosing) return;
       try {
         await this.tryConnect([shell]);
+        if (this.isClosing) {
+          this.ws?.close();
+          this.ws = null;
+          return;
+        }
         this.hasConnected = true; // Mark as connected only after successful shell
         return; // Success!
       } catch {
+        if (this.isClosing) return;
         // If this is the last shell, throw the error
         if (shell === shells[shells.length - 1]) {
           throw new Error(`No shell available (tried: ${shells.join(', ')})`);
@@ -89,7 +96,14 @@ export class ExecSession {
         // Don't resolve immediately - wait for first data or a short delay
         // to confirm the shell actually started
         setTimeout(() => {
-          if (!resolved && this.ws?.readyState === WebSocket.OPEN) {
+          if (resolved) return;
+          if (this.isClosing) {
+            clearTimeout(connectionTimeout);
+            resolved = true;
+            reject(new Error('Connection cancelled'));
+            return;
+          }
+          if (this.ws?.readyState === WebSocket.OPEN) {
             clearTimeout(connectionTimeout);
             resolved = true;
             resolve();
@@ -101,10 +115,10 @@ export class ExecSession {
         if (event.data instanceof ArrayBuffer) {
           const data = new Uint8Array(event.data);
           if (data.length < 1) return;
-          
+
           const channel = data[0];
           const content = new TextDecoder().decode(data.slice(1));
-          
+
           switch (channel) {
             case CHANNEL_STDOUT:
             case CHANNEL_STDERR:
@@ -112,14 +126,41 @@ export class ExecSession {
                 this.options.onData(content);
               }
               break;
+            case CHANNEL_ERROR: {
+              // The error channel carries a metav1.Status JSON payload, e.g.
+              // "executable file not found" when the requested shell doesn't
+              // exist. Before the connection resolves this must reject so the
+              // shell fallback (/bin/bash → /bin/sh) actually happens —
+              // otherwise the 200ms onopen heuristic can declare a dead shell
+              // "connected". After resolving, surface failures to the caller.
+              if (!content) break;
+              let failureMessage: string | null = content;
+              try {
+                const status = JSON.parse(content) as { status?: string; message?: string };
+                failureMessage = status.status === 'Success' ? null : (status.message || content);
+              } catch {
+                // Not JSON — treat the raw text as the failure message.
+              }
+              if (!failureMessage) break;
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(connectionTimeout);
+                this.ws?.close();
+                reject(new Error(failureMessage));
+              } else if (!this.isClosing) {
+                this.options.onError?.(failureMessage);
+              }
+              break;
+            }
           }
         }
       };
-      
+
       this.ws.onerror = () => {
         clearTimeout(connectionTimeout);
         if (!resolved) {
           resolved = true;
+          this.ws?.close();
           reject(new Error('WebSocket connection failed'));
         }
       };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
-import type { CommandPaletteAdapter, SearchResult, ParsedQuery } from '../types/commandPalette';
+import type { CommandPaletteAdapter, SearchResult, ParsedQuery, ResourceTypeItem } from '../types/commandPalette';
 
 // Normalize string for fuzzy matching (remove hyphens, underscores, dots)
 function normalizeForSearch(str: string): string {
@@ -24,18 +24,30 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   // Track pre-completion input for escape revert behavior
   const [preCompletionInput, setPreCompletionInput] = useState<string | null>(null);
   
-  // Track adapter.id and isOpen in state to detect changes during render
-  const [trackedAdapterId, setTrackedAdapterId] = useState(adapter.id);
+  // Track the adapter and isOpen in state to detect changes during render
+  const [trackedAdapter, setTrackedAdapter] = useState(adapter);
   const [wasOpen, setWasOpen] = useState(false);
-  
+
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Detect adapter change during render and reset initialization state
-  if (adapter.id !== trackedAdapterId) {
-    setTrackedAdapterId(adapter.id);
+  // Resource types for browse mode, captured in state when the adapter
+  // finishes initializing. getAvailableResourceTypes() reads the adapter's
+  // mutable internals, so its result must be snapshotted at a known-good
+  // moment rather than derived in a memo — a memo can cache a pre-init
+  // (empty) snapshot against deps that never change again.
+  const [availableResourceTypes, setAvailableResourceTypes] = useState<ResourceTypeItem[]>([]);
+
+  // Detect adapter change during render and reset initialization state.
+  // Compare by object identity, not adapter.id: the layouts recreate the
+  // adapter (same id, empty caches) whenever context/namespace changes, and
+  // missing that swap here leaves the resource-type browse list permanently
+  // empty after the first switch.
+  if (adapter !== trackedAdapter) {
+    setTrackedAdapter(adapter);
     setIsInitialized(false);
+    setAvailableResourceTypes([]);
   }
 
   // Initialize adapter when it changes
@@ -44,6 +56,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     adapter.initialize().then(() => {
       if (!cancelled) {
         setIsInitialized(true);
+        setAvailableResourceTypes(adapter.getAvailableResourceTypes());
       }
     });
     return () => {
@@ -57,6 +70,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     setQuery('');
     setFocusedIndex(0);
     setAsyncResults([]);
+    setIsSearching(false);
     setPreCompletionInput(null);
   } else if (!isOpen && wasOpen) {
     setWasOpen(false);
@@ -146,12 +160,6 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
 
   const { mode: searchMode, resourceKind, query: searchQuery, allNamespaces } = parsedQuery;
 
-  // Get available resource types from adapter
-  const availableResourceTypes = useMemo(() => {
-    if (!isInitialized) return [];
-    return adapter.getAvailableResourceTypes();
-  }, [adapter, isInitialized]);
-
   // Filter resource types (synchronous) - includes matching by aliases
   const filteredResourceTypes = useMemo(() => {
     const q = normalizeForSearch(searchQuery);
@@ -238,10 +246,16 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
       clearTimeout(searchTimeoutRef.current);
     }
 
+    // Ignore results from a superseded query: the cleanup only clears the
+    // debounce timer, so an in-flight searchResources from a previous query
+    // could otherwise resolve late and overwrite the newer results.
+    let cancelled = false;
+
     if (shouldStartSearching) {
       // isSearching is set during render, not here
       searchTimeoutRef.current = setTimeout(async () => {
         const results = await adapter.searchResources(searchQuery, allNamespaces, resourceKind);
+        if (cancelled) return;
         setAsyncResults(results);
         setFocusedIndex(0);
         setIsSearching(false);
@@ -249,6 +263,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     }
 
     return () => {
+      cancelled = true;
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -265,6 +280,13 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
 
   // Handle selection
   const handleSelect = useCallback((result: SearchResult) => {
+    // Virtual "Contexts" type (no backing resource config): selecting it
+    // enters context-search mode instead of navigating, same as typing :ctx.
+    // The adapter's handleSelect can't do this — it has no access to the query.
+    if (result.type === 'resource-type' && result.data?.kind === 'contexts' && !result.data?.resourceConfig) {
+      setQuery(':ctx ');
+      return;
+    }
     adapter.handleSelect(result);
   }, [adapter]);
 

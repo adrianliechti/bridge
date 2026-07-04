@@ -220,9 +220,18 @@ export async function streamContainerLogs(
   }
 
   const decoder = new TextDecoder();
-  let buffer: number[] = [];
+  let buffer = new Uint8Array(0);
   let textBuffer = '';
   let isMultiplexed: boolean | null = null; // null = unknown, true = multiplexed, false = raw
+
+  // Concatenate chunks without spreading bytes as arguments — large chunks
+  // spread into push() overflow the engine's argument limit (RangeError).
+  const appendToBuffer = (chunk: Uint8Array) => {
+    const next = new Uint8Array(buffer.length + chunk.length);
+    next.set(buffer);
+    next.set(chunk, buffer.length);
+    buffer = next;
+  };
 
   // Process text into lines
   const processText = (text: string) => {
@@ -253,12 +262,9 @@ export async function streamContainerLogs(
         break; // Wait for more data
       }
 
-      // Extract payload
-      const payload = new Uint8Array(buffer.slice(8, 8 + size));
+      // Extract and decode payload, then drop the consumed frame
+      const text = decoder.decode(buffer.subarray(8, 8 + size), { stream: true });
       buffer = buffer.slice(8 + size);
-
-      // Decode and process
-      const text = decoder.decode(payload, { stream: true });
       processText(text);
     }
   };
@@ -267,28 +273,39 @@ export async function streamContainerLogs(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      if (value.length === 0) continue;
 
-      // Detect stream format on first chunk
-      if (isMultiplexed === null && value.length > 0) {
-        // Docker multiplexed streams start with stream type byte (0, 1, or 2)
-        // followed by 3 zero bytes. If first byte is > 2 or bytes 1-3 aren't zero,
-        // it's likely raw text (TTY mode)
-        const firstByte = value[0];
-        if (value.length >= 4 && firstByte <= 2 && value[1] === 0 && value[2] === 0 && value[3] === 0) {
-          isMultiplexed = true;
+      // Detect stream format once we have at least 4 bytes. Docker multiplexed
+      // streams start with a stream type byte (0, 1, or 2) followed by 3 zero
+      // bytes; raw text (TTY mode) doesn't. Deciding on a first chunk shorter
+      // than 4 bytes would permanently misclassify a multiplexed stream as raw,
+      // so accumulate until the header is decidable.
+      if (isMultiplexed === null) {
+        appendToBuffer(value);
+        if (buffer.length < 4) continue;
+        isMultiplexed = buffer[0] <= 2 && buffer[1] === 0 && buffer[2] === 0 && buffer[3] === 0;
+        if (isMultiplexed) {
+          processMultiplexedStream();
         } else {
-          isMultiplexed = false;
+          const prelude = buffer;
+          buffer = new Uint8Array(0);
+          processRawStream(prelude);
         }
+        continue;
       }
 
       if (isMultiplexed) {
-        // Append new data to buffer for multiplexed processing
-        buffer.push(...value);
+        appendToBuffer(value);
         processMultiplexedStream();
       } else {
         // Process as raw text
         processRawStream(value);
       }
+    }
+
+    // Stream ended before the format was decidable (< 4 bytes total) — raw.
+    if (isMultiplexed === null && buffer.length > 0) {
+      processRawStream(buffer);
     }
 
     // Process remaining text buffer
@@ -665,12 +682,14 @@ export function dockerApplicationsToTable(applications: ComposeApplication[]): T
   ];
 
   const rows = applications.map(app => ({
+    // Numeric columns carry real numbers so table sorting is numeric,
+    // not lexicographic ("10" < "9").
     cells: [
       app.name,
-      app.services.length.toString(),
+      app.services.length,
       `${app.runningContainers}/${app.totalContainers}`,
-      app.networks.length.toString(),
-      app.volumes.length.toString(),
+      app.networks.length,
+      app.volumes.length,
     ],
     object: app,
   }));

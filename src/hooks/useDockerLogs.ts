@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { streamContainerLogs, type DockerContainer, formatContainerName } from '../api/docker/docker';
 import type { LogEntry } from '../components/sections/LogViewer';
 
@@ -43,8 +43,6 @@ export function useDockerLogs({
 }: UseDockerLogsOptions): UseDockerLogsResult {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const containerId = container.Id;
   const containerName = formatContainerName(container.Names ?? []);
@@ -56,8 +54,19 @@ export function useDockerLogs({
       return;
     }
 
+    let cancelled = false;
     const controller = new AbortController();
-    abortControllerRef.current = controller;
+
+    // Each (re)subscription requests the last `tailLines` again — start from a
+    // clean slate or the fresh tail would be appended onto the old history
+    // (e.g. after a context/tailLines change or a stop→start of the same
+    // container, where only this effect re-runs, not the component).
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setLogs([]);
+        setError(null);
+      }
+    });
 
     streamContainerLogs(
       context,
@@ -70,22 +79,24 @@ export function useDockerLogs({
         tail: tailLines,
       },
       (line) => {
+        if (cancelled) return;
         const parsed = parseLine(line);
-        const entry: LogEntry = {
+        setLogs(prev => [...prev, {
           timestamp: parsed.timestamp,
           message: parsed.message,
           source: containerName,
-        };
-        setLogs(prev => [...prev, entry]);
+        }]);
       },
       controller.signal
     ).catch((err) => {
+      if (cancelled) return;
       if (err.name !== 'AbortError') {
         setError(err.message);
       }
     });
 
     return () => {
+      cancelled = true;
       controller.abort();
     };
   }, [context, containerId, containerName, isRunning, tailLines]);

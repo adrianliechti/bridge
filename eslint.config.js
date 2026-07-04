@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // `app` contains the Wails desktop wrapper with generated bindings
+  globalIgnores(['dist', 'app']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

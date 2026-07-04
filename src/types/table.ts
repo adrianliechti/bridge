@@ -56,7 +56,13 @@ export function getObjectId(obj: any): string {
   if (obj?.Name) {
     return obj.Name;
   }
-  
+  // Compose applications use a lowercase `name`. Without this, they fall
+  // through to JSON.stringify, whose value changes whenever mutable fields
+  // (e.g. running container counts) change — breaking row selection identity.
+  if (obj?.name) {
+    return obj.name;
+  }
+
   return JSON.stringify(obj);
 }
 

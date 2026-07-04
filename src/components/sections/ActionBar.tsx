@@ -150,9 +150,19 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
                 {inputAction.input.description}
               </p>
             )}
+            {(() => {
+              const inputType = inputAction.input?.type;
+              const isNumeric = inputType === 'number' || inputType === 'slider';
+              const numericValue = typeof inputValues.value === 'number' ? inputValues.value : NaN;
+              // "slider" is not a valid <input type>; without special handling
+              // the browser falls back to a bare text box with no bounds, and
+              // an empty value would silently coerce to 0 (e.g. scale to 0).
+              const isValueValid = !isNumeric || Number.isFinite(numericValue);
+              return (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                if (!isValueValid) return;
                 executeAction(inputAction, inputValues);
               }}
               className="space-y-3"
@@ -161,21 +171,40 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
                 <label className="block text-xs text-neutral-400 mb-1">
                   {inputAction.input?.label}
                 </label>
-                <input
-                  type={inputAction.input?.type}
-                  value={inputValues.value ?? ''}
-                  onChange={(e) => {
-                    const value = inputAction.input?.type === 'number' 
-                      ? parseInt(e.target.value, 10) || 0
-                      : e.target.value;
-                    setInputValues({ value });
-                  }}
-                  min={inputAction.input?.min}
-                  max={inputAction.input?.max}
-                  placeholder={inputAction.input?.placeholder}
-                  className="w-full px-3 py-2 text-sm bg-neutral-900 border border-neutral-600 rounded text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
-                  autoFocus
-                />
+                {inputType === 'slider' ? (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={inputAction.input?.min ?? 0}
+                      max={inputAction.input?.max ?? 10}
+                      value={Number.isFinite(numericValue) ? numericValue : (inputAction.input?.min ?? 0)}
+                      onChange={(e) => setInputValues({ value: parseInt(e.target.value, 10) })}
+                      className="flex-1 h-1 bg-neutral-700 rounded-full appearance-none cursor-pointer accent-blue-500"
+                      autoFocus
+                    />
+                    <span className="text-sm font-medium text-neutral-200 w-8 text-center tabular-nums">
+                      {Number.isFinite(numericValue) ? numericValue : '–'}
+                    </span>
+                  </div>
+                ) : (
+                  <input
+                    type={inputType}
+                    value={inputValues.value ?? ''}
+                    onChange={(e) => {
+                      if (inputType === 'number') {
+                        const parsed = parseInt(e.target.value, 10);
+                        setInputValues({ value: Number.isNaN(parsed) ? '' : parsed });
+                      } else {
+                        setInputValues({ value: e.target.value });
+                      }
+                    }}
+                    min={inputAction.input?.min}
+                    max={inputAction.input?.max}
+                    placeholder={inputAction.input?.placeholder}
+                    className="w-full px-3 py-2 text-sm bg-neutral-900 border border-neutral-600 rounded text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                    autoFocus
+                  />
+                )}
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -190,11 +219,12 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
                 </button>
                 <button
                   type="submit"
-                  disabled={loadingAction === inputAction.id}
+                  disabled={loadingAction === inputAction.id || !isValueValid}
                   className={`
                     flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border
                     ${getVariantClasses(inputAction.variant)}
                     ${loadingAction === inputAction.id ? 'opacity-75' : ''}
+                    ${!isValueValid ? 'opacity-50 cursor-not-allowed' : ''}
                   `}
                 >
                   {loadingAction === inputAction.id && (
@@ -204,6 +234,8 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
                 </button>
               </div>
             </form>
+              );
+            })()}
           </div>
         </div>
       )}

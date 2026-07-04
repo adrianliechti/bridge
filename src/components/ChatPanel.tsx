@@ -32,21 +32,20 @@ export function ChatPanel<T extends ChatEnvironment>({
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  
-  // Track adapter + context changes to reset chat
-  const prevAdapterIdRef = useRef(adapterConfig.id);
-  const prevContextIdRef = useRef(contextId);
 
-  // Keep latest environment in a ref so the connection callback always reads
-  // the current value without causing connection recreation on every nav change.
+  // Latest environment/instructions/tools for the connection callback, so it
+  // always reads current values without recreating the connection on every
+  // nav change. Written in an effect (never during render); the callback only
+  // runs on user-initiated sends, which happen after the commit that
+  // refreshed the refs.
   const environmentRef = useRef(environment);
-  environmentRef.current = environment;
-
   const buildInstructionsRef = useRef(buildInstructions);
-  buildInstructionsRef.current = buildInstructions;
-
   const toolsRef = useRef(tools);
-  toolsRef.current = tools;
+  useEffect(() => {
+    environmentRef.current = environment;
+    buildInstructionsRef.current = buildInstructions;
+    toolsRef.current = tools;
+  });
 
   // Stable connection — only recreated when adapter or context changes,
   // NOT on every navigation/environment change.
@@ -54,6 +53,9 @@ export function ChatPanel<T extends ChatEnvironment>({
     const model = getConfiguredModel();
     const adapter = createChatAdapter(model);
 
+    // The refs below are only dereferenced when the user sends a message —
+    // never during render — so reading them inside this callback is safe.
+    // eslint-disable-next-line react-hooks/refs
     return stream((messages) => {
       const instructions = buildInstructionsRef.current(environmentRef.current as T);
       return chat({
@@ -68,21 +70,15 @@ export function ChatPanel<T extends ChatEnvironment>({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adapterConfig.id, contextId]);
 
-  const { messages, sendMessage, isLoading, stop, clear } = useChat({
+  // Keying the chat client by adapter + context makes useChat rebuild it (and
+  // start with a fresh message list) whenever either changes — the client
+  // reads `connection` only at construction time, and the old client is
+  // stopped and disposed by useChat's own cleanup.
+  const { messages, sendMessage, isLoading, stop, clear, error } = useChat({
+    id: `${adapterConfig.id}/${contextId ?? ''}`,
     connection,
     tools,
   });
-
-  // Reset chat when adapter or context changes
-  useEffect(() => {
-    const adapterChanged = prevAdapterIdRef.current !== adapterConfig.id;
-    const contextChanged = prevContextIdRef.current !== contextId;
-    if (adapterChanged || contextChanged) {
-      clear();
-      prevAdapterIdRef.current = adapterConfig.id;
-      prevContextIdRef.current = contextId;
-    }
-  }, [adapterConfig.id, contextId, clear]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -202,6 +198,13 @@ export function ChatPanel<T extends ChatEnvironment>({
           );
         })}
         
+        {/* Stream/connection errors (e.g. AI backend unreachable) */}
+        {error && !isLoading && (
+          <div className="text-xs text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
+            {error.message || 'The assistant request failed. Please try again.'}
+          </div>
+        )}
+
         {/* Loading indicator when no assistant message yet */}
         {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === 'user') && (
           <div className="text-sm">

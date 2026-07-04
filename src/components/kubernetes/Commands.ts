@@ -2,7 +2,7 @@ import {
   MonitorCog,
   FolderOpen,
 } from 'lucide-react';
-import { getResourceConfig, discoverResources } from '../../api/kubernetes/kubernetesDiscovery';
+import { getResourceConfig, discoverResources, getResourceTypeSlug } from '../../api/kubernetes/kubernetesDiscovery';
 import { getResourceTable, type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import type {
   CommandPaletteAdapter,
@@ -156,10 +156,12 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
     },
 
     getAvailableResourceTypes(): ResourceTypeItem[] {
-      // Include all types that have API resources, plus virtual types like contexts
-      return resourceTypeItems.filter(rt => 
-        resourceConfigCache.has(rt.kind) || rt.kind === 'contexts'
-      );
+      // Include all types that have API resources, plus virtual types like
+      // contexts (which live outside resourceTypeItems and have no config)
+      return [
+        ...resourceTypeItems.filter(rt => resourceConfigCache.has(rt.kind)),
+        ...commandPaletteVirtualResources,
+      ];
     },
 
     getNamespaces(): NamespaceItem[] {
@@ -327,15 +329,13 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
         const config = result.data.resourceConfig as V1APIResource | undefined;
         const resourceNamespace = result.data.namespace as string | undefined;
         const resourceName = result.data.resourceName as string | undefined;
-        
-        // Switch namespace if needed
-        if (resourceNamespace && resourceNamespace !== namespace) {
-          setNamespace(resourceNamespace);
-        }
-        
-        // Navigate directly to the specific resource
+
+        // Navigate directly to the specific resource. setSelectedItem already
+        // carries the namespace into the URL — issuing a separate
+        // setNamespace navigation first would race with it. Use the qualified
+        // type slug so CRDs resolve to the right group, same as type navigation.
         if (config && resourceName) {
-          setSelectedItem(config.name, resourceName, resourceNamespace);
+          setSelectedItem(getResourceTypeSlug(config), resourceName, resourceNamespace);
         } else if (config) {
           setSelectedResource(config);
         }

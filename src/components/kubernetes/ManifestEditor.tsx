@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Editor, { type OnMount, type Monaco } from '@monaco-editor/react';
 import { Loader2, AlertCircle, X, Save, RotateCcw } from 'lucide-react';
 import { stringify as toYaml, parse as parseYaml } from 'yaml';
@@ -22,15 +22,21 @@ function isDarkMode(): boolean {
 
 export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }: ManifestEditorProps) {
   const [value, setValue] = useState<string>('');
-  const [originalValue, setOriginalValue] = useState<string>('');
-  const [isDirty, setIsDirty] = useState(false);
-  const [parseError, setParseError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dark, setDark] = useState(isDarkMode);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
+  const [editorMounted, setEditorMounted] = useState(false);
   const [editorReady, setEditorReady] = useState(false);
+  // Which resource identity the editor is initialised for, plus the pristine
+  // YAML baseline "Reset" returns to. Distinguishes "user opened a different
+  // resource" (full re-init, fold sections, reset cursor) from "background
+  // refetch of the same resource" (silently update, preserve cursor/folds).
+  const [tracked, setTracked] = useState<{ identity: string | null; baseline: string }>({
+    identity: null,
+    baseline: '',
+  });
 
   // Update dark mode when it changes
   useEffect(() => {
@@ -85,49 +91,56 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
     setEditorReady(true);
   }, []);
 
-  // Convert resource to YAML when it changes
-  useEffect(() => {
-    if (resource) {
-      const yaml = toYaml(resource, { lineWidth: 0 });
-      
-      // Only update if the server content actually changed
-      // and user hasn't made local edits
-      if (yaml !== originalValue) {
-        if (!isDirty) {
-          // No local changes, safe to update
-          setValue(yaml);
-          setOriginalValue(yaml);
-          setParseError(null);
-          setSaveError(null);
-          
-          // Re-collapse noisy sections when content changes
-          if (editorRef.current) {
-            setEditorReady(false);
-            setTimeout(() => collapseNoisySections(editorRef.current!), 100);
-          }
-        } else {
-          // User has local changes, just update the original for comparison
-          // This means if they reset, they'll get the latest server version
-          setOriginalValue(yaml);
-        }
-      }
-    }
-  }, [resource, originalValue, isDirty, collapseNoisySections]);
+  // Serialize the resource once per object identity.
+  const identity = resource
+    ? `${resource.apiVersion ?? ''}/${resource.kind ?? ''}/${resource.metadata?.namespace ?? ''}/${resource.metadata?.name ?? ''}`
+    : null;
+  const yaml = useMemo(() => (resource ? toYaml(resource, { lineWidth: 0 }) : ''), [resource]);
 
-  // Validate YAML on change
-  useEffect(() => {
-    if (!value) {
-      setParseError(null);
-      return;
-    }
+  const isDirty = value !== tracked.baseline;
 
+  // Sync editor content with the incoming resource via state adjustment
+  // during render (not an effect).
+  if (resource && tracked.identity !== identity) {
+    // Different resource (or first load): reset everything. The fold/cursor
+    // re-init is scheduled by the collapse effect below.
+    setTracked({ identity, baseline: yaml });
+    setValue(yaml);
+    setSaveError(null);
+    if (editorMounted) setEditorReady(false);
+  } else if (resource && yaml !== tracked.baseline && !isDirty) {
+    // Same resource — background refetch. Silent in-place update: preserve
+    // cursor, scroll, and fold state. If the user has local edits, keep both
+    // their edits and their original baseline so "Reset" still returns to the
+    // version they started from; stale server state surfaces as a save conflict.
+    setTracked({ identity, baseline: yaml });
+    setValue(yaml);
+    setSaveError(null);
+  }
+
+  // YAML validity is derived from the current editor content.
+  const parseError = useMemo(() => {
+    if (!value) return null;
     try {
       parseYaml(value);
-      setParseError(null);
+      return null;
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : 'Invalid YAML');
+      return err instanceof Error ? err.message : 'Invalid YAML';
     }
   }, [value]);
+
+  // Collapse noisy sections (and reset the cursor) whenever the editor shows
+  // a different resource — including the very first mount.
+  const collapsedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editorMounted) return;
+    const editorInstance = editorRef.current;
+    if (!editorInstance) return;
+    if (collapsedForRef.current === tracked.identity) return;
+    collapsedForRef.current = tracked.identity;
+    const timer = setTimeout(() => collapseNoisySections(editorInstance), 100);
+    return () => clearTimeout(timer);
+  }, [editorMounted, tracked.identity, collapseNoisySections]);
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -150,24 +163,20 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
       },
     });
 
-    // Auto-collapse noisy sections after a short delay to ensure content is loaded
+    // The collapse effect schedules the initial fold pass once mounted.
     setEditorReady(false);
-    setTimeout(() => collapseNoisySections(editor), 100);
+    setEditorMounted(true);
   };
 
   const handleChange = (newValue: string | undefined) => {
-    const val = newValue || '';
-    setValue(val);
-    setIsDirty(val !== originalValue);
+    setValue(newValue || '');
     setSaveError(null);
   };
 
   const handleReset = useCallback(() => {
-    setValue(originalValue);
-    setIsDirty(false);
-    setParseError(null);
+    setValue(tracked.baseline);
     setSaveError(null);
-  }, [originalValue]);
+  }, [tracked.baseline]);
 
   const handleSave = useCallback(async () => {
     if (parseError || !isDirty) return;
@@ -177,8 +186,7 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
       setSaveError(null);
       const parsed = parseYaml(value) as KubernetesResource;
       await onSave(parsed);
-      setOriginalValue(value);
-      setIsDirty(false);
+      setTracked(prev => ({ ...prev, baseline: value }));
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save');
     } finally {

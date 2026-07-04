@@ -154,14 +154,22 @@ export function ScopeSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Focus input when opening and scroll to selected namespace
+  // Open the dropdown and seed focusedIndex from the current selection.
+  // Seeding happens here (not in an effect) so it runs once per open and
+  // doesn't reset focus on every keystroke.
+  const openDropdown = () => {
+    if (disabled || isOpen) return;
+    setIsOpen(true);
+    const selectedIndex = flatOptions.findIndex(opt => opt.value === (selectedNamespace || ''));
+    setFocusedIndex(selectedIndex >= 0 ? selectedIndex : -1);
+  };
+
+  // Focus the search input once the dropdown is rendered.
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
-      const selectedIndex = flatOptions.findIndex(opt => opt.value === (selectedNamespace || ''));
-      setFocusedIndex(selectedIndex >= 0 ? selectedIndex : -1);
     }
-  }, [isOpen, selectedNamespace, flatOptions]);
+  }, [isOpen]);
 
   const handleSelect = (value: string) => {
     onSelectNamespace(value || undefined);
@@ -211,7 +219,7 @@ export function ScopeSelector({
           className="w-full px-3 py-1.5 pr-8 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg text-sm text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-neutral-400/50 dark:focus:ring-neutral-500/50 cursor-default placeholder:text-neutral-400"
           value={isOpen ? query : (selectedNamespace || 'All Namespaces')}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => !disabled && setIsOpen(true)}
+          onFocus={openDropdown}
           onKeyDown={handleKeyDown}
           placeholder={isOpen ? "Search..." : undefined}
           disabled={disabled}
@@ -220,7 +228,7 @@ export function ScopeSelector({
         />
         <button
           type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
+          onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
           className="absolute inset-y-0 right-0 flex items-center pr-2"
           disabled={disabled}
         >

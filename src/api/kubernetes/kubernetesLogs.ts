@@ -85,27 +85,35 @@ async function streamPodLogs(
     const decoder = new TextDecoder();
     let buffer = '';
 
-    while (true) {
-      const { done, value } = await reader.read();
-      
-      if (done) break;
-      
-      buffer += decoder.decode(value, { stream: true });
-      
-      // Process complete lines
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // Keep incomplete line in buffer
-      
-      for (const line of lines) {
-        if (line.trim()) {
-          options.onLog(parseLogLine(line, podName, options.container));
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.trim()) {
+            options.onLog(parseLogLine(line, podName, options.container));
+          }
         }
       }
-    }
 
-    // Process any remaining buffer
-    if (buffer.trim()) {
-      options.onLog(parseLogLine(buffer, podName, options.container));
+      // Process any remaining buffer
+      if (buffer.trim()) {
+        options.onLog(parseLogLine(buffer, podName, options.container));
+      }
+    } finally {
+      try {
+        await reader.cancel();
+      } catch {
+        // already released
+      }
     }
   } catch (error) {
     if ((error as Error).name === 'AbortError') {

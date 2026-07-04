@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useSearch, useNavigate } from '@tanstack/react-router';
 import { Search, Sparkles } from 'lucide-react';
 import { clusterRoute, type ClusterSearch } from '../../router';
-import { getResourceConfig, getResourceConfigByQualifiedName } from '../../api/kubernetes/kubernetesDiscovery';
+import { getResourceConfig, getResourceConfigByQualifiedName, getResourceTypeSlug } from '../../api/kubernetes/kubernetesDiscovery';
 import { usePanels } from '../../hooks/usePanelState';
 import { ChatPanel } from '../ChatPanel';
 import {
@@ -24,39 +24,16 @@ import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
 import { getNamespaces } from '../../api/kubernetes/kubernetes';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 
-// Well-known API groups that should use short names in URLs (like kubectl)
-// e.g., "deployments" instead of "deployments.apps"
-const WELL_KNOWN_GROUPS = new Set([
-  'apps',
-  'batch',
-  'networking.k8s.io',
-  'storage.k8s.io',
-  'rbac.authorization.k8s.io',
-  'policy',
-  'autoscaling',
-  'coordination.k8s.io',
-  'discovery.k8s.io',
-  'events.k8s.io',
-  'node.k8s.io',
-  'scheduling.k8s.io',
-]);
-
-// Check if a resource should use short name (no group suffix) in URL
-const shouldUseShortName = (resource: V1APIResource) => {
-  const group = resource.group || '';
-  return group === '' || WELL_KNOWN_GROUPS.has(group);
-};
-
 export function ClusterLayout() {
   const { context, resourceType, name } = useParams({ strict: false });
   const search = useSearch({ from: clusterRoute.id }) as ClusterSearch;
-  const navigate = useNavigate({ from: clusterRoute.fullPath });
+  const navigate = useNavigate();
   const config = getConfig();
   
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [resourceConfig, setResourceConfig] = useState<V1APIResource | null>(null);
+  const [resourceNotFound, setResourceNotFound] = useState(false);
 
-  // Chat panel state - persists across resource switches
   const { isOpen: isPanelOpen, toggle: togglePanel, close: closePanel } = usePanels();
   const isChatPanelOpen = isPanelOpen('ai');
   const toggleChatPanel = useCallback(() => togglePanel('ai'), [togglePanel]);
@@ -65,7 +42,6 @@ export function ClusterLayout() {
   const kubernetesContexts = useMemo(() => config.kubernetes?.contexts || [], [config.kubernetes?.contexts]);
   const dockerContexts = useMemo(() => config.docker?.contexts || [], [config.docker?.contexts]);
 
-  // Fetch namespaces for namespace selector
   const { data: namespacesData } = useKubernetesQuery(
     ['kubernetes', 'namespaces', context],
     () => context ? getNamespaces(context) : Promise.resolve({ items: [] }),
@@ -73,43 +49,59 @@ export function ClusterLayout() {
   );
   const namespaces = useMemo(() => namespacesData?.items || [], [namespacesData]);
 
-  // Preload discovery when context changes
   useEffect(() => {
     if (context) {
       preloadDiscovery(context);
     }
   }, [context]);
 
-  // Load resource config when resourceType changes
   useEffect(() => {
-    if (context && resourceType) {
-      // Try alias lookup first (handles short names like 'deployments')
-      // Then fall back to qualified name lookup (for CRDs like 'applications.argoproj.io')
-      getResourceConfig(context, resourceType)
-        .then((config) => {
-          if (config) {
-            setResourceConfig(config);
-          } else if (resourceType.includes('.')) {
-            // Try qualified name lookup for CRDs
-            return getResourceConfigByQualifiedName(context, resourceType);
-          }
-          return null;
-        })
-        .then((config) => {
-          if (config) {
-            setResourceConfig(config);
-          }
-        })
-        .catch(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (!context || !resourceType) {
+        if (!cancelled) {
           setResourceConfig(null);
-        });
-    }
+          setResourceNotFound(false);
+        }
+        return;
+      }
+      try {
+        const config = await getResourceConfig(context, resourceType);
+        if (cancelled) return;
+        if (config) {
+          setResourceConfig(config);
+          setResourceNotFound(false);
+          return;
+        }
+        if (resourceType.includes('.')) {
+          const crdConfig = await getResourceConfigByQualifiedName(context, resourceType);
+          if (cancelled) return;
+          if (crdConfig) {
+            setResourceConfig(crdConfig);
+            setResourceNotFound(false);
+            return;
+          }
+        }
+        // Discovery finished but the URL's resource type is unknown in this
+        // cluster — clear any config left over from the previous route so we
+        // don't keep rendering the old resource under the new URL.
+        setResourceConfig(null);
+        setResourceNotFound(true);
+      } catch {
+        if (cancelled) return;
+        setResourceConfig(null);
+        setResourceNotFound(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [context, resourceType]);
 
-  // Only use resource config when viewing a specific resource (not overview or welcome)
   const currentResourceConfig = resourceType && resourceType !== 'overview' ? resourceConfig : null;
 
-  // Environment info for AI chat - updates automatically when resource/namespace changes
   const chatEnvironment = useMemo((): KubernetesEnvironment => ({
     currentContext: context || '',
     currentNamespace: search.namespace || 'all namespaces',
@@ -121,99 +113,109 @@ export function ClusterLayout() {
     selectedResourceName: name,
   }), [context, search.namespace, currentResourceConfig, name]);
 
-  // Create tools for the current environment
   const chatTools = useMemo(() => createKubernetesTools(chatEnvironment), [chatEnvironment]);
 
-  // Navigation helpers
   const setContext = useCallback((newContext: string) => {
     if (context) {
       clearDiscoveryCache(context);
       resetMetricsCache(context);
     }
-    
-    // Try to preserve resource type
-    if (resourceType) {
-      getResourceConfig(newContext, resourceType)
-        .then((config) => {
-          if (config) {
-            navigate({
-              to: '/cluster/$context/$resourceType',
-              params: { context: newContext, resourceType },
-              search: { namespace: search.namespace },
-            });
-          } else {
-            navigate({
-              to: '/cluster/$context',
-              params: { context: newContext },
-            });
-          }
-        })
-        .catch(() => {
-          navigate({
-            to: '/cluster/$context',
-            params: { context: newContext },
-          });
+
+    const navigateTo = (type: string | undefined) => {
+      if (type) {
+        navigate({
+          to: '/cluster/$context/$resourceType',
+          params: { context: newContext, resourceType: type },
+          search: { namespace: search.namespace },
         });
-    } else {
-      navigate({
-        to: '/cluster/$context',
-        params: { context: newContext },
-        search: (prev) => ({ ...prev, namespace: search.namespace }),
-      });
+      } else {
+        navigate({
+          to: '/cluster/$context',
+          params: { context: newContext },
+          search: { namespace: search.namespace },
+        });
+      }
+    };
+
+    if (!resourceType || resourceType === 'overview') {
+      navigateTo(resourceType);
+      return;
     }
+
+    getResourceConfig(newContext, resourceType)
+      .then((config) => navigateTo(config ? resourceType : undefined))
+      .catch(() => navigateTo(undefined));
   }, [context, resourceType, search.namespace, navigate]);
 
-  const setNamespace = useCallback((namespace: string | undefined) => {
-    navigate({
-      to: '.',
-      search: (prev) => ({ ...prev, namespace }),
-    });
-  }, [navigate]);
-
-  const setResource = useCallback((resource: V1APIResource | null) => {
-    if (resource) {
-      // Use short name for well-known groups, qualified name for CRDs
-      const type = shouldUseShortName(resource) 
-        ? resource.name 
-        : `${resource.name}.${resource.group}`;
-      navigate({
-        to: '/cluster/$context/$resourceType',
-        params: { context: context!, resourceType: type },
-        search: (prev) => prev,
-      });
-    } else {
-      // Navigate to overview
-      navigate({
-        to: '/cluster/$context/$resourceType',
-        params: { context: context!, resourceType: 'overview' },
-        search: (prev) => prev,
-      });
-    }
-  }, [context, navigate]);
-
-  const setSelectedItem = useCallback((itemName: string | undefined) => {
-    if (itemName && resourceType) {
+  const patchSearch = useCallback((patch: Partial<ClusterSearch>, replace?: boolean) => {
+    const search = (prev: ClusterSearch) => ({ ...prev, ...patch });
+    if (resourceType && name) {
       navigate({
         to: '/cluster/$context/$resourceType/$name',
-        params: { context: context!, resourceType, name: itemName },
-        search: (prev) => prev,
+        params: { context: context!, resourceType, name },
+        search,
+        replace,
       });
     } else if (resourceType) {
       navigate({
         to: '/cluster/$context/$resourceType',
         params: { context: context!, resourceType },
-        search: (prev) => ({ ...prev, tab: undefined }), // Clear tab when deselecting item
+        search,
+        replace,
+      });
+    } else {
+      navigate({
+        to: '/cluster/$context',
+        params: { context: context! },
+        search,
+        replace,
+      });
+    }
+  }, [context, resourceType, name, navigate]);
+
+  const setNamespace = useCallback((namespace: string | undefined) => {
+    // A namespace switch changes the visible list; a selected item from the
+    // previous namespace no longer belongs, so drop it (and its tab) from the URL.
+    if (resourceType && name) {
+      navigate({
+        to: '/cluster/$context/$resourceType',
+        params: { context: context!, resourceType },
+        search: (prev) => ({ ...prev, namespace, tab: undefined }),
+      });
+      return;
+    }
+    patchSearch({ namespace });
+  }, [context, resourceType, name, navigate, patchSearch]);
+
+  const setResource = useCallback((resource: V1APIResource | null) => {
+    const type = !resource ? 'overview' : getResourceTypeSlug(resource);
+    navigate({
+      to: '/cluster/$context/$resourceType',
+      params: { context: context!, resourceType: type },
+      search: (prev) => ({ namespace: prev.namespace }),
+    });
+  }, [context, navigate]);
+
+  const setSelectedItem = useCallback((itemName: string | undefined) => {
+    if (!resourceType) return;
+    if (itemName) {
+      navigate({
+        to: '/cluster/$context/$resourceType/$name',
+        params: { context: context!, resourceType, name: itemName },
+        search: (prev) => prev,
+      });
+    } else {
+      navigate({
+        to: '/cluster/$context/$resourceType',
+        params: { context: context!, resourceType },
+        search: (prev) => ({ ...prev, tab: undefined }),
       });
     }
   }, [context, resourceType, navigate]);
 
   const setTab = useCallback((tab: 'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal' | undefined) => {
-    navigate({
-      to: '.',
-      search: (prev) => ({ ...prev, tab }),
-      replace: true, // Don't add to history for tab changes
-    });
-  }, [navigate]);
+    patchSearch({ tab }, true);
+  }, [patchSearch]);
 
   const setDockerContext = useCallback((dockerContext: string) => {
     navigate({
@@ -222,30 +224,18 @@ export function ClusterLayout() {
     });
   }, [navigate]);
 
-  // Close command palette handler
   const closeCommandPalette = useCallback(() => {
     setIsCommandPaletteOpen(false);
   }, []);
 
-  // Navigate to a specific resource item from command palette
-  const navigateToResourceItem = useCallback((resourceType: string, itemName: string, itemNamespace?: string) => {
-    // If the item is in a different namespace, update the namespace
-    if (itemNamespace && itemNamespace !== search.namespace) {
-      navigate({
-        to: '/cluster/$context/$resourceType/$name',
-        params: { context: context!, resourceType, name: itemName },
-        search: { namespace: itemNamespace },
-      });
-    } else {
-      navigate({
-        to: '/cluster/$context/$resourceType/$name',
-        params: { context: context!, resourceType, name: itemName },
-        search: (prev) => prev,
-      });
-    }
-  }, [context, search.namespace, navigate]);
+  const navigateToResourceItem = useCallback((type: string, itemName: string, itemNamespace?: string) => {
+    navigate({
+      to: '/cluster/$context/$resourceType/$name',
+      params: { context: context!, resourceType: type, name: itemName },
+      search: (prev) => ({ ...prev, namespace: itemNamespace ?? prev.namespace }),
+    });
+  }, [context, navigate]);
 
-  // Command palette adapter
   const commandPaletteAdapter = useMemo(() => {
     return createKubernetesAdapter({
       context: context || '',
@@ -254,19 +244,13 @@ export function ClusterLayout() {
       contexts: kubernetesContexts.map(name => ({ name })),
       currentContext: context || '',
       setNamespace,
-      setContext: (ctx) => {
-        navigate({
-          to: '/cluster/$context',
-          params: { context: ctx },
-        });
-      },
+      setContext,
       setSelectedResource: setResource,
       setSelectedItem: navigateToResourceItem,
       onClose: closeCommandPalette,
     });
-  }, [context, search.namespace, namespaces, kubernetesContexts, setNamespace, setResource, navigateToResourceItem, closeCommandPalette, navigate]);
+  }, [context, search.namespace, namespaces, kubernetesContexts, setNamespace, setContext, setResource, navigateToResourceItem, closeCommandPalette]);
 
-  // Global keyboard shortcut for command palette
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -309,7 +293,6 @@ export function ClusterLayout() {
         </aside>
       </div>
 
-      {/* Main content */}
       {isWelcome ? (
         <main className="flex-1 flex flex-col h-full min-w-0 items-center justify-center">
           <div className="text-center">
@@ -366,6 +349,16 @@ export function ClusterLayout() {
           isChatPanelOpen={isChatPanelOpen}
           onToggleChatPanel={toggleChatPanel}
         />
+      ) : resourceNotFound ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-neutral-500">
+          <span>Unknown resource type “{resourceType}” in this cluster.</span>
+          <button
+            onClick={() => setResource(null)}
+            className="px-3 py-1.5 text-sm rounded-md bg-neutral-200 hover:bg-neutral-300 text-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-neutral-300 transition-colors"
+          >
+            Go to Overview
+          </button>
+        </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-neutral-500">
           Loading resource...
@@ -378,12 +371,12 @@ export function ClusterLayout() {
         adapter={commandPaletteAdapter}
       />
 
-      {/* AI Chat Panel - persists across resource switches */}
       {config.ai && (
         <ChatPanel
+          key={`${kubernetesAdapterConfig.id}/${context}`}
           isOpen={isChatPanelOpen}
           onClose={closeChatPanel}
-          otherPanelOpen={!!name} // Detail panel is open when an item is selected
+          otherPanelOpen={!!name}
           adapterConfig={kubernetesAdapterConfig}
           contextId={context}
           environment={chatEnvironment}

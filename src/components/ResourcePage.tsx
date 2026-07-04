@@ -1,12 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { Search } from 'lucide-react';
 import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } from '../types/table';
+import { getObjectId } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
-import { usePanels } from '../hooks/usePanelState';
 import { ResourceTable } from './ResourceTable';
-
-// Panel IDs
-const PANEL_DETAIL = 'detail';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface ResourcePageProps<T = any> {
@@ -25,11 +22,9 @@ interface ResourcePageProps<T = any> {
   renderDetailPanel?: (item: TableRow<T>, onClose: () => void, otherPanelOpen: boolean) => React.ReactNode;
   // Optional header actions (e.g., AI button)
   renderHeaderActions?: (columns: TableColumnDefinition[]) => React.ReactNode;
-  // Optional extra panels (e.g., ChatPanel) - for backward compatibility
-  renderExtraPanels?: (selectedItem: TableRow<T> | null, isDetailPanelOpen: boolean) => React.ReactNode;
   // Chat panel state (for header padding calculation)
   isChatPanelOpen?: boolean;
-  // URL-driven selection (optional)
+  // URL-driven selection
   selectedItemName?: string;
   onSelectItemName?: (name: string | undefined) => void;
   getItemName?: (item: TableRow<T>) => string;
@@ -48,85 +43,52 @@ export function ResourcePage<T = any>({
   showDetailPanel = true,
   renderDetailPanel,
   renderHeaderActions,
-  renderExtraPanels,
   isChatPanelOpen = false,
   selectedItemName,
   onSelectItemName,
   getItemName,
 }: ResourcePageProps<T>) {
   const [columns, setColumns] = useState<TableColumnDefinition[]>([]);
-  const [selectedItem, setSelectedItem] = useState<TableRow<T> | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  
-  // Track config and namespace to detect changes during render
-  const [trackedConfig, setTrackedConfig] = useState(config);
-  const [trackedNamespace, setTrackedNamespace] = useState(namespace);
-  
+
+  // The exact row the user last clicked. Only used to disambiguate when
+  // several rows share the same URL name (e.g. same pod name in different
+  // namespaces with "all namespaces" selected) — the URL stays the source
+  // of truth for WHETHER something is selected.
+  const [clickedItem, setClickedItem] = useState<TableRow<T> | null>(null);
+
   const { columnVisibility, onColumnVisibilityChange } = useColumnVisibility();
-  const { isOpen, open, close } = usePanels();
-  
-  const isDetailPanelOpen = isOpen(PANEL_DETAIL);
 
-  // Track previous selectedItemName to detect changes
-  const prevSelectedItemNameRef = useRef<string | undefined>(undefined);
-  const initialSyncDoneRef = useRef(false);
-
-  // Clear selected item and close detail panel when config/namespace changes
-  // Detect changes during render to avoid synchronous setState in effects
-  const configOrNamespaceChanged = config !== trackedConfig || namespace !== trackedNamespace;
-  if (configOrNamespaceChanged) {
-    setTrackedConfig(config);
-    setTrackedNamespace(namespace);
-    setSelectedItem(null);
-    close(PANEL_DETAIL);
-  }
-  
-  // Reset initialSyncDoneRef when config/namespace changes (must be in effect, not render)
-  useEffect(() => {
-    initialSyncDoneRef.current = false;
-  }, [config, namespace]);
-  
-  // Sync selected item from URL when data changes or selectedItemName changes
-  useEffect(() => {
-    const prevName = prevSelectedItemNameRef.current;
-    prevSelectedItemNameRef.current = selectedItemName;
-    
-    // Use a microtask to avoid synchronous setState in effect
-    queueMicrotask(() => {
-      if (selectedItemName && data?.rows && getItemName) {
-        const item = data.rows.find(row => getItemName(row) === selectedItemName);
-        // Open panel if: name changed, or this is the initial sync with a name in URL
-        const shouldOpenPanel = item && (prevName !== selectedItemName || !initialSyncDoneRef.current);
-        if (shouldOpenPanel) {
-          initialSyncDoneRef.current = true;
-          setSelectedItem(item);
-          if (showDetailPanel) {
-            open(PANEL_DETAIL);
-          }
-        }
-      } else if (!selectedItemName && prevName) {
-        setSelectedItem(null);
-        close(PANEL_DETAIL);
-      }
-    });
-  }, [selectedItemName, data, getItemName, showDetailPanel, open, close]);
-
-  // Sync selected item with detail panel state
-  const handleSelectItem = useCallback((item: TableRow<T> | null) => {
-    setSelectedItem(item);
-    if (item && showDetailPanel) {
-      open(PANEL_DETAIL);
-      // Update URL if handler provided
-      if (onSelectItemName && getItemName) {
-        onSelectItemName(getItemName(item));
-      }
-    } else {
-      close(PANEL_DETAIL);
-      if (onSelectItemName) {
-        onSelectItemName(undefined);
-      }
+  // Derive the selected row from the URL and the latest data. Re-resolving
+  // against `data` on every render keeps the detail panel in sync with
+  // background refetches instead of holding a stale row snapshot.
+  const selectedItem = useMemo<TableRow<T> | null>(() => {
+    if (!selectedItemName || !getItemName) return null;
+    const rows = data?.rows;
+    if (!rows) return null;
+    if (clickedItem && getItemName(clickedItem) === selectedItemName) {
+      const clickedId = getObjectId(clickedItem.object);
+      const fresh = rows.find(row => getObjectId(row.object) === clickedId);
+      if (fresh) return fresh;
+      // Clicked row no longer exists in the current data (deleted or the
+      // namespace filter changed) — fall through to a plain name lookup.
     }
-  }, [open, close, showDetailPanel, onSelectItemName, getItemName]);
+    return rows.find(row => getItemName(row) === selectedItemName) ?? null;
+  }, [selectedItemName, clickedItem, data, getItemName]);
+
+  const isDetailPanelOpen = showDetailPanel && !!selectedItem;
+
+  const handleSelectItem = useCallback((item: TableRow<T> | null) => {
+    setClickedItem(item);
+    if (onSelectItemName && getItemName) {
+      onSelectItemName(item ? getItemName(item) : undefined);
+    }
+  }, [onSelectItemName, getItemName]);
+
+  const handleCloseDetailPanel = useCallback(() => {
+    setClickedItem(null);
+    onSelectItemName?.(undefined);
+  }, [onSelectItemName]);
 
   const handleColumnsLoaded = useCallback((cols: TableColumnDefinition[]) => {
     setColumns(cols);
@@ -186,18 +148,9 @@ export function ResourcePage<T = any>({
           />
         </section>
       </main>
-      {/* Extra panels (e.g., ChatPanel) - for backward compatibility */}
-      {renderExtraPanels?.(selectedItem, isDetailPanelOpen)}
       {/* Detail panel */}
-      {renderDetailPanel && selectedItem && (
-        renderDetailPanel(selectedItem, () => {
-          setSelectedItem(null);
-          close(PANEL_DETAIL);
-          // Navigate back to list URL
-          if (onSelectItemName) {
-            onSelectItemName(undefined);
-          }
-        }, isChatPanelOpen)
+      {renderDetailPanel && isDetailPanelOpen && selectedItem && (
+        renderDetailPanel(selectedItem, handleCloseDetailPanel, isChatPanelOpen)
       )}
     </>
   );
