@@ -54,6 +54,32 @@ export function getApiBase(resource: V1APIResource): string {
   return group ? `/apis/${group}/${version}` : '/api/v1';
 }
 
+// Groups whose resources can be addressed in URLs by bare plural name.
+// Anything else (CRDs, third-party groups) is addressed as "plural.group"
+// so the route param resolves unambiguously even when plurals collide.
+const WELL_KNOWN_GROUPS = new Set([
+  'apps',
+  'batch',
+  'networking.k8s.io',
+  'storage.k8s.io',
+  'rbac.authorization.k8s.io',
+  'policy',
+  'autoscaling',
+  'coordination.k8s.io',
+  'discovery.k8s.io',
+  'events.k8s.io',
+  'node.k8s.io',
+  'scheduling.k8s.io',
+]);
+
+// URL slug for the $resourceType route param (e.g. "pods" or "certificates.cert-manager.io")
+export function getResourceTypeSlug(resource: V1APIResource): string {
+  const group = resource.group || '';
+  return group === '' || WELL_KNOWN_GROUPS.has(group)
+    ? resource.name
+    : `${resource.name}.${group}`;
+}
+
 // Add a resource to the caches
 function addResourceToMap(
   resources: Map<string, V1APIResource>,

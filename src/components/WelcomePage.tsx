@@ -11,17 +11,21 @@ export function WelcomePage() {
   const hasKubernetes = k8sContexts.length > 0;
   const hasDocker = dockerContexts.length > 0;
 
-  // Auto-redirect on mount
+  // Auto-redirect on mount. Only honor defaultContext if it actually exists —
+  // an unknown context would be bounced back to "/" by the route guard,
+  // creating a redirect loop.
   useEffect(() => {
     // Priority 1: Kubernetes with default context or first available
     if (hasKubernetes) {
-      const context = config.kubernetes?.defaultContext || k8sContexts[0];
+      const preferred = config.kubernetes?.defaultContext;
+      const context = preferred && k8sContexts.includes(preferred) ? preferred : k8sContexts[0];
       navigate({ to: '/cluster/$context', params: { context }, replace: true });
       return;
     }
     // Priority 2: Docker with default context or first available
     if (hasDocker) {
-      const context = config.docker?.defaultContext || dockerContexts[0];
+      const preferred = config.docker?.defaultContext;
+      const context = preferred && dockerContexts.includes(preferred) ? preferred : dockerContexts[0];
       navigate({ to: '/docker/$context', params: { context }, replace: true });
       return;
     }

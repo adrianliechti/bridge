@@ -30,10 +30,14 @@ interface ResourcePanelProps {
   resourceType?: ResourceType;
 }
 
+type InspectedObject = ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect | ComposeApplication;
+
 export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPanelOpen = false, resource, resourceType = 'containers' }: ResourcePanelProps) {
-  const [fullObject, setFullObject] = useState<ContainerInspect | DockerImage | DockerVolume | DockerNetworkInspect | ComposeApplication | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Inspect result keyed by the resource it was fetched for. Deriving the
+  // displayed object from this key means stale results for a previously
+  // selected resource are simply ignored — no state resets in effects.
+  const [fetched, setFetched] = useState<{ id: string; object: InspectedObject } | null>(null);
+  const [fetchError, setFetchError] = useState<{ id: string; message: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'logs'>('overview');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
@@ -78,110 +82,79 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
 
   const displayName = getDisplayName(resource);
 
+  // Images and applications are already aggregated by the list call; there is
+  // no separate inspect endpoint to hit, so display the row object directly.
+  const isPreaggregated = resourceType === 'images' || resourceType === 'applications';
+
+  const inspectResource = useCallback(async (id: string): Promise<InspectedObject | undefined> => {
+    if (resourceType === 'containers') return inspectContainer(dockerContext, id);
+    if (resourceType === 'volumes') return inspectVolume(dockerContext, id);
+    if (resourceType === 'networks') return inspectNetwork(dockerContext, id);
+    return undefined;
+  }, [resourceType, dockerContext]);
+
   // Manual refetch (used after actions complete). Returns silently on errors
   // — actions surface their own errors, and background updates shouldn't
   // flicker the UI on transient failures.
   const fetchResourceData = useCallback(async () => {
-    if (!resourceId) return;
-
+    if (!resourceId || isPreaggregated) return;
     try {
-      let data;
-      if (resourceType === 'containers') {
-        data = await inspectContainer(dockerContext, resourceId);
-      } else if (resourceType === 'volumes') {
-        data = await inspectVolume(dockerContext, resourceId);
-      } else if (resourceType === 'networks') {
-        data = await inspectNetwork(dockerContext, resourceId);
-      } else {
-        return;
-      }
-      if (data) setFullObject(data);
+      const data = await inspectResource(resourceId);
+      if (data) setFetched({ id: resourceId, object: data });
     } catch {
       // Silent fail for background refreshes
     }
-  }, [resourceId, resourceType, dockerContext]);
+  }, [resourceId, isPreaggregated, inspectResource]);
 
   // Reset the active tab only when the resource identity actually changes
   // (not when the parent re-passes a new object reference for the same id).
-  const lastResourceIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (lastResourceIdRef.current !== resourceId) {
-      lastResourceIdRef.current = resourceId;
-      setActiveTab('overview');
-    }
-  }, [resourceId]);
+  // State adjustment during render instead of an effect.
+  const [lastResourceId, setLastResourceId] = useState(resourceId);
+  if (lastResourceId !== resourceId) {
+    setLastResourceId(resourceId);
+    setActiveTab('overview');
+  }
 
-  // Initial fetch on resource change. Uses a cancellation flag so stale
-  // responses from a previous resource can't overwrite the new fullObject
-  // and can't setState after unmount.
-  useEffect(() => {
-    if (!resourceId) {
-      setFullObject(null);
-      setError(null);
-      return;
-    }
+  const fullObject: InspectedObject | null = isPreaggregated
+    ? (resource as DockerImage | ComposeApplication | null)
+    : fetched?.id === resourceId ? fetched.object : null;
+  const error = !isPreaggregated && fetchError?.id === resourceId ? fetchError.message : null;
+  const loading = !isPreaggregated && !!resourceId && !fullObject && !error;
 
-    // Images and applications are already aggregated; use the resource directly.
-    if (resourceType === 'images') {
-      setFullObject(resource as DockerImage);
-      return;
-    }
-    if (resourceType === 'applications') {
-      setFullObject(resource as ComposeApplication);
-      return;
-    }
+  // Initial fetch on resource change. Stale responses for a previously
+  // selected resource are ignored at derive time via the id key.
+  useEffect(() => {
+    if (!resourceId || isPreaggregated) return;
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-
     (async () => {
       try {
-        let data;
-        if (resourceType === 'containers') {
-          data = await inspectContainer(dockerContext, resourceId);
-        } else if (resourceType === 'volumes') {
-          data = await inspectVolume(dockerContext, resourceId);
-        } else if (resourceType === 'networks') {
-          data = await inspectNetwork(dockerContext, resourceId);
-        }
+        const data = await inspectResource(resourceId);
         if (cancelled) return;
-        if (data) setFullObject(data);
+        if (data) setFetched({ id: resourceId, object: data });
       } catch (err) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to fetch resource details');
-      } finally {
-        if (!cancelled) setLoading(false);
+        setFetchError({ id: resourceId, message: err instanceof Error ? err.message : 'Failed to fetch resource details' });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [resourceId, resourceType, resource, dockerContext]);
+  }, [resourceId, isPreaggregated, inspectResource]);
 
   // Auto-refresh polling. Polls inside the interval rather than scheduling a
   // new interval on every render of fetchResourceData.
   useEffect(() => {
-    if (!isOpen || !resourceId) return;
-    if (resourceType === 'images' || resourceType === 'applications') return;
+    if (!isOpen || !resourceId || isPreaggregated) return;
 
     let cancelled = false;
     const interval = setInterval(async () => {
       if (cancelled) return;
       try {
-        let data;
-        if (resourceType === 'containers') {
-          data = await inspectContainer(dockerContext, resourceId);
-        } else if (resourceType === 'volumes') {
-          data = await inspectVolume(dockerContext, resourceId);
-        } else if (resourceType === 'networks') {
-          data = await inspectNetwork(dockerContext, resourceId);
-        } else {
-          return;
-        }
+        const data = await inspectResource(resourceId);
         if (cancelled) return;
-        if (data) setFullObject(data);
+        if (data) setFetched({ id: resourceId, object: data });
       } catch {
         // Silent fail for background refreshes
       }
@@ -191,7 +164,7 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
       cancelled = true;
       clearInterval(interval);
     };
-  }, [isOpen, resourceId, resourceType, dockerContext]);
+  }, [isOpen, resourceId, isPreaggregated, inspectResource]);
 
   // Determine adapter type based on resource type
   const adapterType = resourceType === 'applications' ? 'application'

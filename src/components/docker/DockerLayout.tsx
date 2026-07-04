@@ -42,6 +42,14 @@ export function DockerLayout() {
   const currentResourceType: DockerResourceType | null =
     resourceType && isValidResourceType(resourceType) ? resourceType : null;
 
+  // An unknown resource type in the URL would render a blank page — bounce
+  // back to the docker welcome screen instead.
+  useEffect(() => {
+    if (context && resourceType && !isValidResourceType(resourceType)) {
+      navigate({ to: '/docker/$context', params: { context }, replace: true });
+    }
+  }, [context, resourceType, navigate]);
+
   const setContext = useCallback((newContext: string) => {
     if (currentResourceType) {
       navigate({

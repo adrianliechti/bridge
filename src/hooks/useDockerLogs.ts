@@ -57,6 +57,17 @@ export function useDockerLogs({
     let cancelled = false;
     const controller = new AbortController();
 
+    // Each (re)subscription requests the last `tailLines` again — start from a
+    // clean slate or the fresh tail would be appended onto the old history
+    // (e.g. after a context/tailLines change or a stop→start of the same
+    // container, where only this effect re-runs, not the component).
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setLogs([]);
+        setError(null);
+      }
+    });
+
     streamContainerLogs(
       context,
       containerId,

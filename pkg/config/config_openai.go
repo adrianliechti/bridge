@@ -17,7 +17,7 @@ func applyOpenAIConfig(cfg *Config) {
 		baseURL = "https://api.openai.com/v1"
 
 		if model == "" {
-			model = "gpt-5.2"
+			model = "gpt-5.5"
 		}
 	}
 

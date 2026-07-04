@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { fetchApi } from '../../api/kubernetes/kubernetes';
+import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
 
 import { ResourcePanel } from './ResourcePanel';
 import type { V1ObjectReference, V1ObjectMeta } from '@kubernetes/client-node';
@@ -197,25 +198,86 @@ interface ResourceOverviewProps {
   namespace?: string;
 }
 
+// Fetch every resource kind shown on the overview map. Kinds that fail
+// (e.g. Gateway API not installed) are simply skipped.
+async function fetchOverviewResources(context: string, namespace: string | undefined): Promise<K8sResource[]> {
+  // If no namespace is selected, fetch from all namespaces
+  const namespacePath = namespace ? `/namespaces/${namespace}` : '';
+
+  const resourceTypes = [
+    { path: `/api/v1${namespacePath}/pods`, kind: 'Pod' },
+    { path: `/apis/apps/v1${namespacePath}/deployments`, kind: 'Deployment' },
+    { path: `/apis/apps/v1${namespacePath}/replicasets`, kind: 'ReplicaSet' },  // For owner chain traversal
+    { path: `/apis/apps/v1${namespacePath}/statefulsets`, kind: 'StatefulSet' },
+    { path: `/apis/apps/v1${namespacePath}/daemonsets`, kind: 'DaemonSet' },
+    { path: `/api/v1${namespacePath}/services`, kind: 'Service' },
+    { path: `/api/v1${namespacePath}/configmaps`, kind: 'ConfigMap' },
+    { path: `/api/v1${namespacePath}/secrets`, kind: 'Secret' },
+    { path: `/api/v1${namespacePath}/persistentvolumeclaims`, kind: 'PersistentVolumeClaim' },
+    { path: `/apis/batch/v1${namespacePath}/jobs`, kind: 'Job' },
+    { path: `/apis/batch/v1${namespacePath}/cronjobs`, kind: 'CronJob' },
+    { path: `/apis/networking.k8s.io/v1${namespacePath}/ingresses`, kind: 'Ingress' },
+    { path: `/apis/networking.k8s.io/v1${namespacePath}/networkpolicies`, kind: 'NetworkPolicy' },
+    // Gateway API resources (may not be available on all clusters)
+    { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/gateways`, kind: 'Gateway' },
+    { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/httproutes`, kind: 'HTTPRoute' },
+    { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/grpcroutes`, kind: 'GRPCRoute' },
+  ];
+
+  const results = await Promise.allSettled(
+    resourceTypes.map(async ({ path, kind }) => {
+      try {
+        const data = await fetchApi<K8sResourceList>(path, context);
+        // Set kind on each item since Kubernetes list API doesn't include it
+        return (data.items || []).map(item => ({ ...item, kind }));
+      } catch {
+        return [];
+      }
+    })
+  );
+
+  const allResources: K8sResource[] = [];
+  results.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      allResources.push(...result.value);
+    }
+  });
+  return allResources;
+}
+
 export function ResourceOverview({ context: contextProp, namespace: namespaceProp }: ResourceOverviewProps) {
   // Use props directly - they come from the router now
   const context = contextProp || '';
   const namespace = namespaceProp;
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [allResources, setAllResources] = useState<K8sResource[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [transform, setTransform] = useState({ x: 40, y: 40, scale: 1 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [selectedNode, setSelectedNode] = useState<LayoutNode | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  // Monotonic counter for in-flight loadResources calls. Effect cleanup and
-  // every new call bump it so stale responses (from a previous namespace or
-  // refresh-spam) can detect they are no longer current and bail.
-  const loadSessionRef = useRef(0);
-  
+
+  const {
+    data: allResourcesData,
+    loading: isLoading,
+    error: queryError,
+    refetch,
+  } = useKubernetesQuery(
+    ['kubernetes', 'overview', context, namespace],
+    () => fetchOverviewResources(context, namespace),
+    { refetchInterval: 0 } // manual refresh only, as before
+  );
+  const allResources = useMemo(() => allResourcesData ?? [], [allResourcesData]);
+  const applications = useMemo(() => buildLayout(allResources), [allResources]);
+  const error = queryError ? queryError.message : null;
+
+  // Clear the selected node when switching namespace (state adjustment
+  // during render instead of an effect).
+  const [trackedNamespace, setTrackedNamespace] = useState(namespace);
+  if (trackedNamespace !== namespace) {
+    setTrackedNamespace(namespace);
+    setSelectedNode(null);
+  }
+
   // Detect dark mode (supports both class and media query strategies)
   useEffect(() => {
     const checkDarkMode = () => {
@@ -245,79 +307,6 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
       mediaQuery.removeEventListener('change', mediaListener);
     };
   }, []);
-
-  const loadResources = useCallback(async () => {
-    const session = ++loadSessionRef.current;
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // If no namespace is selected, fetch from all namespaces
-      const namespacePath = namespace ? `/namespaces/${namespace}` : '';
-      
-      const resourceTypes = [
-        { path: `/api/v1${namespacePath}/pods`, kind: 'Pod' },
-        { path: `/apis/apps/v1${namespacePath}/deployments`, kind: 'Deployment' },
-        { path: `/apis/apps/v1${namespacePath}/replicasets`, kind: 'ReplicaSet' },  // For owner chain traversal
-        { path: `/apis/apps/v1${namespacePath}/statefulsets`, kind: 'StatefulSet' },
-        { path: `/apis/apps/v1${namespacePath}/daemonsets`, kind: 'DaemonSet' },
-        { path: `/api/v1${namespacePath}/services`, kind: 'Service' },
-        { path: `/api/v1${namespacePath}/configmaps`, kind: 'ConfigMap' },
-        { path: `/api/v1${namespacePath}/secrets`, kind: 'Secret' },
-        { path: `/api/v1${namespacePath}/persistentvolumeclaims`, kind: 'PersistentVolumeClaim' },
-        { path: `/apis/batch/v1${namespacePath}/jobs`, kind: 'Job' },
-        { path: `/apis/batch/v1${namespacePath}/cronjobs`, kind: 'CronJob' },
-        { path: `/apis/networking.k8s.io/v1${namespacePath}/ingresses`, kind: 'Ingress' },
-        { path: `/apis/networking.k8s.io/v1${namespacePath}/networkpolicies`, kind: 'NetworkPolicy' },
-        // Gateway API resources (may not be available on all clusters)
-        { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/gateways`, kind: 'Gateway' },
-        { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/httproutes`, kind: 'HTTPRoute' },
-        { path: `/apis/gateway.networking.k8s.io/v1${namespacePath}/grpcroutes`, kind: 'GRPCRoute' },
-      ];
-
-      const results = await Promise.allSettled(
-        resourceTypes.map(async ({ path, kind }) => {
-          try {
-            const data = await fetchApi<K8sResourceList>(path, context);
-            // Set kind on each item since Kubernetes list API doesn't include it
-            return (data.items || []).map(item => ({ ...item, kind }));
-          } catch {
-            return [];
-          }
-        })
-      );
-
-      if (session !== loadSessionRef.current) return;
-
-      const allResources: K8sResource[] = [];
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          allResources.push(...result.value);
-        }
-      });
-
-      setAllResources(allResources);
-      const layoutApps = buildLayout(allResources);
-      setApplications(layoutApps);
-    } catch (err) {
-      if (session !== loadSessionRef.current) return;
-      setError(err instanceof Error ? err.message : 'Failed to load resources');
-    } finally {
-      if (session === loadSessionRef.current) setIsLoading(false);
-    }
-  }, [context, namespace]);
-
-  useEffect(() => {
-    loadResources();
-    // Bump on cleanup so an in-flight load from the previous context/namespace
-    // can detect it is no longer current when its fetches eventually resolve.
-    // The lint warning about ref-in-cleanup doesn't apply: loadSessionRef is
-    // a counter, not a DOM ref, and we want the current counter at cleanup time.
-    return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      loadSessionRef.current++;
-    };
-  }, [loadResources]);
 
   // Pan handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -388,11 +377,6 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
     }
   }, [applications, contentBounds]);
 
-  // Clear selected node when namespace changes
-  useEffect(() => {
-    setSelectedNode(null);
-  }, [namespace]);
-
   // Handle node click
   const handleNodeClick = useCallback((node: LayoutNode) => {
     setSelectedNode(node);
@@ -440,7 +424,7 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
       <div className="flex flex-col items-center justify-center h-full gap-4 bg-white dark:bg-neutral-950">
         <div className="text-red-500">{error}</div>
         <button
-          onClick={loadResources}
+          onClick={() => refetch()}
           className="flex items-center gap-2 px-4 py-2 text-sm bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 rounded-md transition-colors"
         >
           <RefreshCw size={16} />
@@ -455,7 +439,7 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
     <div className={`h-full w-full relative bg-neutral-100 dark:bg-neutral-900 overflow-hidden transition-all duration-300 ${isDetailPanelOpen ? 'mr-120' : ''}`}>
       {/* Zoom controls */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
-        <button onClick={loadResources} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-l-lg" title="Refresh">
+        <button onClick={() => refetch()} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-l-lg" title="Refresh">
           <RefreshCw size={16} className="text-neutral-600 dark:text-neutral-400" />
         </button>
         <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700" />

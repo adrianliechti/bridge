@@ -27,6 +27,8 @@ export default defineConfig({
       '/contexts/local-cluster': {
         target: 'http://127.0.0.1:8001',
         changeOrigin: true,
+        // Terminal (pod exec) runs over websockets
+        ws: true,
         rewrite: (path) => path.replace(/^\/contexts\/local-cluster/, '')
       }
     },

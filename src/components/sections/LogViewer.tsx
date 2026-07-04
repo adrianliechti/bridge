@@ -414,17 +414,19 @@ export function LogViewer({
     setAutoScroll(isAtBottom);
   }, []);
 
-  // Auto-scroll effect
+  // Auto-scroll effect. Instant (non-smooth) scrolling: a smooth animation
+  // lags behind fast-streaming logs, so the scroll listener above would see
+  // "not at bottom" mid-animation and silently turn follow off.
   useEffect(() => {
     if (autoScroll && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      logsEndRef.current.scrollIntoView({ behavior: 'auto' });
     }
   }, [logs, autoScroll]);
 
   // Scroll to bottom
   const scrollToBottom = useCallback(() => {
     setAutoScroll(true);
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    logsEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, []);
 
   // Show unavailable message if provided
@@ -491,16 +493,24 @@ export function LogViewer({
           <div className="p-4 text-neutral-500 dark:text-neutral-500">{emptyMessage}</div>
         )}
 
+        {logs.length > 0 && showOnlyIssues && !logs.some(log => {
+          const parsed = parseLogMessage(log.message);
+          const level = detectLogLevel(log.message, parsed.jsonData, parsed.level);
+          return level === 'error' || level === 'warn';
+        }) && (
+          <div className="p-4 text-neutral-500 dark:text-neutral-500">No warnings or errors in the current logs</div>
+        )}
+
         <div className="p-2 space-y-1">
           {logs.map((log, index) => {
             const parsed = parseLogMessage(log.message);
             const level = detectLogLevel(log.message, parsed.jsonData, parsed.level);
-            
+
             // Filter out non-issue logs if filter is enabled
             if (showOnlyIssues && level !== 'error' && level !== 'warn') {
               return null;
             }
-            
+
             const textColor = LOG_LEVEL_COLORS[level];
             const bgStyle = LOG_LEVEL_BG[level];
             const isStructured = parsed.format !== 'plain';

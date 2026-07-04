@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useSearch, useNavigate } from '@tanstack/react-router';
 import { Search, Sparkles } from 'lucide-react';
 import { clusterRoute, type ClusterSearch } from '../../router';
-import { getResourceConfig, getResourceConfigByQualifiedName } from '../../api/kubernetes/kubernetesDiscovery';
+import { getResourceConfig, getResourceConfigByQualifiedName, getResourceTypeSlug } from '../../api/kubernetes/kubernetesDiscovery';
 import { usePanels } from '../../hooks/usePanelState';
 import { ChatPanel } from '../ChatPanel';
 import {
@@ -24,26 +24,6 @@ import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
 import { getNamespaces } from '../../api/kubernetes/kubernetes';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 
-const WELL_KNOWN_GROUPS = new Set([
-  'apps',
-  'batch',
-  'networking.k8s.io',
-  'storage.k8s.io',
-  'rbac.authorization.k8s.io',
-  'policy',
-  'autoscaling',
-  'coordination.k8s.io',
-  'discovery.k8s.io',
-  'events.k8s.io',
-  'node.k8s.io',
-  'scheduling.k8s.io',
-]);
-
-const shouldUseShortName = (resource: V1APIResource) => {
-  const group = resource.group || '';
-  return group === '' || WELL_KNOWN_GROUPS.has(group);
-};
-
 export function ClusterLayout() {
   const { context, resourceType, name } = useParams({ strict: false });
   const search = useSearch({ from: clusterRoute.id }) as ClusterSearch;
@@ -52,6 +32,7 @@ export function ClusterLayout() {
   
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [resourceConfig, setResourceConfig] = useState<V1APIResource | null>(null);
+  const [resourceNotFound, setResourceNotFound] = useState(false);
 
   const { isOpen: isPanelOpen, toggle: togglePanel, close: closePanel } = usePanels();
   const isChatPanelOpen = isPanelOpen('ai');
@@ -79,7 +60,10 @@ export function ClusterLayout() {
 
     (async () => {
       if (!context || !resourceType) {
-        if (!cancelled) setResourceConfig(null);
+        if (!cancelled) {
+          setResourceConfig(null);
+          setResourceNotFound(false);
+        }
         return;
       }
       try {
@@ -87,16 +71,27 @@ export function ClusterLayout() {
         if (cancelled) return;
         if (config) {
           setResourceConfig(config);
+          setResourceNotFound(false);
           return;
         }
         if (resourceType.includes('.')) {
           const crdConfig = await getResourceConfigByQualifiedName(context, resourceType);
           if (cancelled) return;
-          if (crdConfig) setResourceConfig(crdConfig);
+          if (crdConfig) {
+            setResourceConfig(crdConfig);
+            setResourceNotFound(false);
+            return;
+          }
         }
+        // Discovery finished but the URL's resource type is unknown in this
+        // cluster — clear any config left over from the previous route so we
+        // don't keep rendering the old resource under the new URL.
+        setResourceConfig(null);
+        setResourceNotFound(true);
       } catch {
         if (cancelled) return;
         setResourceConfig(null);
+        setResourceNotFound(true);
       }
     })();
 
@@ -179,15 +174,21 @@ export function ClusterLayout() {
   }, [context, resourceType, name, navigate]);
 
   const setNamespace = useCallback((namespace: string | undefined) => {
+    // A namespace switch changes the visible list; a selected item from the
+    // previous namespace no longer belongs, so drop it (and its tab) from the URL.
+    if (resourceType && name) {
+      navigate({
+        to: '/cluster/$context/$resourceType',
+        params: { context: context!, resourceType },
+        search: (prev) => ({ ...prev, namespace, tab: undefined }),
+      });
+      return;
+    }
     patchSearch({ namespace });
-  }, [patchSearch]);
+  }, [context, resourceType, name, navigate, patchSearch]);
 
   const setResource = useCallback((resource: V1APIResource | null) => {
-    const type = !resource
-      ? 'overview'
-      : shouldUseShortName(resource)
-        ? resource.name
-        : `${resource.name}.${resource.group}`;
+    const type = !resource ? 'overview' : getResourceTypeSlug(resource);
     navigate({
       to: '/cluster/$context/$resourceType',
       params: { context: context!, resourceType: type },
@@ -348,6 +349,16 @@ export function ClusterLayout() {
           isChatPanelOpen={isChatPanelOpen}
           onToggleChatPanel={toggleChatPanel}
         />
+      ) : resourceNotFound ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-neutral-500">
+          <span>Unknown resource type “{resourceType}” in this cluster.</span>
+          <button
+            onClick={() => setResource(null)}
+            className="px-3 py-1.5 text-sm rounded-md bg-neutral-200 hover:bg-neutral-300 text-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-neutral-300 transition-colors"
+          >
+            Go to Overview
+          </button>
+        </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-neutral-500">
           Loading resource...

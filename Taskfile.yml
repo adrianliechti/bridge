@@ -5,7 +5,9 @@ version: '3'
 tasks:
   kubernetes-proxy:
     cmds:
-      - kubectl proxy --address=127.0.0.1 --port=8001
+      # Override the default reject-paths: kubectl proxy blocks pod exec/attach
+      # by default, which breaks the Terminal tab in dev (403 on the websocket).
+      - kubectl proxy --address=127.0.0.1 --port=8001 --reject-paths='^/never-reject$'
 
   docker-proxy:
     cmds:
