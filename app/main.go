@@ -1,46 +1,42 @@
 package main
 
 import (
-	"net/http"
+	"log"
+	"os"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-
-	"github.com/adrianliechti/bridge"
 	"github.com/adrianliechti/bridge/pkg/config"
 	"github.com/adrianliechti/bridge/pkg/server"
+
+	shell "github.com/adrianliechti/go-shell"
 )
 
 func main() {
 	cfg, err := config.New()
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	mux, err := server.New(cfg)
+	srv, err := server.New(cfg)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	options := &options.App{
-		Title: "Bridge",
+	err = shell.Run(shell.Options{
+		Title:   "Bridge",
+		Handler: srv,
 
 		Width:  1280,
 		Height: 768,
 
-		AssetServer: &assetserver.Options{
-			Assets: bridge.DistFS,
+		MinWidth:  640,
+		MinHeight: 400,
 
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				mux.ServeHTTP(w, r)
-			}),
-		},
-	}
+		Debug: os.Getenv("BRIDGE_DEBUG") != "",
+	})
 
-	if err := wails.Run(options); err != nil {
-		panic(err)
+	if err != nil {
+		log.Fatal(err)
 	}
 }

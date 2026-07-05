@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  // `app` contains the Wails desktop wrapper with generated bindings
+  // `app` contains the Go desktop shell, `dist` the committed UI build
   globalIgnores(['dist', 'app']),
   {
     files: ['**/*.{ts,tsx}'],

@@ -12,16 +12,20 @@ tasks:
   docker-proxy:
     cmds:
       - socat -4 TCP-LISTEN:2375,bind=127.0.0.1,fork UNIX-CONNECT:/var/run/docker.sock
-  
+
+  client:
+    cmds:
+      - npm run dev
+
   install:
     cmds:
       - cmd: go install ./cmd/kubectl-bridge
       - task: install-darwin
-      - task: install-windows      
-      
+      - task: install-windows
+
   install-darwin:
     platforms: [darwin]
-    cmds:      
+    cmds:
       - task: build
       - cmd: mkdir -p ~/Applications
       - cmd: rm -rf ~/Applications/Bridge.app
@@ -30,20 +34,26 @@ tasks:
   install-windows:
     platforms: [windows]
     cmds:
+      # Task runs cmds through its built-in POSIX shell (mvdan/sh) even on
+      # Windows, so env vars expand as $VAR, not %VAR%.
       - task: build
-      - cmd: mkdir -p %LOCALAPPDATA%\Programs
-      - cmd: rm -f %LOCALAPPDATA%\Programs\Bridge.exe
-      - cmd: mv app/build/bin/Bridge.exe %LOCALAPPDATA%\Programs\
+      - cmd: mkdir -p "$LOCALAPPDATA/Programs"
+      - cmd: rm -f "$LOCALAPPDATA/Programs/Bridge.exe"
+      - cmd: mv app/build/bin/Bridge.exe "$LOCALAPPDATA/Programs/"
 
   build:
-    dir: app
+    desc: Build the desktop app for this platform (Bridge.app / Bridge.exe); all resources are generated from app/appicon.png
     cmds:
-      # Pinned wails CLI (keep in sync with app/go.mod and .goreleaser.app.yml).
-      - go run github.com/wailsapp/wails/v2/cmd/wails@v2.12.0 build -clean
+      - go tool appbundle -name Bridge -id com.adrianliechti.bridge -description "Bridge - Kubernetes and Docker Dashboard" -company "Adrian Liechti" -copyright "© Adrian Liechti" -package ./app
+
+  ui:
+    desc: Build the web UI assets
+    cmds:
+      - npm install
+      - npm run build
 
   release:app:
     desc: Release the macOS desktop app + Homebrew cask (macOS only; needs GITHUB_TOKEN)
     cmds:
-      # --skip=validate: `wails build` may regenerate tracked bindings, dirtying the tree.
+      # --skip=validate: skip git-state checks so snapshot/dry runs work from a dirty tree.
       - goreleaser release --clean --skip=validate -f .goreleaser.app.yml
-
