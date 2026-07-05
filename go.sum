@@ -1,5 +1,5 @@
-github.com/adrianliechti/go-shell v0.0.0-20260705115937-d3a17f9b41ba h1:jfVtTGRG31LGAiaNMEVgqhe1NWQ/uvOPxEkYi3gbAjE=
-github.com/adrianliechti/go-shell v0.0.0-20260705115937-d3a17f9b41ba/go.mod h1:aBKXGh6UzmqxrHw2qGff3MCY2Qzghevb/ONRJGV5oNQ=
+github.com/adrianliechti/go-shell v0.1.0 h1:YbLrarrCn1I7HugM1fanew2KYAaPc4BBOJGRuOrxq90=
+github.com/adrianliechti/go-shell v0.1.0/go.mod h1:RFWOsVQf9sNmtYOw1z3n5pr7tuK0SQr743tHCklsfk4=
 github.com/containerd/errdefs v1.0.0 h1:tg5yIfIlQIrxYtu9ajqY42W3lpS19XqdxRQeEwYG8PI=
 github.com/containerd/errdefs v1.0.0/go.mod h1:+YBYIdtsnF4Iw6nWZhJcqGSg/dwvV7tyJ/kCkyJ2k+M=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

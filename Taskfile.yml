@@ -57,3 +57,8 @@ tasks:
     cmds:
       # --skip=validate: skip git-state checks so snapshot/dry runs work from a dirty tree.
       - goreleaser release --clean --skip=validate -f .goreleaser.app.yml
+
+  release:
+    desc: Full release — the desktop app, on the current git tag
+    cmds:
+      - task: release:app

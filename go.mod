@@ -3,7 +3,7 @@ module github.com/adrianliechti/bridge
 go 1.26.0
 
 require (
-	github.com/adrianliechti/go-shell v0.0.0-20260705115937-d3a17f9b41ba
+	github.com/adrianliechti/go-shell v0.1.0
 	github.com/docker/cli v29.5.2+incompatible
 	golang.org/x/crypto v0.52.0
 	k8s.io/client-go v0.36.1
