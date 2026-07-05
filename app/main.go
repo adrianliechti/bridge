@@ -1,46 +1,62 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"net"
 	"net/http"
+	"runtime"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-
-	"github.com/adrianliechti/bridge"
 	"github.com/adrianliechti/bridge/pkg/config"
 	"github.com/adrianliechti/bridge/pkg/server"
 )
+
+func init() {
+	// The native window (Cocoa / Win32 message loop) must run on the main thread.
+	runtime.LockOSThread()
+}
+
+type windowOptions struct {
+	Title string
+	URL   string
+
+	Width  int
+	Height int
+}
 
 func main() {
 	cfg, err := config.New()
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	mux, err := server.New(cfg)
+	srv, err := server.New(cfg)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	options := &options.App{
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		if err := http.Serve(ln, srv); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	url := fmt.Sprintf("http://127.0.0.1:%d", ln.Addr().(*net.TCPAddr).Port)
+	log.Printf("Bridge is running at %s", url)
+
+	runWindow(windowOptions{
 		Title: "Bridge",
+		URL:   url,
 
 		Width:  1280,
 		Height: 768,
-
-		AssetServer: &assetserver.Options{
-			Assets: bridge.DistFS,
-
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				mux.ServeHTTP(w, r)
-			}),
-		},
-	}
-
-	if err := wails.Run(options); err != nil {
-		panic(err)
-	}
+	})
 }

@@ -26,7 +26,7 @@ TAP_OWNER="adrianliechti"
 TAP_REPO="homebrew-tap"
 CASK_NAME="bridge-app"
 APP_NAME="Bridge.app"
-BUNDLE_ID="com.wails.Bridge"
+BUNDLE_ID="com.adrianliechti.bridge"
 REPO_URL="https://github.com/adrianliechti/bridge"
 
 ARCHIVE="dist/app/${CASK_NAME}_${VERSION}_macOS_arm64.zip"

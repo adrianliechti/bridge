@@ -12,17 +12,17 @@ tasks:
   docker-proxy:
     cmds:
       - socat -4 TCP-LISTEN:2375,bind=127.0.0.1,fork UNIX-CONNECT:/var/run/docker.sock
-  
+
   install:
     cmds:
       - cmd: go install ./cmd/kubectl-bridge
       - task: install-darwin
-      - task: install-windows      
-      
+      - task: install-windows
+
   install-darwin:
     platforms: [darwin]
-    cmds:      
-      - task: build
+    cmds:
+      - task: build-darwin
       - cmd: mkdir -p ~/Applications
       - cmd: rm -rf ~/Applications/Bridge.app
       - cmd: mv app/build/bin/Bridge.app ~/Applications/
@@ -30,20 +30,31 @@ tasks:
   install-windows:
     platforms: [windows]
     cmds:
-      - task: build
+      - task: build-windows
       - cmd: mkdir -p %LOCALAPPDATA%\Programs
       - cmd: rm -f %LOCALAPPDATA%\Programs\Bridge.exe
       - cmd: mv app/build/bin/Bridge.exe %LOCALAPPDATA%\Programs\
 
-  build:
+  build-darwin:
+    platforms: [darwin]
+    cmds:
+      - ./scripts/build-app.sh
+
+  build-windows:
+    platforms: [windows]
     dir: app
     cmds:
-      # Pinned wails CLI (keep in sync with app/go.mod and .goreleaser.app.yml).
-      - go run github.com/wailsapp/wails/v2/cmd/wails@v2.12.0 build -clean
+      # Icon, manifest and version info come from the committed rsrc_windows_*.syso.
+      - go build -trimpath -ldflags="-s -w -H windowsgui" -o build/bin/Bridge.exe .
+
+  winres:
+    desc: Regenerate app/rsrc_windows_*.syso after changing app/winres (icon, manifest, version info)
+    dir: app
+    cmds:
+      - go run github.com/tc-hib/go-winres@v0.3.3 make --in winres/winres.json --out rsrc --arch amd64,arm64
 
   release:app:
     desc: Release the macOS desktop app + Homebrew cask (macOS only; needs GITHUB_TOKEN)
     cmds:
-      # --skip=validate: `wails build` may regenerate tracked bindings, dirtying the tree.
+      # --skip=validate: skip git-state checks so snapshot/dry runs work from a dirty tree.
       - goreleaser release --clean --skip=validate -f .goreleaser.app.yml
-
