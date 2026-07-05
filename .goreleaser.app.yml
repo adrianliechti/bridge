@@ -11,7 +11,7 @@ dist: dist/app
 
 before:
   hooks:
-    - go tool appbundle -version {{ .Version }}
+    - go tool appbundle -name Bridge -package ./app -version {{ .Version }}
 
 # The hook above assembles the .app; GoReleaser builds no binaries.
 builds:

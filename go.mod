@@ -3,10 +3,9 @@ module github.com/adrianliechti/bridge
 go 1.26.0
 
 require (
+	github.com/adrianliechti/go-shell v0.0.0-20260705112123-258953a22568
 	github.com/docker/cli v29.5.2+incompatible
-	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	golang.org/x/crypto v0.52.0
-	golang.org/x/image v0.43.0
 	k8s.io/client-go v0.36.1
 )
 
@@ -18,6 +17,7 @@ require (
 	github.com/fvbommel/sortorder v1.1.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808 // indirect
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
@@ -36,9 +36,10 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
+	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
@@ -55,7 +56,7 @@ require (
 )
 
 tool (
-	github.com/adrianliechti/bridge/tools/appbundle
-	github.com/adrianliechti/bridge/tools/icns
+	github.com/adrianliechti/go-shell/cmd/appbundle
+	github.com/adrianliechti/go-shell/cmd/icns
 	github.com/tc-hib/go-winres
 )

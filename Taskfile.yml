@@ -40,7 +40,7 @@ tasks:
   build-darwin:
     platforms: [darwin]
     cmds:
-      - go tool appbundle
+      - go tool appbundle -name Bridge -package ./app
 
   build-windows:
     platforms: [windows]
