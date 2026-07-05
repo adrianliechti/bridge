@@ -27,6 +27,7 @@ TAP_REPO="homebrew-tap"
 CASK_NAME="bridge-app"
 APP_NAME="Bridge.app"
 BUNDLE_ID="com.adrianliechti.bridge"
+OLD_BUNDLE_ID="com.wails.Bridge"
 REPO_URL="https://github.com/adrianliechti/bridge"
 
 ARCHIVE="dist/app/${CASK_NAME}_${VERSION}_macOS_arm64.zip"
@@ -80,13 +81,17 @@ cask "${CASK_NAME}" do
                    args: ["-dr", "com.apple.quarantine", "#{appdir}/${APP_NAME}"]
   end
 
-  uninstall quit: "${BUNDLE_ID}"
+  uninstall quit: ["${BUNDLE_ID}", "${OLD_BUNDLE_ID}"]
 
   zap trash: [
     "~/Library/Caches/${BUNDLE_ID}",
     "~/Library/HTTPStorages/${BUNDLE_ID}",
     "~/Library/Saved Application State/${BUNDLE_ID}.savedState",
     "~/Library/WebKit/${BUNDLE_ID}",
+    "~/Library/Caches/${OLD_BUNDLE_ID}",
+    "~/Library/HTTPStorages/${OLD_BUNDLE_ID}",
+    "~/Library/Saved Application State/${OLD_BUNDLE_ID}.savedState",
+    "~/Library/WebKit/${OLD_BUNDLE_ID}",
   ]
 end
 EOF

@@ -11,7 +11,7 @@ dist: dist/app
 
 before:
   hooks:
-    - ./scripts/build-app.sh {{ .Version }}
+    - go tool appbundle -version {{ .Version }}
 
 # The hook above assembles the .app; GoReleaser builds no binaries.
 builds:

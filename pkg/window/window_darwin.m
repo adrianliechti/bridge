@@ -50,8 +50,12 @@
     decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction
                     decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
     NSURL *url = navigationAction.request.URL;
+    BOOL isMainFrame = navigationAction.targetFrame != nil && navigationAction.targetFrame.mainFrame;
 
-    if (url != nil && navigationAction.navigationType == WKNavigationTypeLinkActivated && ![self isAppURL:url]) {
+    // Cover redirects and JS-driven navigations (navigationType Other), not
+    // just clicked links: any of them leaving the app's origin would otherwise
+    // take over the window with no toolbar or way back.
+    if (url != nil && isMainFrame && ![self isAppURL:url]) {
         [[NSWorkspace sharedWorkspace] openURL:url];
         decisionHandler(WKNavigationActionPolicyCancel);
         return;
@@ -118,7 +122,7 @@ static void BuildMenu(WKWebView *webView) {
     NSApp.windowsMenu = windowMenu;
 }
 
-void RunWindow(const char *url, const char *title, int width, int height) {
+void BridgeWindowRun(const char *url, const char *title, int width, int height) {
     @autoreleasepool {
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -137,13 +141,18 @@ void RunWindow(const char *url, const char *title, int width, int height) {
         [window center];
         [window setFrameAutosaveName:@"BridgeWindow"];
 
+        BOOL debug = getenv("BRIDGE_DEBUG") != NULL;
+
         WKWebViewConfiguration *configuration = [WKWebViewConfiguration new];
-        [configuration.preferences setValue:@YES forKey:@"developerExtrasEnabled"];
+
+        if (debug) {
+            [configuration.preferences setValue:@YES forKey:@"developerExtrasEnabled"];
+        }
 
         WKWebView *webView = [[WKWebView alloc] initWithFrame:frame configuration:configuration];
 
         if (@available(macOS 13.3, *)) {
-            webView.inspectable = YES;
+            webView.inspectable = debug;
         }
 
         BridgeApp *delegate = [BridgeApp new];
@@ -153,6 +162,12 @@ void RunWindow(const char *url, const char *title, int width, int height) {
 
         webView.UIDelegate = delegate;
         webView.navigationDelegate = delegate;
+
+        // Keep a permanent strong reference: NSApp.delegate and the WKWebView
+        // delegate slots are all weak, so without this the only strong owner
+        // is this local, which ARC may release right after its last use here.
+        static BridgeApp *gDelegate;
+        gDelegate = delegate;
 
         [NSApp setDelegate:delegate];
         BuildMenu(webView);

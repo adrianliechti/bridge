@@ -30,28 +30,28 @@ tasks:
   install-windows:
     platforms: [windows]
     cmds:
+      # Task runs cmds through its built-in POSIX shell (mvdan/sh) even on
+      # Windows, so env vars expand as $VAR, not %VAR%.
       - task: build-windows
-      - cmd: mkdir -p %LOCALAPPDATA%\Programs
-      - cmd: rm -f %LOCALAPPDATA%\Programs\Bridge.exe
-      - cmd: mv app/build/bin/Bridge.exe %LOCALAPPDATA%\Programs\
+      - cmd: mkdir -p "$LOCALAPPDATA/Programs"
+      - cmd: rm -f "$LOCALAPPDATA/Programs/Bridge.exe"
+      - cmd: mv app/build/bin/Bridge.exe "$LOCALAPPDATA/Programs/"
 
   build-darwin:
     platforms: [darwin]
     cmds:
-      - ./scripts/build-app.sh
+      - go tool appbundle
 
   build-windows:
     platforms: [windows]
-    dir: app
     cmds:
       # Icon, manifest and version info come from the committed rsrc_windows_*.syso.
-      - go build -trimpath -ldflags="-s -w -H windowsgui" -o build/bin/Bridge.exe .
+      - go build -trimpath -ldflags="-s -w -H windowsgui" -o app/build/bin/Bridge.exe ./app
 
-  winres:
-    desc: Regenerate app/rsrc_windows_*.syso after changing app/winres (icon, manifest, version info)
-    dir: app
+  generate:
+    desc: Regenerate committed platform resources (Windows .syso, macOS .icns) after changing app/appicon.png or app/winres
     cmds:
-      - go run github.com/tc-hib/go-winres@v0.3.3 make --in winres/winres.json --out rsrc --arch amd64,arm64
+      - go generate ./app
 
   release:app:
     desc: Release the macOS desktop app + Homebrew cask (macOS only; needs GITHUB_TOKEN)

@@ -5,24 +5,11 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"runtime"
 
 	"github.com/adrianliechti/bridge/pkg/config"
 	"github.com/adrianliechti/bridge/pkg/server"
+	"github.com/adrianliechti/bridge/pkg/window"
 )
-
-func init() {
-	// The native window (Cocoa / Win32 message loop) must run on the main thread.
-	runtime.LockOSThread()
-}
-
-type windowOptions struct {
-	Title string
-	URL   string
-
-	Width  int
-	Height int
-}
 
 func main() {
 	cfg, err := config.New()
@@ -44,19 +31,21 @@ func main() {
 	}
 
 	go func() {
-		if err := http.Serve(ln, srv); err != nil {
-			log.Fatal(err)
-		}
+		log.Fatal(http.Serve(ln, srv))
 	}()
 
 	url := fmt.Sprintf("http://127.0.0.1:%d", ln.Addr().(*net.TCPAddr).Port)
 	log.Printf("Bridge is running at %s", url)
 
-	runWindow(windowOptions{
+	err = window.Run(window.Options{
 		Title: "Bridge",
 		URL:   url,
 
 		Width:  1280,
 		Height: 768,
 	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
 }
