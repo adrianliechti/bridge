@@ -14,10 +14,14 @@ import (
 
 	"github.com/adrianliechti/bridge"
 	"github.com/adrianliechti/bridge/pkg/config"
+
+	"github.com/coder/websocket"
 )
 
 type Server struct {
 	config *config.Config
+
+	container http.Handler
 
 	http.Handler
 }
@@ -40,6 +44,15 @@ func New(cfg *config.Config) (*Server, error) {
 		}
 	}
 
+	if cfg.Container != nil {
+		if _, ok := contexts["apple"]; !ok {
+			contexts["apple"] = &Context{
+				Type: "container",
+				Name: "apple",
+			}
+		}
+	}
+
 	if cfg.Kubernetes != nil {
 		for _, c := range cfg.Kubernetes.Contexts {
 			contexts[c.Name] = &Context{
@@ -56,6 +69,10 @@ func New(cfg *config.Config) (*Server, error) {
 		Handler: BearerTokenMiddleware(mux),
 	}
 
+	if cfg.Container != nil {
+		s.container = newContainerHandler(cfg.Container)
+	}
+
 	mux.HandleFunc("GET /config.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -67,13 +84,23 @@ func New(cfg *config.Config) (*Server, error) {
 			}
 		}
 
-		if cfg.Docker != nil {
-			config.Docker = &DockerConfig{
-				CurrentContext: cfg.Docker.CurrentContext,
+		if cfg.Docker != nil || cfg.Container != nil {
+			config.Docker = &DockerConfig{}
+
+			if cfg.Docker != nil {
+				config.Docker.CurrentContext = cfg.Docker.CurrentContext
+
+				for _, c := range cfg.Docker.Contexts {
+					config.Docker.Contexts = append(config.Docker.Contexts, c.Name)
+				}
 			}
 
-			for _, c := range cfg.Docker.Contexts {
-				config.Docker.Contexts = append(config.Docker.Contexts, c.Name)
+			if cfg.Container != nil {
+				config.Docker.Contexts = append(config.Docker.Contexts, "apple")
+
+				if config.Docker.CurrentContext == "" {
+					config.Docker.CurrentContext = "apple"
+				}
 			}
 		}
 
@@ -92,6 +119,46 @@ func New(cfg *config.Config) (*Server, error) {
 		}
 
 		json.NewEncoder(w).Encode(config)
+	})
+
+	mux.HandleFunc("GET /contexts/{context}/shell/{id}", func(w http.ResponseWriter, r *http.Request) {
+		context, ok := contexts[r.PathValue("context")]
+
+		if !ok {
+			http.Error(w, "context not found", http.StatusNotFound)
+			return
+		}
+
+		if context.Type != "docker" && context.Type != "container" {
+			http.Error(w, "shell not supported for this context", http.StatusBadRequest)
+			return
+		}
+
+		command := r.URL.Query()["command"]
+
+		if len(command) == 0 {
+			command = []string{"/bin/sh"}
+		}
+
+		ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			InsecureSkipVerify: true,
+		})
+
+		if err != nil {
+			return
+		}
+
+		ws.SetReadLimit(1 << 20)
+
+		defer ws.Close(websocket.StatusNormalClosure, "")
+
+		switch context.Type {
+		case "docker":
+			s.dockerShell(r.Context(), ws, context.Name, r.PathValue("id"), command)
+
+		case "container":
+			s.containerShell(r.Context(), ws, r.PathValue("id"), command)
+		}
 	})
 
 	mux.HandleFunc("/contexts/{context}/{path...}", func(w http.ResponseWriter, r *http.Request) {
@@ -117,6 +184,15 @@ func New(cfg *config.Config) (*Server, error) {
 
 			r.URL.Path = "/" + path
 			proxy.ServeHTTP(w, r)
+
+		case "container":
+			if s.container == nil {
+				http.Error(w, "container support not available", http.StatusInternalServerError)
+				return
+			}
+
+			r.URL.Path = "/" + path
+			s.container.ServeHTTP(w, r)
 
 		case "kubernetes":
 			proxy, err := s.kubernetesProxy(r.Context(), context.Name, auth)

@@ -16,6 +16,7 @@ import {
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
 import { DockerLogViewer } from './LogViewer';
+import { DockerTerminalViewer } from './TerminalViewer';
 import { LabelsSection } from '../sections/InfoSection';
 import type { ResourceAction, DockerResource } from './adapters/types';
 
@@ -38,7 +39,7 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
   // selected resource are simply ignored — no state resets in effects.
   const [fetched, setFetched] = useState<{ id: string; object: InspectedObject } | null>(null);
   const [fetchError, setFetchError] = useState<{ id: string; message: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'metadata' | 'logs' | 'terminal'>('overview');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -210,6 +211,9 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
 
   // Only show logs tab for containers
   const showLogsTab = resourceType === 'containers';
+
+  // Only show terminal tab for running containers
+  const showTerminalTab = resourceType === 'containers' && (resource as DockerContainer | null)?.State === 'running';
   
   // Check if resource has labels for metadata tab
   const hasLabels = (() => {
@@ -251,10 +255,11 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
     return undefined;
   };
   
-  const tabs: { id: 'overview' | 'metadata' | 'logs'; label: string }[] = [
+  const tabs: { id: 'overview' | 'metadata' | 'logs' | 'terminal'; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     ...(hasLabels ? [{ id: 'metadata' as const, label: 'Metadata' }] : []),
     ...(showLogsTab ? [{ id: 'logs' as const, label: 'Logs' }] : []),
+    ...(showTerminalTab ? [{ id: 'terminal' as const, label: 'Terminal' }] : []),
   ];
 
   // Only show overview tab if we have an adapter
@@ -412,6 +417,9 @@ export function ResourcePanel({ context: dockerContext, isOpen, onClose, otherPa
             )}
             {activeTab === 'logs' && resourceType === 'containers' && resource && (
               <DockerLogViewer context={dockerContext} container={resource as DockerContainer} toolbarRef={toolbarRef} />
+            )}
+            {activeTab === 'terminal' && resourceType === 'containers' && resource && (
+              <DockerTerminalViewer context={dockerContext} container={resource as DockerContainer} />
             )}
           </>
         )}

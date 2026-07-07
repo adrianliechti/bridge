@@ -4,6 +4,8 @@ go 1.26.0
 
 require (
 	github.com/adrianliechti/go-shell v0.1.0
+	github.com/coder/websocket v1.8.15
+	github.com/creack/pty v1.1.24
 	github.com/docker/cli v29.5.2+incompatible
 	golang.org/x/crypto v0.52.0
 	k8s.io/client-go v0.36.1
