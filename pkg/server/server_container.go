@@ -38,6 +38,7 @@ func newContainerHandler(cfg *config.ContainerConfig) http.Handler {
 	h.mux.HandleFunc("GET /info", h.handleInfo)
 
 	h.mux.HandleFunc("GET /containers/json", h.handleContainerList)
+	h.mux.HandleFunc("POST /containers/create", h.handleContainerCreate)
 	h.mux.HandleFunc("GET /containers/{id}/json", h.handleContainerInspect)
 	h.mux.HandleFunc("GET /containers/{id}/logs", h.handleContainerLogs)
 	h.mux.HandleFunc("POST /containers/{id}/start", h.handleContainerStart)
@@ -48,6 +49,7 @@ func newContainerHandler(cfg *config.ContainerConfig) http.Handler {
 	h.mux.HandleFunc("DELETE /containers/{id}", h.handleContainerDelete)
 
 	h.mux.HandleFunc("GET /images/json", h.handleImageList)
+	h.mux.HandleFunc("POST /images/create", h.handleImagePull)
 	h.mux.HandleFunc("DELETE /images/{id...}", h.handleImageDelete)
 
 	h.mux.HandleFunc("GET /volumes", h.handleVolumeList)
@@ -435,6 +437,109 @@ func (h *containerHandler) handleContainerList(w http.ResponseWriter, r *http.Re
 	}
 
 	containerJSON(w, result)
+}
+
+func (h *containerHandler) handleContainerCreate(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Image string   `json:"Image"`
+		Cmd   []string `json:"Cmd"`
+		Env   []string `json:"Env"`
+
+		HostConfig struct {
+			Binds []string `json:"Binds"`
+
+			PortBindings map[string][]struct {
+				HostIP   string `json:"HostIp"`
+				HostPort string `json:"HostPort"`
+			} `json:"PortBindings"`
+		} `json:"HostConfig"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		containerError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if body.Image == "" {
+		containerError(w, http.StatusBadRequest, errors.New("image is required"))
+		return
+	}
+
+	args := []string{"create"}
+
+	if name := r.URL.Query().Get("name"); name != "" {
+		args = append(args, "--name", name)
+	}
+
+	for _, env := range body.Env {
+		args = append(args, "-e", env)
+	}
+
+	for port, bindings := range body.HostConfig.PortBindings {
+		containerPort, proto, ok := strings.Cut(port, "/")
+
+		if !ok {
+			proto = "tcp"
+		}
+
+		for _, binding := range bindings {
+			if binding.HostPort == "" {
+				continue
+			}
+
+			spec := binding.HostPort + ":" + containerPort + "/" + proto
+
+			if binding.HostIP != "" {
+				spec = binding.HostIP + ":" + spec
+			}
+
+			args = append(args, "-p", spec)
+		}
+	}
+
+	for _, bind := range body.HostConfig.Binds {
+		args = append(args, "-v", bind)
+	}
+
+	args = append(args, body.Image)
+	args = append(args, body.Cmd...)
+
+	data, err := h.run(r.Context(), args...)
+
+	if err != nil {
+		containerError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"Id":       strings.TrimSpace(string(data)),
+		"Warnings": []string{},
+	})
+}
+
+func (h *containerHandler) handleImagePull(w http.ResponseWriter, r *http.Request) {
+	image := r.URL.Query().Get("fromImage")
+
+	if image == "" {
+		containerError(w, http.StatusBadRequest, errors.New("fromImage is required"))
+		return
+	}
+
+	if tag := r.URL.Query().Get("tag"); tag != "" {
+		image = image + ":" + tag
+	}
+
+	if _, err := h.run(r.Context(), "image", "pull", image); err != nil {
+		containerError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	containerJSON(w, map[string]any{
+		"status": "Pull complete",
+	})
 }
 
 func (h *containerHandler) handleContainerInspect(w http.ResponseWriter, r *http.Request) {

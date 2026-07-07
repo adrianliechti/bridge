@@ -20,7 +20,7 @@ interface ResourcePageProps<T = any> {
   // Optional detail panel props
   showDetailPanel?: boolean;
   renderDetailPanel?: (item: TableRow<T>, onClose: () => void, otherPanelOpen: boolean) => React.ReactNode;
-  // Optional header actions (e.g., AI button)
+  // Optional header actions (e.g., AI button), rendered left of the search button
   renderHeaderActions?: (columns: TableColumnDefinition[]) => React.ReactNode;
   // Chat panel state (for header padding calculation)
   isChatPanelOpen?: boolean;
@@ -111,6 +111,8 @@ export function ResourcePage<T = any>({
           </div>
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {renderHeaderActions?.(columns)}
+            <div ref={toolbarRef} />
             <button
               onClick={() => {
                 const event = new KeyboardEvent('keydown', {
@@ -126,8 +128,6 @@ export function ResourcePage<T = any>({
             >
               <Search size={18} />
             </button>
-            <div ref={toolbarRef} />
-            {renderHeaderActions?.(columns)}
           </div>
         </header>
         <section className="flex-1 min-h-0 overflow-hidden">

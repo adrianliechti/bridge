@@ -129,6 +129,132 @@ export async function startContainer(context: string, id: string): Promise<void>
   return postDockerApi(`/containers/${id}/start`, context);
 }
 
+// ============================================
+// RUN CONTAINER (create + start)
+// ============================================
+
+export interface RunContainerOptions {
+  /** Image reference, e.g. nginx:latest */
+  image: string;
+  name?: string;
+  /** Command override */
+  command?: string[];
+  /** Port specs: [host-ip:]host-port:container-port[/protocol] */
+  ports?: string[];
+  /** Environment variables: KEY=VALUE */
+  env?: string[];
+  /** Volume specs: host-path-or-volume:container-path */
+  volumes?: string[];
+}
+
+// Error carrying the Docker API response status
+export class DockerApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+// Ensure an image reference has a tag (bare pulls would fetch all tags)
+function normalizeImageRef(image: string): string {
+  const name = image.substring(image.lastIndexOf('/') + 1);
+  return name.includes(':') || name.includes('@') ? image : `${image}:latest`;
+}
+
+// Pull an image (waits for completion)
+export async function pullImage(context: string, image: string): Promise<void> {
+  const ref = normalizeImageRef(image);
+  const response = await fetch(`/contexts/${context}/images/create?fromImage=${encodeURIComponent(ref)}`, { method: 'POST' });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to pull image: ${response.status} ${response.statusText}`);
+  }
+  // Docker streams pull progress; wait for the stream to finish
+  await response.text();
+}
+
+// Create a container, returns its id
+export async function createContainer(context: string, options: RunContainerOptions): Promise<string> {
+  const exposedPorts: Record<string, object> = {};
+  const portBindings: Record<string, { HostIp?: string; HostPort: string }[]> = {};
+
+  for (const spec of options.ports ?? []) {
+    const [main, proto = 'tcp'] = spec.split('/');
+    const parts = main.split(':');
+    const containerPort = parts.pop() ?? '';
+    const hostPort = parts.pop() ?? '';
+    const hostIp = parts.join(':');
+    if (!containerPort) continue;
+
+    const key = `${containerPort}/${proto}`;
+    exposedPorts[key] = {};
+    if (hostPort) {
+      (portBindings[key] ??= []).push({ ...(hostIp ? { HostIp: hostIp } : {}), HostPort: hostPort });
+    }
+  }
+
+  const body = {
+    Image: normalizeImageRef(options.image),
+    ...(options.command?.length ? { Cmd: options.command } : {}),
+    ...(options.env?.length ? { Env: options.env } : {}),
+    ...(Object.keys(exposedPorts).length ? { ExposedPorts: exposedPorts } : {}),
+    HostConfig: {
+      ...(Object.keys(portBindings).length ? { PortBindings: portBindings } : {}),
+      ...(options.volumes?.length ? { Binds: options.volumes } : {}),
+    },
+  };
+
+  const params = options.name ? `?name=${encodeURIComponent(options.name)}` : '';
+  const response = await fetch(`/contexts/${context}/containers/create${params}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text;
+    try {
+      message = (JSON.parse(text) as { message?: string }).message || text;
+    } catch {
+      // Not JSON — use the raw text
+    }
+    throw new DockerApiError(message || `Failed to create container: ${response.status} ${response.statusText}`, response.status);
+  }
+
+  const result = await response.json() as { Id?: string };
+  if (!result.Id) throw new Error('Container created but no id returned');
+  return result.Id;
+}
+
+export type RunContainerPhase = 'creating' | 'pulling' | 'starting';
+
+// Create and start a container. The docker daemon reports a missing local
+// image as 404 — pull and retry only then; other errors (name conflicts,
+// bad options) are final. Apple container pulls within create itself.
+export async function runContainer(
+  context: string,
+  options: RunContainerOptions,
+  onPhase?: (phase: RunContainerPhase) => void
+): Promise<string> {
+  onPhase?.('creating');
+  let id: string;
+  try {
+    id = await createContainer(context, options);
+  } catch (err) {
+    if (!(err instanceof DockerApiError) || err.status !== 404) throw err;
+    onPhase?.('pulling');
+    await pullImage(context, options.image);
+    onPhase?.('creating');
+    id = await createContainer(context, options);
+  }
+  onPhase?.('starting');
+  await startContainer(context, id);
+  return id;
+}
+
 // Stop a container
 export async function stopContainer(context: string, id: string): Promise<void> {
   return postDockerApi(`/containers/${id}/stop`, context);
@@ -395,10 +521,13 @@ import type { TableResponse, TableColumnDefinition } from '../../types/table';
 // Helper to format ports for table display
 function formatPortsForTable(ports: DockerPort[]): string {
   if (!ports || ports.length === 0) return '-';
-  return ports
-    .filter(p => p.PublicPort)
-    .map(p => `${p.PublicPort}:${p.PrivatePort}/${p.Type}`)
-    .join(', ') || '-';
+  // Dedupe — docker reports one entry per bound address (IPv4 + IPv6)
+  const specs = new Set(
+    ports
+      .filter(p => p.PublicPort)
+      .map(p => `${p.PublicPort}:${p.PrivatePort}/${p.Type}`)
+  );
+  return [...specs].join(', ') || '-';
 }
 
 // Helper to format created timestamp as age

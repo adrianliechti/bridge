@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Sparkles } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import type { DockerContainer, DockerImage, DockerVolume, DockerNetwork, DockerNetworkInspect, ComposeApplication } from '../../api/docker/docker';
 import { 
   listContainers, listImages, listVolumes, listNetworks, listApplications,
@@ -10,6 +10,7 @@ import {
 import type { TableRow, ResourceConfig, TableResponse } from '../../types/table';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
 import { ResourcePanel } from './ResourcePanel';
+import { CreateContainerDialog } from './CreateContainerDialog';
 import { getConfig } from '../../config';
 
 export type DockerResourceType = 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
@@ -147,23 +148,43 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   };
   const title = titleMap[resourceType];
 
-  // Render AI chat button in header
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  // Run-container and AI chat buttons, rendered left of the search button
   const renderHeaderActions = useCallback(() => {
-    if (!getConfig().ai || !onToggleChatPanel) return null;
-    return (
+    const createButton = resourceType === 'containers' ? (
+      <button
+        onClick={() => setShowCreateDialog(true)}
+        className="p-2 rounded-md transition-colors text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800"
+        title="Run Container"
+      >
+        <Plus size={18} />
+      </button>
+    ) : null;
+
+    const chatButton = getConfig().ai && onToggleChatPanel ? (
       <button
         onClick={onToggleChatPanel}
         className={`p-2 rounded-md transition-colors ${
-          isChatPanelOpen 
-            ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800' 
+          isChatPanelOpen
+            ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
             : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
         }`}
         title="AI Assistant"
       >
         <Sparkles size={18} />
       </button>
+    ) : null;
+
+    if (!createButton && !chatButton) return null;
+
+    return (
+      <>
+        {createButton}
+        {chatButton}
+      </>
     );
-  }, [isChatPanelOpen, onToggleChatPanel]);
+  }, [resourceType, isChatPanelOpen, onToggleChatPanel]);
 
   // Custom detail panel for Docker resources using the new ResourcePanel
   const showDetailPanel = resourceType === 'applications' || resourceType === 'containers' || resourceType === 'images' || resourceType === 'volumes' || resourceType === 'networks';
@@ -190,21 +211,31 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   }, [resourceType]);
 
   return (
-    <BaseResourcePage
-      config={config}
-      title={title}
-      data={tableData as TableResponse<DockerResourceObject>}
-      loading={loading}
-      error={error}
-      refetch={refetch}
-      isRefetching={isRefetching}
-      showDetailPanel={showDetailPanel}
-      renderDetailPanel={renderDetailPanel}
-      renderHeaderActions={renderHeaderActions}
-      isChatPanelOpen={isChatPanelOpen}
-      selectedItemName={selectedItem}
-      onSelectItemName={onSelectItem}
-      getItemName={getItemName}
-    />
+    <>
+      <BaseResourcePage
+        config={config}
+        title={title}
+        data={tableData as TableResponse<DockerResourceObject>}
+        loading={loading}
+        error={error}
+        refetch={refetch}
+        isRefetching={isRefetching}
+        showDetailPanel={showDetailPanel}
+        renderDetailPanel={renderDetailPanel}
+        renderHeaderActions={renderHeaderActions}
+        isChatPanelOpen={isChatPanelOpen}
+        selectedItemName={selectedItem}
+        onSelectItemName={onSelectItem}
+        getItemName={getItemName}
+      />
+
+      {showCreateDialog && (
+        <CreateContainerDialog
+          context={dockerContext}
+          onClose={() => setShowCreateDialog(false)}
+          onCreated={() => refetch()}
+        />
+      )}
+    </>
   );
 }

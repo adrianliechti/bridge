@@ -26,7 +26,7 @@ export function DockerLayout() {
   const { context, resourceType, name } = useParams({ strict: false });
   const navigate = useNavigate();
   const config = getConfig();
-  
+
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   const { isOpen: isPanelOpen, toggle: togglePanel, close: closePanel } = usePanels();
