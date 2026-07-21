@@ -19,7 +19,7 @@ It ships as a small desktop app.
 - **Apple container** — on macOS, containers managed by
   [apple/container](https://github.com/apple/container) appear as the
   `apple` context. Bridge emulates the subset of the Docker Engine API the
-  UI needs on top of the `container` CLI (version 0.6.x), so listing,
+  UI needs on top of the `container` CLI (version 1.1.x), so listing,
   creating, logs, terminal, images, volumes, and networks all work the
   same way as with Docker.
 - **AI assistant** (optional) — a chat panel wired to an OpenAI-compatible

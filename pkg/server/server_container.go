@@ -122,10 +122,12 @@ func containerJSON(w http.ResponseWriter, val any) {
 	json.NewEncoder(w).Encode(val)
 }
 
-// CLI JSON models (container CLI 0.6.x)
+// CLI JSON models (container CLI 1.x; the 1.0.0 release restructured the
+// structured output: state moved into a status object, resources encode as
+// id + configuration [+ status], dates are ISO8601)
 
 type containerContainer struct {
-	Status string `json:"status"`
+	ID string `json:"id"`
 
 	Configuration struct {
 		ID     string            `json:"id"`
@@ -173,52 +175,66 @@ type containerContainer struct {
 		} `json:"platform"`
 	} `json:"configuration"`
 
-	Networks []struct {
-		Network  string `json:"network"`
-		Hostname string `json:"hostname"`
-		Address  string `json:"address"`
-		Gateway  string `json:"gateway"`
-	} `json:"networks"`
-}
-
-type containerImage struct {
-	Reference string `json:"reference"`
-
-	Descriptor struct {
-		Digest string `json:"digest"`
-		Size   int64  `json:"size"`
-	} `json:"descriptor"`
-}
-
-type containerVolume struct {
-	Name   string            `json:"name"`
-	Driver string            `json:"driver"`
-	Source string            `json:"source"`
-	Labels map[string]string `json:"labels"`
-
-	// seconds since the Apple reference date (2001-01-01 UTC)
-	CreatedAt float64 `json:"createdAt"`
-}
-
-type containerNetwork struct {
-	ID    string `json:"id"`
-	State string `json:"state"`
-
-	Config struct {
-		ID     string            `json:"id"`
-		Mode   string            `json:"mode"`
-		Labels map[string]string `json:"labels"`
-	} `json:"config"`
-
 	Status struct {
-		Address string `json:"address"`
-		Gateway string `json:"gateway"`
+		State       string    `json:"state"`
+		StartedDate time.Time `json:"startedDate"`
+
+		Networks []struct {
+			Network     string `json:"network"`
+			Hostname    string `json:"hostname"`
+			IPv4Address string `json:"ipv4Address"`
+			IPv4Gateway string `json:"ipv4Gateway"`
+		} `json:"networks"`
 	} `json:"status"`
 }
 
-// appleEpoch converts an Apple reference date timestamp to a time.Time
-func appleEpoch(seconds float64) time.Time {
-	return time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(seconds * float64(time.Second)))
+type containerImage struct {
+	ID string `json:"id"`
+
+	Configuration struct {
+		Name         string    `json:"name"`
+		CreationDate time.Time `json:"creationDate"`
+
+		Descriptor struct {
+			Digest string `json:"digest"`
+			Size   int64  `json:"size"`
+		} `json:"descriptor"`
+	} `json:"configuration"`
+
+	Variants []struct {
+		Size int64 `json:"size"`
+
+		Platform struct {
+			Architecture string `json:"architecture"`
+		} `json:"platform"`
+	} `json:"variants"`
+}
+
+type containerVolume struct {
+	ID string `json:"id"`
+
+	Configuration struct {
+		Name         string            `json:"name"`
+		Driver       string            `json:"driver"`
+		Source       string            `json:"source"`
+		Labels       map[string]string `json:"labels"`
+		CreationDate time.Time         `json:"creationDate"`
+	} `json:"configuration"`
+}
+
+type containerNetwork struct {
+	ID string `json:"id"`
+
+	Configuration struct {
+		Name   string            `json:"name"`
+		Mode   string            `json:"mode"`
+		Labels map[string]string `json:"labels"`
+	} `json:"configuration"`
+
+	Status struct {
+		IPv4Subnet  string `json:"ipv4Subnet"`
+		IPv4Gateway string `json:"ipv4Gateway"`
+	} `json:"status"`
 }
 
 // Docker API mapping
@@ -237,7 +253,7 @@ func containerState(state string) string {
 }
 
 func containerStatus(c containerContainer) string {
-	switch c.Status {
+	switch c.Status.State {
 	case "running":
 		return "Up"
 
@@ -248,7 +264,7 @@ func containerStatus(c containerContainer) string {
 		return "Exited"
 
 	default:
-		return c.Status
+		return c.Status.State
 	}
 }
 
@@ -259,12 +275,12 @@ func containerCommand(c containerContainer) string {
 func containerNetworks(c containerContainer) map[string]any {
 	networks := map[string]any{}
 
-	for _, n := range c.Networks {
-		address, _, _ := strings.Cut(n.Address, "/")
+	for _, n := range c.Status.Networks {
+		address, _, _ := strings.Cut(n.IPv4Address, "/")
 
 		networks[n.Network] = map[string]any{
 			"IPAddress": address,
-			"Gateway":   n.Gateway,
+			"Gateway":   n.IPv4Gateway,
 		}
 	}
 
@@ -329,7 +345,7 @@ func containerSummary(c containerContainer) map[string]any {
 		"Image":   c.Configuration.Image.Reference,
 		"ImageID": c.Configuration.Image.Descriptor.Digest,
 		"Command": containerCommand(c),
-		"State":   containerState(c.Status),
+		"State":   containerState(c.Status.State),
 		"Status":  containerStatus(c),
 		"Ports":   ports,
 		"Labels":  labels,
@@ -355,8 +371,8 @@ func containerInspect(c containerContainer) map[string]any {
 		"Platform": c.Configuration.Platform.OS,
 
 		"State": map[string]any{
-			"Status":  containerState(c.Status),
-			"Running": c.Status == "running",
+			"Status":  containerState(c.Status.State),
+			"Running": c.Status.State == "running",
 		},
 
 		"Config": map[string]any{
@@ -750,6 +766,48 @@ func (h *containerHandler) imageList(ctx context.Context) ([]containerImage, err
 	return items, nil
 }
 
+func containerImageInfo(i containerImage) map[string]any {
+	// The descriptor size is only the size of the OCI index document. A 1.x
+	// ImageResource includes the full size of each resolved platform variant.
+	// Prefer the host architecture and fall back to the largest available
+	// variant for images pulled explicitly for another architecture.
+	size := int64(0)
+	fallbackSize := int64(0)
+
+	for _, variant := range i.Variants {
+		if variant.Size > fallbackSize {
+			fallbackSize = variant.Size
+		}
+
+		if variant.Platform.Architecture == runtime.GOARCH && variant.Size > size {
+			size = variant.Size
+		}
+	}
+
+	if size == 0 {
+		size = fallbackSize
+	}
+
+	if size == 0 {
+		size = i.Configuration.Descriptor.Size
+	}
+
+	result := map[string]any{
+		"Id":          i.Configuration.Descriptor.Digest,
+		"RepoTags":    []string{i.Configuration.Name},
+		"RepoDigests": []string{},
+		"Size":        size,
+		"Labels":      map[string]string{},
+		"Containers":  -1,
+	}
+
+	if !i.Configuration.CreationDate.IsZero() {
+		result["Created"] = i.Configuration.CreationDate.Unix()
+	}
+
+	return result
+}
+
 func (h *containerHandler) handleImageList(w http.ResponseWriter, r *http.Request) {
 	items, err := h.imageList(r.Context())
 
@@ -761,14 +819,7 @@ func (h *containerHandler) handleImageList(w http.ResponseWriter, r *http.Reques
 	result := make([]map[string]any, 0)
 
 	for _, i := range items {
-		result = append(result, map[string]any{
-			"Id":          i.Descriptor.Digest,
-			"RepoTags":    []string{i.Reference},
-			"RepoDigests": []string{},
-			"Size":        i.Descriptor.Size,
-			"Labels":      map[string]string{},
-			"Containers":  -1,
-		})
+		result = append(result, containerImageInfo(i))
 	}
 
 	containerJSON(w, result)
@@ -787,8 +838,8 @@ func (h *containerHandler) handleImageDelete(w http.ResponseWriter, r *http.Requ
 	names := make([]string, 0)
 
 	for _, i := range items {
-		if strings.TrimPrefix(i.Descriptor.Digest, "sha256:") == id || i.Reference == id {
-			names = append(names, i.Reference)
+		if strings.TrimPrefix(i.Configuration.Descriptor.Digest, "sha256:") == id || i.Configuration.Name == id {
+			names = append(names, i.Configuration.Name)
 		}
 	}
 
@@ -805,22 +856,22 @@ func (h *containerHandler) handleImageDelete(w http.ResponseWriter, r *http.Requ
 }
 
 func containerVolumeInfo(v containerVolume) map[string]any {
-	labels := v.Labels
+	labels := v.Configuration.Labels
 
 	if labels == nil {
 		labels = map[string]string{}
 	}
 
 	result := map[string]any{
-		"Name":       v.Name,
-		"Driver":     v.Driver,
-		"Mountpoint": v.Source,
+		"Name":       v.Configuration.Name,
+		"Driver":     v.Configuration.Driver,
+		"Mountpoint": v.Configuration.Source,
 		"Labels":     labels,
 		"Scope":      "local",
 	}
 
-	if v.CreatedAt > 0 {
-		result["CreatedAt"] = appleEpoch(v.CreatedAt).Format(time.RFC3339Nano)
+	if !v.Configuration.CreationDate.IsZero() {
+		result["CreatedAt"] = v.Configuration.CreationDate.Format(time.RFC3339Nano)
 	}
 
 	return result
@@ -871,7 +922,7 @@ func (h *containerHandler) handleVolumeInspect(w http.ResponseWriter, r *http.Re
 	}
 
 	for _, v := range items {
-		if v.Name == r.PathValue("name") {
+		if v.Configuration.Name == r.PathValue("name") {
 			containerJSON(w, containerVolumeInfo(v))
 			return
 		}
@@ -890,7 +941,7 @@ func (h *containerHandler) handleVolumeDelete(w http.ResponseWriter, r *http.Req
 }
 
 func containerNetworkInfo(n containerNetwork) map[string]any {
-	labels := n.Config.Labels
+	labels := n.Configuration.Labels
 
 	if labels == nil {
 		labels = map[string]string{}
@@ -898,10 +949,10 @@ func containerNetworkInfo(n containerNetwork) map[string]any {
 
 	ipam := make([]map[string]any, 0)
 
-	if n.Status.Address != "" {
+	if n.Status.IPv4Subnet != "" {
 		ipam = append(ipam, map[string]any{
-			"Subnet":  n.Status.Address,
-			"Gateway": n.Status.Gateway,
+			"Subnet":  n.Status.IPv4Subnet,
+			"Gateway": n.Status.IPv4Gateway,
 		})
 	}
 
@@ -909,7 +960,7 @@ func containerNetworkInfo(n containerNetwork) map[string]any {
 		"Name":   n.ID,
 		"Id":     n.ID,
 		"Scope":  "local",
-		"Driver": n.Config.Mode,
+		"Driver": n.Configuration.Mode,
 		"Labels": labels,
 
 		"IPAM": map[string]any{
@@ -961,7 +1012,7 @@ func (h *containerHandler) handleNetworkInspect(w http.ResponseWriter, r *http.R
 	}
 
 	for _, n := range items {
-		if n.ID == r.PathValue("id") || n.Config.ID == r.PathValue("id") {
+		if n.ID == r.PathValue("id") || n.Configuration.Name == r.PathValue("id") {
 			containerJSON(w, containerNetworkInfo(n))
 			return
 		}
