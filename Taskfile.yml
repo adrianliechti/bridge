@@ -17,6 +17,12 @@ tasks:
     cmds:
       - npm run dev
 
+  run:app:
+    desc: Build the web UI, then run the desktop app
+    cmds:
+      - task: ui
+      - go run ./app
+
   install:
     cmds:
       - cmd: go install ./cmd/kubectl-bridge

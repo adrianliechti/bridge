@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"os/exec"
 	"runtime"
@@ -95,14 +94,14 @@ func containerJSON(w http.ResponseWriter, val any) {
 	json.NewEncoder(w).Encode(val)
 }
 
-// CLI JSON models
+// CLI JSON models (container CLI 0.6.x)
 
 type containerContainer struct {
-	ID string `json:"id"`
+	Status string `json:"status"`
 
 	Configuration struct {
-		CreationDate time.Time         `json:"creationDate"`
-		Labels       map[string]string `json:"labels"`
+		ID     string            `json:"id"`
+		Labels map[string]string `json:"labels"`
 
 		Image struct {
 			Reference string `json:"reference"`
@@ -131,6 +130,12 @@ type containerContainer struct {
 			Source      string   `json:"source"`
 			Destination string   `json:"destination"`
 			Options     []string `json:"options"`
+
+			Type struct {
+				Volume *struct {
+					Name string `json:"name"`
+				} `json:"volume"`
+			} `json:"type"`
 		} `json:"mounts"`
 
 		Platform struct {
@@ -139,60 +144,52 @@ type containerContainer struct {
 		} `json:"platform"`
 	} `json:"configuration"`
 
-	Status struct {
-		State       string     `json:"state"`
-		StartedDate *time.Time `json:"startedDate"`
-
-		Networks []struct {
-			Network     string `json:"network"`
-			Hostname    string `json:"hostname"`
-			IPv4Address string `json:"ipv4Address"`
-			IPv4Gateway string `json:"ipv4Gateway"`
-			MacAddress  string `json:"macAddress"`
-		} `json:"networks"`
-	} `json:"status"`
+	Networks []struct {
+		Network  string `json:"network"`
+		Hostname string `json:"hostname"`
+		Address  string `json:"address"`
+		Gateway  string `json:"gateway"`
+	} `json:"networks"`
 }
 
 type containerImage struct {
-	ID string `json:"id"`
+	Reference string `json:"reference"`
 
-	Configuration struct {
-		Name         string    `json:"name"`
-		CreationDate time.Time `json:"creationDate"`
-
-		Descriptor struct {
-			Digest string `json:"digest"`
-			Size   int64  `json:"size"`
-		} `json:"descriptor"`
-	} `json:"configuration"`
+	Descriptor struct {
+		Digest string `json:"digest"`
+		Size   int64  `json:"size"`
+	} `json:"descriptor"`
 }
 
 type containerVolume struct {
-	ID string `json:"id"`
+	Name   string            `json:"name"`
+	Driver string            `json:"driver"`
+	Source string            `json:"source"`
+	Labels map[string]string `json:"labels"`
 
-	Configuration struct {
-		Name         string            `json:"name"`
-		Driver       string            `json:"driver"`
-		Source       string            `json:"source"`
-		Labels       map[string]string `json:"labels"`
-		CreationDate time.Time         `json:"creationDate"`
-	} `json:"configuration"`
+	// seconds since the Apple reference date (2001-01-01 UTC)
+	CreatedAt float64 `json:"createdAt"`
 }
 
 type containerNetwork struct {
-	ID string `json:"id"`
+	ID    string `json:"id"`
+	State string `json:"state"`
 
-	Configuration struct {
-		Name         string            `json:"name"`
-		Mode         string            `json:"mode"`
-		Labels       map[string]string `json:"labels"`
-		CreationDate time.Time         `json:"creationDate"`
-	} `json:"configuration"`
+	Config struct {
+		ID     string            `json:"id"`
+		Mode   string            `json:"mode"`
+		Labels map[string]string `json:"labels"`
+	} `json:"config"`
 
 	Status struct {
-		IPv4Gateway string `json:"ipv4Gateway"`
-		IPv4Subnet  string `json:"ipv4Subnet"`
+		Address string `json:"address"`
+		Gateway string `json:"gateway"`
 	} `json:"status"`
+}
+
+// appleEpoch converts an Apple reference date timestamp to a time.Time
+func appleEpoch(seconds float64) time.Time {
+	return time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(seconds * float64(time.Second)))
 }
 
 // Docker API mapping
@@ -211,12 +208,8 @@ func containerState(state string) string {
 }
 
 func containerStatus(c containerContainer) string {
-	switch c.Status.State {
+	switch c.Status {
 	case "running":
-		if c.Status.StartedDate != nil {
-			return "Up " + containerDuration(time.Since(*c.Status.StartedDate))
-		}
-
 		return "Up"
 
 	case "stopping":
@@ -226,23 +219,7 @@ func containerStatus(c containerContainer) string {
 		return "Exited"
 
 	default:
-		return c.Status.State
-	}
-}
-
-func containerDuration(d time.Duration) string {
-	switch {
-	case d >= 48*time.Hour:
-		return fmt.Sprintf("%d days", int(d.Hours()/24))
-
-	case d >= 2*time.Hour:
-		return fmt.Sprintf("%d hours", int(d.Hours()))
-
-	case d >= 2*time.Minute:
-		return fmt.Sprintf("%d minutes", int(d.Minutes()))
-
-	default:
-		return fmt.Sprintf("%d seconds", int(d.Seconds()))
+		return c.Status
 	}
 }
 
@@ -253,13 +230,12 @@ func containerCommand(c containerContainer) string {
 func containerNetworks(c containerContainer) map[string]any {
 	networks := map[string]any{}
 
-	for _, n := range c.Status.Networks {
-		address, _, _ := strings.Cut(n.IPv4Address, "/")
+	for _, n := range c.Networks {
+		address, _, _ := strings.Cut(n.Address, "/")
 
 		networks[n.Network] = map[string]any{
-			"IPAddress":  address,
-			"Gateway":    n.IPv4Gateway,
-			"MacAddress": n.MacAddress,
+			"IPAddress": address,
+			"Gateway":   n.Gateway,
 		}
 	}
 
@@ -270,12 +246,6 @@ func containerMounts(c containerContainer) []map[string]any {
 	mounts := make([]map[string]any, 0)
 
 	for _, m := range c.Configuration.Mounts {
-		mountType := "volume"
-
-		if strings.HasPrefix(m.Source, "/") {
-			mountType = "bind"
-		}
-
 		rw := true
 
 		for _, o := range m.Options {
@@ -284,13 +254,20 @@ func containerMounts(c containerContainer) []map[string]any {
 			}
 		}
 
-		mounts = append(mounts, map[string]any{
-			"Type":        mountType,
+		mount := map[string]any{
+			"Type":        "bind",
 			"Source":      m.Source,
 			"Destination": m.Destination,
 			"Mode":        strings.Join(m.Options, ","),
 			"RW":          rw,
-		})
+		}
+
+		if m.Type.Volume != nil {
+			mount["Type"] = "volume"
+			mount["Name"] = m.Type.Volume.Name
+		}
+
+		mounts = append(mounts, mount)
 	}
 
 	return mounts
@@ -315,13 +292,12 @@ func containerSummary(c containerContainer) map[string]any {
 	}
 
 	return map[string]any{
-		"Id":      c.ID,
-		"Names":   []string{"/" + c.ID},
+		"Id":      c.Configuration.ID,
+		"Names":   []string{"/" + c.Configuration.ID},
 		"Image":   c.Configuration.Image.Reference,
 		"ImageID": c.Configuration.Image.Descriptor.Digest,
 		"Command": containerCommand(c),
-		"Created": c.Configuration.CreationDate.Unix(),
-		"State":   containerState(c.Status.State),
+		"State":   containerState(c.Status),
 		"Status":  containerStatus(c),
 		"Ports":   ports,
 		"Labels":  labels,
@@ -340,23 +316,15 @@ func containerInspect(c containerContainer) map[string]any {
 		labels = map[string]string{}
 	}
 
-	startedAt := ""
-
-	if c.Status.StartedDate != nil {
-		startedAt = c.Status.StartedDate.Format(time.RFC3339Nano)
-	}
-
 	return map[string]any{
-		"Id":       c.ID,
-		"Name":     "/" + c.ID,
-		"Created":  c.Configuration.CreationDate.Format(time.RFC3339Nano),
+		"Id":       c.Configuration.ID,
+		"Name":     "/" + c.Configuration.ID,
 		"Image":    c.Configuration.Image.Descriptor.Digest,
 		"Platform": c.Configuration.Platform.OS,
 
 		"State": map[string]any{
-			"Status":    containerState(c.Status.State),
-			"Running":   c.Status.State == "running",
-			"StartedAt": startedAt,
+			"Status":  containerState(c.Status),
+			"Running": c.Status == "running",
 		},
 
 		"Config": map[string]any{
@@ -708,11 +676,10 @@ func (h *containerHandler) handleImageList(w http.ResponseWriter, r *http.Reques
 
 	for _, i := range items {
 		result = append(result, map[string]any{
-			"Id":          "sha256:" + i.ID,
-			"RepoTags":    []string{i.Configuration.Name},
+			"Id":          i.Descriptor.Digest,
+			"RepoTags":    []string{i.Reference},
 			"RepoDigests": []string{},
-			"Created":     i.Configuration.CreationDate.Unix(),
-			"Size":        i.Configuration.Descriptor.Size,
+			"Size":        i.Descriptor.Size,
 			"Labels":      map[string]string{},
 			"Containers":  -1,
 		})
@@ -734,8 +701,8 @@ func (h *containerHandler) handleImageDelete(w http.ResponseWriter, r *http.Requ
 	names := make([]string, 0)
 
 	for _, i := range items {
-		if i.ID == id || i.Configuration.Name == id {
-			names = append(names, i.Configuration.Name)
+		if strings.TrimPrefix(i.Descriptor.Digest, "sha256:") == id || i.Reference == id {
+			names = append(names, i.Reference)
 		}
 	}
 
@@ -752,20 +719,25 @@ func (h *containerHandler) handleImageDelete(w http.ResponseWriter, r *http.Requ
 }
 
 func containerVolumeInfo(v containerVolume) map[string]any {
-	labels := v.Configuration.Labels
+	labels := v.Labels
 
 	if labels == nil {
 		labels = map[string]string{}
 	}
 
-	return map[string]any{
-		"Name":       v.Configuration.Name,
-		"Driver":     v.Configuration.Driver,
-		"Mountpoint": v.Configuration.Source,
-		"CreatedAt":  v.Configuration.CreationDate.Format(time.RFC3339Nano),
+	result := map[string]any{
+		"Name":       v.Name,
+		"Driver":     v.Driver,
+		"Mountpoint": v.Source,
 		"Labels":     labels,
 		"Scope":      "local",
 	}
+
+	if v.CreatedAt > 0 {
+		result["CreatedAt"] = appleEpoch(v.CreatedAt).Format(time.RFC3339Nano)
+	}
+
+	return result
 }
 
 func (h *containerHandler) volumeList(ctx context.Context) ([]containerVolume, error) {
@@ -813,7 +785,7 @@ func (h *containerHandler) handleVolumeInspect(w http.ResponseWriter, r *http.Re
 	}
 
 	for _, v := range items {
-		if v.Configuration.Name == r.PathValue("name") {
+		if v.Name == r.PathValue("name") {
 			containerJSON(w, containerVolumeInfo(v))
 			return
 		}
@@ -832,7 +804,7 @@ func (h *containerHandler) handleVolumeDelete(w http.ResponseWriter, r *http.Req
 }
 
 func containerNetworkInfo(n containerNetwork) map[string]any {
-	labels := n.Configuration.Labels
+	labels := n.Config.Labels
 
 	if labels == nil {
 		labels = map[string]string{}
@@ -840,20 +812,19 @@ func containerNetworkInfo(n containerNetwork) map[string]any {
 
 	ipam := make([]map[string]any, 0)
 
-	if n.Status.IPv4Subnet != "" {
+	if n.Status.Address != "" {
 		ipam = append(ipam, map[string]any{
-			"Subnet":  n.Status.IPv4Subnet,
-			"Gateway": n.Status.IPv4Gateway,
+			"Subnet":  n.Status.Address,
+			"Gateway": n.Status.Gateway,
 		})
 	}
 
 	return map[string]any{
-		"Name":    n.Configuration.Name,
-		"Id":      n.ID,
-		"Created": n.Configuration.CreationDate.Format(time.RFC3339Nano),
-		"Scope":   "local",
-		"Driver":  n.Configuration.Mode,
-		"Labels":  labels,
+		"Name":   n.ID,
+		"Id":     n.ID,
+		"Scope":  "local",
+		"Driver": n.Config.Mode,
+		"Labels": labels,
 
 		"IPAM": map[string]any{
 			"Driver": "default",
@@ -904,7 +875,7 @@ func (h *containerHandler) handleNetworkInspect(w http.ResponseWriter, r *http.R
 	}
 
 	for _, n := range items {
-		if n.ID == r.PathValue("id") || n.Configuration.Name == r.PathValue("id") {
+		if n.ID == r.PathValue("id") || n.Config.ID == r.PathValue("id") {
 			containerJSON(w, containerNetworkInfo(n))
 			return
 		}
