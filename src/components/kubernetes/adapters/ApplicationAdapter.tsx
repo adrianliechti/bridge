@@ -1,10 +1,20 @@
 // ArgoCD Application Adapter
 // Extracts display data from ArgoCD Application resources (argoproj.io/v1alpha1)
 
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Pause, HelpCircle, Package, Play, Diamond, GitCompare } from 'lucide-react';
+import {
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  RefreshCw,
+  Pause,
+  HelpCircle,
+  Package,
+  Play,
+  Diamond,
+  GitCompare,
+} from 'lucide-react';
 import type { ResourceAdapter, ResourceSections, StatusLevel } from './types';
 import { syncApplication, refreshApplication } from '../../../api/kubernetes/kubernetesArgoCD';
-
 
 // ArgoCD Application types
 interface ApplicationSource {
@@ -50,14 +60,14 @@ interface ResourceStatus {
   kind?: string;
   namespace?: string;
   name?: string;
-  status?: string;  // Sync status: Synced, OutOfSync, Unknown
-  health?: HealthStatus;  // Health status: Healthy, Progressing, Degraded, Suspended, Missing, Unknown
+  status?: string; // Sync status: Synced, OutOfSync, Unknown
+  health?: HealthStatus; // Health status: Healthy, Progressing, Degraded, Suspended, Missing, Unknown
   hook?: boolean;
   requiresPruning?: boolean;
 }
 
 interface OperationState {
-  phase?: string;  // Running, Succeeded, Failed, Error
+  phase?: string; // Running, Succeeded, Failed, Error
   message?: string;
   syncResult?: {
     revision?: string;
@@ -238,7 +248,7 @@ function timeAgo(dateString?: string): string {
   const date = new Date(dateString);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
+
   if (seconds < 60) return `${seconds}s ago`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
@@ -278,8 +288,8 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
       suspended: 0,
       unknown: 0,
     };
-    
-    status?.resources?.forEach(r => {
+
+    status?.resources?.forEach((r) => {
       // Resources without health status (like Services) are considered healthy if synced
       const healthStatus = r.health?.status;
       let health: string;
@@ -316,108 +326,154 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
                 status: getHealthStatusLevel(healthStatus),
                 icon: getHealthIcon(healthStatus),
               },
-              ...(operationPhase ? [{
-                label: 'Operation',
-                value: operationPhase,
-                status: (operationPhase === 'Succeeded' ? 'success' : operationPhase === 'Failed' ? 'error' : 'warning') as StatusLevel,
-                icon: operationPhase === 'Running' ? <RefreshCw size={14} className="animate-spin" /> : undefined,
-              }] : []),
+              ...(operationPhase
+                ? [
+                    {
+                      label: 'Operation',
+                      value: operationPhase,
+                      status: (operationPhase === 'Succeeded'
+                        ? 'success'
+                        : operationPhase === 'Failed'
+                          ? 'error'
+                          : 'warning') as StatusLevel,
+                      icon:
+                        operationPhase === 'Running' ? (
+                          <RefreshCw size={14} className="animate-spin" />
+                        ) : undefined,
+                    },
+                  ]
+                : []),
             ],
           },
         },
 
         // Resource health gauges
-        ...(totalResources > 0 ? [{
-          id: 'resource-health',
-          title: 'Resource Health',
-          data: {
-            type: 'gauges' as const,
-            items: [
-              { label: 'Healthy', current: resourceCounts.healthy, total: totalResources, color: 'emerald' as const },
-              { label: 'Progressing', current: resourceCounts.progressing, total: totalResources, color: 'blue' as const },
-              { label: 'Degraded', current: resourceCounts.degraded + resourceCounts.missing, total: totalResources, color: 'amber' as const },
-            ],
-          },
-        }] : []),
+        ...(totalResources > 0
+          ? [
+              {
+                id: 'resource-health',
+                title: 'Resource Health',
+                data: {
+                  type: 'gauges' as const,
+                  items: [
+                    {
+                      label: 'Healthy',
+                      current: resourceCounts.healthy,
+                      total: totalResources,
+                      color: 'emerald' as const,
+                    },
+                    {
+                      label: 'Progressing',
+                      current: resourceCounts.progressing,
+                      total: totalResources,
+                      color: 'blue' as const,
+                    },
+                    {
+                      label: 'Degraded',
+                      current: resourceCounts.degraded + resourceCounts.missing,
+                      total: totalResources,
+                      color: 'amber' as const,
+                    },
+                  ],
+                },
+              },
+            ]
+          : []),
 
         // Managed Resources list
-        ...(status?.resources?.length ? [{
-          id: 'resources',
-          title: 'Managed Resources',
-          data: {
-            type: 'custom' as const,
-            render: () => {
-              // Group resources by kind
-              const resourcesByKind = new Map<string, ResourceStatus[]>();
-              status.resources!.forEach(r => {
-                const kind = r.kind || 'Unknown';
-                if (!resourcesByKind.has(kind)) {
-                  resourcesByKind.set(kind, []);
-                }
-                resourcesByKind.get(kind)!.push(r);
-              });
+        ...(status?.resources?.length
+          ? [
+              {
+                id: 'resources',
+                title: 'Managed Resources',
+                data: {
+                  type: 'custom' as const,
+                  render: () => {
+                    // Group resources by kind
+                    const resourcesByKind = new Map<string, ResourceStatus[]>();
+                    status.resources!.forEach((r) => {
+                      const kind = r.kind || 'Unknown';
+                      if (!resourcesByKind.has(kind)) {
+                        resourcesByKind.set(kind, []);
+                      }
+                      resourcesByKind.get(kind)!.push(r);
+                    });
 
-              // Sort kinds: unhealthy first, then alphabetically
-              const sortedKinds = Array.from(resourcesByKind.keys()).sort((a, b) => {
-                const aResources = resourcesByKind.get(a)!;
-                const bResources = resourcesByKind.get(b)!;
-                const aUnhealthy = aResources.some(r => r.health?.status !== 'Healthy');
-                const bUnhealthy = bResources.some(r => r.health?.status !== 'Healthy');
-                if (aUnhealthy && !bUnhealthy) return -1;
-                if (!aUnhealthy && bUnhealthy) return 1;
-                return a.localeCompare(b);
-              });
-
-              return (
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {sortedKinds.map(kind => {
-                    const resources = resourcesByKind.get(kind)!;
-                    // Sort resources: unhealthy first, then by name
-                    const sortedResources = [...resources].sort((a, b) => {
-                      const aHealthy = a.health?.status === 'Healthy';
-                      const bHealthy = b.health?.status === 'Healthy';
-                      if (!aHealthy && bHealthy) return -1;
-                      if (aHealthy && !bHealthy) return 1;
-                      return (a.name || '').localeCompare(b.name || '');
+                    // Sort kinds: unhealthy first, then alphabetically
+                    const sortedKinds = Array.from(resourcesByKind.keys()).sort((a, b) => {
+                      const aResources = resourcesByKind.get(a)!;
+                      const bResources = resourcesByKind.get(b)!;
+                      const aUnhealthy = aResources.some((r) => r.health?.status !== 'Healthy');
+                      const bUnhealthy = bResources.some((r) => r.health?.status !== 'Healthy');
+                      if (aUnhealthy && !bUnhealthy) return -1;
+                      if (!aUnhealthy && bUnhealthy) return 1;
+                      return a.localeCompare(b);
                     });
 
                     return (
-                      <div key={kind} className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-2">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <Package size={12} className="text-neutral-500" />
-                          <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">{kind}</span>
-                          <span className="text-[10px] text-neutral-500 dark:text-neutral-600">({resources.length})</span>
-                        </div>
-                        <div className="space-y-1">
-                          {sortedResources.map((r, idx) => (
-                            <div 
-                              key={`${r.namespace}-${r.name}-${idx}`}
-                              className="flex items-center gap-2 text-xs pl-4"
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {sortedKinds.map((kind) => {
+                          const resources = resourcesByKind.get(kind)!;
+                          // Sort resources: unhealthy first, then by name
+                          const sortedResources = [...resources].sort((a, b) => {
+                            const aHealthy = a.health?.status === 'Healthy';
+                            const bHealthy = b.health?.status === 'Healthy';
+                            if (!aHealthy && bHealthy) return -1;
+                            if (aHealthy && !bHealthy) return 1;
+                            return (a.name || '').localeCompare(b.name || '');
+                          });
+
+                          return (
+                            <div
+                              key={kind}
+                              className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-2"
                             >
-                              {getResourceHealthIcon(r.health?.status)}
-                              <span className="text-neutral-700 dark:text-neutral-300 truncate flex-1" title={r.name}>
-                                {r.name}
-                              </span>
-                              {r.namespace && (
-                                <span className="text-neutral-500 dark:text-neutral-600 text-[10px]">{r.namespace}</span>
-                              )}
-                              {getSyncBadge(r.status)}
-                              {r.requiresPruning && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
-                                  Prune
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <Package size={12} className="text-neutral-500" />
+                                <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                                  {kind}
                                 </span>
-                              )}
+                                <span className="text-[10px] text-neutral-500 dark:text-neutral-600">
+                                  ({resources.length})
+                                </span>
+                              </div>
+                              <div className="space-y-1">
+                                {sortedResources.map((r, idx) => (
+                                  <div
+                                    key={`${r.namespace}-${r.name}-${idx}`}
+                                    className="flex items-center gap-2 text-xs pl-4"
+                                  >
+                                    {getResourceHealthIcon(r.health?.status)}
+                                    <span
+                                      className="text-neutral-700 dark:text-neutral-300 truncate flex-1"
+                                      title={r.name}
+                                    >
+                                      {r.name}
+                                    </span>
+                                    {r.namespace && (
+                                      <span className="text-neutral-500 dark:text-neutral-600 text-[10px]">
+                                        {r.namespace}
+                                      </span>
+                                    )}
+                                    {getSyncBadge(r.status)}
+                                    {r.requiresPruning && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30">
+                                        Prune
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
                     );
-                  })}
-                </div>
-              );
-            },
-          },
-        }] : []),
+                  },
+                },
+              },
+            ]
+          : []),
 
         // Source information
         {
@@ -427,13 +483,25 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
             type: 'info-grid',
             items: [
               { label: 'Repository', value: getRepoName(source?.repoURL), color: 'text-cyan-400' },
-              { label: 'Path', value: source?.path || source?.chart || '/', color: 'text-purple-400' },
-              { label: 'Target Revision', value: source?.targetRevision || 'HEAD', color: 'text-blue-400' },
-              ...(status?.sync?.revision ? [{
-                label: 'Current Revision',
-                value: status.sync.revision.substring(0, 7),
-                color: 'text-emerald-400',
-              }] : []),
+              {
+                label: 'Path',
+                value: source?.path || source?.chart || '/',
+                color: 'text-purple-400',
+              },
+              {
+                label: 'Target Revision',
+                value: source?.targetRevision || 'HEAD',
+                color: 'text-blue-400',
+              },
+              ...(status?.sync?.revision
+                ? [
+                    {
+                      label: 'Current Revision',
+                      value: status.sync.revision.substring(0, 7),
+                      color: 'text-emerald-400',
+                    },
+                  ]
+                : []),
             ],
             columns: 2 as const,
           },
@@ -446,8 +514,15 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
           data: {
             type: 'info-grid',
             items: [
-              { label: 'Server', value: spec.destination?.name || spec.destination?.server || 'Unknown' },
-              { label: 'Namespace', value: spec.destination?.namespace || 'default', color: 'text-cyan-400' },
+              {
+                label: 'Server',
+                value: spec.destination?.name || spec.destination?.server || 'Unknown',
+              },
+              {
+                label: 'Namespace',
+                value: spec.destination?.namespace || 'default',
+                color: 'text-cyan-400',
+              },
               { label: 'Project', value: spec.project || 'default', color: 'text-purple-400' },
             ],
             columns: 2 as const,
@@ -455,102 +530,150 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
         },
 
         // Sync policy
-        ...(spec.syncPolicy ? [{
-          id: 'sync-policy',
-          title: 'Sync Policy',
-          data: {
-            type: 'info-grid' as const,
-            items: [
-              ...(spec.syncPolicy.automated ? [
-                { label: 'Auto Sync', value: 'Enabled', color: 'text-emerald-400' },
-                { label: 'Prune', value: spec.syncPolicy.automated.prune ? 'Yes' : 'No', color: spec.syncPolicy.automated.prune ? 'text-amber-400' : undefined },
-                { label: 'Self Heal', value: spec.syncPolicy.automated.selfHeal ? 'Yes' : 'No', color: spec.syncPolicy.automated.selfHeal ? 'text-emerald-400' : undefined },
-              ] : [
-                { label: 'Auto Sync', value: 'Disabled', color: 'text-gray-400' },
-              ]),
-              ...(spec.syncPolicy.retry?.limit ? [{
-                label: 'Retry Limit',
-                value: spec.syncPolicy.retry.limit,
-              }] : []),
-            ],
-            columns: 2 as const,
-          },
-        }] : []),
+        ...(spec.syncPolicy
+          ? [
+              {
+                id: 'sync-policy',
+                title: 'Sync Policy',
+                data: {
+                  type: 'info-grid' as const,
+                  items: [
+                    ...(spec.syncPolicy.automated
+                      ? [
+                          { label: 'Auto Sync', value: 'Enabled', color: 'text-emerald-400' },
+                          {
+                            label: 'Prune',
+                            value: spec.syncPolicy.automated.prune ? 'Yes' : 'No',
+                            color: spec.syncPolicy.automated.prune ? 'text-amber-400' : undefined,
+                          },
+                          {
+                            label: 'Self Heal',
+                            value: spec.syncPolicy.automated.selfHeal ? 'Yes' : 'No',
+                            color: spec.syncPolicy.automated.selfHeal
+                              ? 'text-emerald-400'
+                              : undefined,
+                          },
+                        ]
+                      : [{ label: 'Auto Sync', value: 'Disabled', color: 'text-gray-400' }]),
+                    ...(spec.syncPolicy.retry?.limit
+                      ? [
+                          {
+                            label: 'Retry Limit',
+                            value: spec.syncPolicy.retry.limit,
+                          },
+                        ]
+                      : []),
+                  ],
+                  columns: 2 as const,
+                },
+              },
+            ]
+          : []),
 
         // Sync options
-        ...(spec.syncPolicy?.syncOptions?.length ? [{
-          id: 'sync-options',
-          data: {
-            type: 'labels' as const,
-            labels: Object.fromEntries(spec.syncPolicy.syncOptions.map(opt => {
-              const [key, value] = opt.split('=');
-              return [key, value || 'true'];
-            })),
-            title: 'Sync Options',
-          },
-        }] : []),
+        ...(spec.syncPolicy?.syncOptions?.length
+          ? [
+              {
+                id: 'sync-options',
+                data: {
+                  type: 'labels' as const,
+                  labels: Object.fromEntries(
+                    spec.syncPolicy.syncOptions.map((opt) => {
+                      const [key, value] = opt.split('=');
+                      return [key, value || 'true'];
+                    }),
+                  ),
+                  title: 'Sync Options',
+                },
+              },
+            ]
+          : []),
 
         // Last sync time
-        ...(status?.reconciledAt || status?.operationState?.finishedAt ? [{
-          id: 'timing',
-          data: {
-            type: 'info-grid' as const,
-            items: [
-              ...(status?.reconciledAt ? [{
-                label: 'Last Reconciled',
-                value: timeAgo(status.reconciledAt),
-              }] : []),
-              ...(status?.operationState?.startedAt ? [{
-                label: 'Operation Started',
-                value: timeAgo(status.operationState.startedAt),
-              }] : []),
-              ...(status?.operationState?.finishedAt ? [{
-                label: 'Operation Finished',
-                value: timeAgo(status.operationState.finishedAt),
-              }] : []),
-            ],
-            columns: 2 as const,
-          },
-        }] : []),
+        ...(status?.reconciledAt || status?.operationState?.finishedAt
+          ? [
+              {
+                id: 'timing',
+                data: {
+                  type: 'info-grid' as const,
+                  items: [
+                    ...(status?.reconciledAt
+                      ? [
+                          {
+                            label: 'Last Reconciled',
+                            value: timeAgo(status.reconciledAt),
+                          },
+                        ]
+                      : []),
+                    ...(status?.operationState?.startedAt
+                      ? [
+                          {
+                            label: 'Operation Started',
+                            value: timeAgo(status.operationState.startedAt),
+                          },
+                        ]
+                      : []),
+                    ...(status?.operationState?.finishedAt
+                      ? [
+                          {
+                            label: 'Operation Finished',
+                            value: timeAgo(status.operationState.finishedAt),
+                          },
+                        ]
+                      : []),
+                  ],
+                  columns: 2 as const,
+                },
+              },
+            ]
+          : []),
 
         // Health message (if present)
-        ...(status?.health?.message ? [{
-          id: 'health-message',
-          title: 'Health Message',
-          data: {
-            type: 'info-grid' as const,
-            items: [
-              { label: 'Message', value: status.health.message },
-            ],
-            columns: 1 as const,
-          },
-        }] : []),
+        ...(status?.health?.message
+          ? [
+              {
+                id: 'health-message',
+                title: 'Health Message',
+                data: {
+                  type: 'info-grid' as const,
+                  items: [{ label: 'Message', value: status.health.message }],
+                  columns: 1 as const,
+                },
+              },
+            ]
+          : []),
 
         // Operation message (if present and recent)
-        ...(status?.operationState?.message ? [{
-          id: 'operation-message',
-          title: 'Operation Message',
-          data: {
-            type: 'info-grid' as const,
-            items: [
-              { label: 'Message', value: status.operationState.message },
-            ],
-            columns: 1 as const,
-          },
-        }] : []),
+        ...(status?.operationState?.message
+          ? [
+              {
+                id: 'operation-message',
+                title: 'Operation Message',
+                data: {
+                  type: 'info-grid' as const,
+                  items: [{ label: 'Message', value: status.operationState.message }],
+                  columns: 1 as const,
+                },
+              },
+            ]
+          : []),
 
         // Images (from summary)
-        ...(status?.summary?.images?.length ? [{
-          id: 'images',
-          title: 'Images',
-          data: {
-            type: 'container-images' as const,
-            containers: status.summary.images.map((image, i) => ({
-              name: `image-${i + 1}`,
-              image,
-            })),
-          },
-        }] : []),
+        ...(status?.summary?.images?.length
+          ? [
+              {
+                id: 'images',
+                title: 'Images',
+                data: {
+                  type: 'container-images' as const,
+                  containers: status.summary.images.map((image, i) => ({
+                    name: `image-${i + 1}`,
+                    image,
+                  })),
+                },
+              },
+            ]
+          : []),
       ],
     };
   },
@@ -589,7 +712,8 @@ export const ApplicationAdapter: ResourceAdapter<ArgoCDApplication> = {
       variant: 'warning',
       confirm: {
         title: 'Sync with Prune',
-        message: 'This will sync the application and DELETE resources that are no longer in Git. This action cannot be undone. Continue?',
+        message:
+          'This will sync the application and DELETE resources that are no longer in Git. This action cannot be undone. Continue?',
         confirmLabel: 'Sync & Prune',
       },
       execute: async (context, resource) => {

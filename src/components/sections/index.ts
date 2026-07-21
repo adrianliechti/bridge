@@ -37,9 +37,23 @@ export { StatusCardsSection, GaugesSection, PodGridSection } from './StatusSecti
 export { ContainersSection, ContainerCard } from './ContainerSection';
 export { VolumesSection, VolumeCard } from './VolumeSection';
 export { CapacityBarsSection, TaintsSection } from './NodeSection';
-export { RelatedReplicaSetsSection, RelatedPVCsSection, RelatedJobsSection } from './RelatedSection';
-export { VolumeClaimTemplatesSection, ScheduleSection, JobProgressSection, TimelineSection } from './JobSection';
-export { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSection } from './InfoSection';
+export {
+  RelatedReplicaSetsSection,
+  RelatedPVCsSection,
+  RelatedJobsSection,
+} from './RelatedSection';
+export {
+  VolumeClaimTemplatesSection,
+  ScheduleSection,
+  JobProgressSection,
+  TimelineSection,
+} from './JobSection';
+export {
+  InfoGridSection,
+  LabelsSection,
+  ContainerImagesSection,
+  AddressesSection,
+} from './InfoSection';
 export { NodeMetricsSection } from './MetricsSection';
 export { ResourceQuotaSection } from './ResourceQuotaSection';
 export { SectionRenderer } from './SectionRenderer';
@@ -51,4 +65,10 @@ export { HelmReleaseView } from './HelmReleaseView';
 // Log viewer
 export { LogViewer, type LogEntry, type LogViewerProps } from './LogViewer';
 export { DockerConfigView } from './DockerConfigView';
-export { CertificateView, PrivateKeyView, PublicKeyView, CsrView, detectPemType } from './CertificateView';
+export {
+  CertificateView,
+  PrivateKeyView,
+  PublicKeyView,
+  CsrView,
+  detectPemType,
+} from './CertificateView';

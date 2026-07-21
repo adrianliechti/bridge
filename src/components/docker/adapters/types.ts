@@ -2,7 +2,15 @@
 //
 // Defines the adapter interface for Docker resources.
 
-import type { ContainerSummary, ContainerInspectResponse, ImageSummary, DockerVolume, DockerNetwork, DockerNetworkInspect, ComposeApplication } from '../../../api/docker/docker';
+import type {
+  ContainerSummary,
+  ContainerInspectResponse,
+  ImageSummary,
+  DockerVolume,
+  DockerNetwork,
+  DockerNetworkInspect,
+  ComposeApplication,
+} from '../../../api/docker/docker';
 
 // Re-export all section types for convenience
 export type {
@@ -24,10 +32,20 @@ export type {
 } from '../../sections/types';
 
 // Import the generic ResourceAction type and specialize it
-import type { ResourceAction as GenericResourceAction, ResourceSections } from '../../sections/types';
+import type {
+  ResourceAction as GenericResourceAction,
+  ResourceSections,
+} from '../../sections/types';
 
 /** Docker container resource type */
-export type DockerResource = ContainerSummary | ContainerInspectResponse | ImageSummary | DockerVolume | DockerNetwork | DockerNetworkInspect | ComposeApplication;
+export type DockerResource =
+  | ContainerSummary
+  | ContainerInspectResponse
+  | ImageSummary
+  | DockerVolume
+  | DockerNetwork
+  | DockerNetworkInspect
+  | ComposeApplication;
 
 /** Docker-specific action type */
 export type ResourceAction = GenericResourceAction<DockerResource>;

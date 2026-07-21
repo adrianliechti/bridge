@@ -22,22 +22,21 @@ interface ResourcePageProps {
   onToggleChatPanel?: () => void;
 }
 
-export function ResourcePage({ 
-  resource, 
-  context, 
-  namespace, 
-  selectedItem, 
-  onSelectItem, 
-  tab, 
+export function ResourcePage({
+  resource,
+  context,
+  namespace,
+  selectedItem,
+  onSelectItem,
+  tab,
   onTabChange,
   isChatPanelOpen = false,
   onToggleChatPanel,
 }: ResourcePageProps) {
-
   // Fetch data using useKubernetesQuery
   const { data, loading, error, refetch, isRefetching } = useKubernetesQuery(
     ['kubernetes', 'resources', context, resource.group, resource.name, namespace],
-    () => getResourceTable(context, resource, namespace)
+    () => getResourceTable(context, resource, namespace),
   );
 
   // Extract Kubernetes resource info for detail panel
@@ -60,8 +59,8 @@ export function ResourcePage({
       <button
         onClick={onToggleChatPanel}
         className={`p-2 rounded-md transition-colors ${
-          isChatPanelOpen 
-            ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800' 
+          isChatPanelOpen
+            ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
             : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
         }`}
         title="AI Assistant"
@@ -72,7 +71,11 @@ export function ResourcePage({
   };
 
   // Render Kubernetes detail panel
-  const renderDetailPanel = (item: TableRow<KubernetesObject>, onClose: () => void, otherPanelOpen: boolean) => {
+  const renderDetailPanel = (
+    item: TableRow<KubernetesObject>,
+    onClose: () => void,
+    otherPanelOpen: boolean,
+  ) => {
     const resourceInfo = getResourceInfo(item);
     return (
       <ResourcePanel

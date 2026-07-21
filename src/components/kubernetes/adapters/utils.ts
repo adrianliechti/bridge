@@ -2,11 +2,11 @@
 
 import type { Section, ContainerData, ResourceQuotaData, EnvVarData, EnvFromData } from './types';
 import type { V1Container, V1EnvVar, V1EnvFromSource } from '@kubernetes/client-node';
-import { 
-  parseCpuToNanoCores, 
-  parseMemoryToBytes, 
-  formatCpu, 
-  formatBytes 
+import {
+  parseCpuToNanoCores,
+  parseMemoryToBytes,
+  formatCpu,
+  formatBytes,
 } from '../../../api/kubernetes/kubernetesMetrics';
 
 export function formatDuration(ms: number): string {
@@ -23,7 +23,7 @@ export function formatDuration(ms: number): string {
 
 export function formatTimeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  
+
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -36,41 +36,51 @@ export function formatTimeAgo(date: Date): string {
 export function formatMemory(value: string): string {
   const match = value.match(/^(\d+)(Ki|Mi|Gi|Ti|K|M|G|T)?$/);
   if (!match) return value;
-  
+
   const num = parseInt(match[1], 10);
   const unit = match[2];
-  
+
   if (!unit) {
     if (num >= 1024 * 1024 * 1024) return `${(num / (1024 * 1024 * 1024)).toFixed(1)}Gi`;
     if (num >= 1024 * 1024) return `${(num / (1024 * 1024)).toFixed(1)}Mi`;
     if (num >= 1024) return `${(num / 1024).toFixed(1)}Ki`;
     return `${num}B`;
   }
-  
+
   if (unit === 'Ki' && num >= 1024 * 1024) return `${(num / (1024 * 1024)).toFixed(1)}Gi`;
   if (unit === 'Ki' && num >= 1024) return `${(num / 1024).toFixed(1)}Mi`;
   if (unit === 'Mi' && num >= 1024) return `${(num / 1024).toFixed(1)}Gi`;
-  
+
   return value;
 }
 
 export function getAccessModeStyle(mode: string): string {
   switch (mode) {
-    case 'ReadWriteOnce': return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
-    case 'ReadOnlyMany': return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-    case 'ReadWriteMany': return 'bg-purple-500/20 text-purple-400 border border-purple-500/30';
-    case 'ReadWriteOncePod': return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
-    default: return 'bg-gray-700 text-gray-300';
+    case 'ReadWriteOnce':
+      return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
+    case 'ReadOnlyMany':
+      return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+    case 'ReadWriteMany':
+      return 'bg-purple-500/20 text-purple-400 border border-purple-500/30';
+    case 'ReadWriteOncePod':
+      return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
+    default:
+      return 'bg-gray-700 text-gray-300';
   }
 }
 
 export function formatAccessMode(mode: string): string {
   switch (mode) {
-    case 'ReadWriteOnce': return 'RWO';
-    case 'ReadOnlyMany': return 'ROX';
-    case 'ReadWriteMany': return 'RWX';
-    case 'ReadWriteOncePod': return 'RWOP';
-    default: return mode;
+    case 'ReadWriteOnce':
+      return 'RWO';
+    case 'ReadOnlyMany':
+      return 'ROX';
+    case 'ReadWriteMany':
+      return 'RWX';
+    case 'ReadWriteOncePod':
+      return 'RWOP';
+    default:
+      return mode;
   }
 }
 
@@ -102,10 +112,7 @@ export function parseCronSchedule(schedule: string): string {
 }
 
 // Common keys to filter out from labels
-const INTERNAL_LABEL_KEYS = [
-  'pod-template-hash',
-  'controller-revision-hash',
-];
+const INTERNAL_LABEL_KEYS = ['pod-template-hash', 'controller-revision-hash'];
 
 // Common keys to filter out from annotations
 const INTERNAL_ANNOTATION_KEYS = [
@@ -120,14 +127,12 @@ const INTERNAL_ANNOTATION_KEYS = [
  */
 export function filterLabels(
   labels: Record<string, string> | undefined,
-  additionalExcludes: string[] = []
+  additionalExcludes: string[] = [],
 ): Record<string, string> {
   if (!labels) return {};
   const excludes = [...INTERNAL_LABEL_KEYS, ...additionalExcludes];
   return Object.fromEntries(
-    Object.entries(labels).filter(([key]) => 
-      !excludes.some(exclude => key.includes(exclude))
-    )
+    Object.entries(labels).filter(([key]) => !excludes.some((exclude) => key.includes(exclude))),
   );
 }
 
@@ -136,14 +141,14 @@ export function filterLabels(
  */
 export function filterAnnotations(
   annotations: Record<string, string> | undefined,
-  additionalExcludes: string[] = []
+  additionalExcludes: string[] = [],
 ): Record<string, string> {
   if (!annotations) return {};
   const excludes = [...INTERNAL_ANNOTATION_KEYS, ...additionalExcludes];
   return Object.fromEntries(
-    Object.entries(annotations).filter(([key]) => 
-      !excludes.some(exclude => key.includes(exclude) || key === exclude)
-    )
+    Object.entries(annotations).filter(
+      ([key]) => !excludes.some((exclude) => key.includes(exclude) || key === exclude),
+    ),
   );
 }
 
@@ -157,18 +162,20 @@ export function mapContainerSpec(container: V1Container): ContainerData {
     name: container.name,
     image: container.image || '',
     // No state/status info for template specs
-    resources: container.resources ? {
-      requests: container.resources.requests as Record<string, string> | undefined,
-      limits: container.resources.limits as Record<string, string> | undefined,
-    } : undefined,
-    ports: container.ports?.map(p => ({
+    resources: container.resources
+      ? {
+          requests: container.resources.requests as Record<string, string> | undefined,
+          limits: container.resources.limits as Record<string, string> | undefined,
+        }
+      : undefined,
+    ports: container.ports?.map((p) => ({
       name: p.name,
       containerPort: p.containerPort,
       protocol: p.protocol,
     })),
     command: container.command,
     args: container.args,
-    mounts: container.volumeMounts?.map(m => ({
+    mounts: container.volumeMounts?.map((m) => ({
       name: m.name,
       mountPath: m.mountPath,
       readOnly: m.readOnly,
@@ -176,11 +183,16 @@ export function mapContainerSpec(container: V1Container): ContainerData {
     })),
     // Environment variables
     env: container.env?.map(mapEnvVar),
-    envFrom: container.envFrom?.map(mapEnvFrom).filter((ef): ef is NonNullable<typeof ef> => ef !== null),
+    envFrom: container.envFrom
+      ?.map(mapEnvFrom)
+      .filter((ef): ef is NonNullable<typeof ef> => ef !== null),
   };
 }
 
-type ContainerMetricsMap = Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }>;
+type ContainerMetricsMap = Map<
+  string,
+  { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }
+>;
 
 /**
  * Create container sections from a pod template spec
@@ -192,7 +204,7 @@ export function getContainerSections(
   metricsLoader?: () => Promise<ContainerMetricsMap | null>,
 ): Section[] {
   const sections: Section[] = [];
-  
+
   if (initContainers && initContainers.length > 0) {
     sections.push({
       id: 'init-containers',
@@ -204,7 +216,7 @@ export function getContainerSections(
       },
     });
   }
-  
+
   if (containers && containers.length > 0) {
     sections.push({
       id: 'containers',
@@ -216,7 +228,7 @@ export function getContainerSections(
       },
     });
   }
-  
+
   return sections;
 }
 
@@ -228,13 +240,13 @@ export function getStandardMetadataSections(
   options?: {
     excludeLabels?: string[];
     excludeAnnotations?: string[];
-  }
+  },
 ): Section[] {
   const sections: Section[] = [];
-  
+
   const filteredLabels = filterLabels(metadata?.labels, options?.excludeLabels);
   const filteredAnnotations = filterAnnotations(metadata?.annotations, options?.excludeAnnotations);
-  
+
   if (Object.keys(filteredLabels).length > 0) {
     sections.push({
       id: 'labels',
@@ -245,7 +257,7 @@ export function getStandardMetadataSections(
       },
     });
   }
-  
+
   if (Object.keys(filteredAnnotations).length > 0) {
     sections.push({
       id: 'annotations',
@@ -256,7 +268,7 @@ export function getStandardMetadataSections(
       },
     });
   }
-  
+
   return sections;
 }
 

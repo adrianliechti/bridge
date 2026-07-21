@@ -9,10 +9,10 @@ export interface DockerLogViewerProps {
 }
 
 // Inner component that handles log streaming - use key={container.Id} to reset state
-function DockerLogViewerInner({ 
+function DockerLogViewerInner({
   context: dockerContext,
-  container, 
-  toolbarRef 
+  container,
+  toolbarRef,
 }: DockerLogViewerProps) {
   const { logs, sources, isLoading, error, unavailableMessage } = useDockerLogs({
     context: dockerContext,
@@ -34,5 +34,12 @@ function DockerLogViewerInner({
 
 // Wrapper component that uses key to reset inner state when container changes
 export function DockerLogViewer({ context, container, toolbarRef }: DockerLogViewerProps) {
-  return <DockerLogViewerInner key={container.Id} context={context} container={container} toolbarRef={toolbarRef} />;
+  return (
+    <DockerLogViewerInner
+      key={container.Id}
+      context={context}
+      container={container}
+      toolbarRef={toolbarRef}
+    />
+  );
 }

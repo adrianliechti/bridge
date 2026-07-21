@@ -70,8 +70,8 @@ const adapters: ResourceAdapter<any>[] = [
 
 // Build lookup map (kind -> adapter)
 const adapterMap = new Map<string, ResourceAdapter>();
-adapters.forEach(adapter => {
-  adapter.kinds.forEach(kind => {
+adapters.forEach((adapter) => {
+  adapter.kinds.forEach((kind) => {
     adapterMap.set(kind.toLowerCase(), adapter);
   });
 });
@@ -93,35 +93,36 @@ export function hasAdapter(kind: string): boolean {
 /**
  * Adapt a resource to display sections using the appropriate adapter
  */
-export function adaptResource(context: string, resource: KubernetesResource): ResourceSections | null {
+export function adaptResource(
+  context: string,
+  resource: KubernetesResource,
+): ResourceSections | null {
   const kind = resource.kind;
   if (!kind) return null;
-  
+
   const adapter = getAdapter(kind);
   if (!adapter) return null;
   return adapter.adapt(context, resource);
 }
 
 // Default delete action for all Kubernetes resources
-const defaultDeleteAction = createDeleteAction<KubernetesResource>(
-  async (context, resource) => {
-    const kind = resource.kind;
-    const apiVersion = resource.apiVersion;
-    const name = resource.metadata?.name;
-    const namespace = resource.metadata?.namespace;
-    
-    if (!kind || !name) {
-      throw new Error('Resource kind and name are required');
-    }
-    
-    const config = await getResourceConfigByKind(context, kind, apiVersion);
-    if (!config) {
-      throw new Error(`Could not find API configuration for ${kind}`);
-    }
-    
-    await deleteResource(context, config, name, namespace);
+const defaultDeleteAction = createDeleteAction<KubernetesResource>(async (context, resource) => {
+  const kind = resource.kind;
+  const apiVersion = resource.apiVersion;
+  const name = resource.metadata?.name;
+  const namespace = resource.metadata?.namespace;
+
+  if (!kind || !name) {
+    throw new Error('Resource kind and name are required');
   }
-);
+
+  const config = await getResourceConfigByKind(context, kind, apiVersion);
+  if (!config) {
+    throw new Error(`Could not find API configuration for ${kind}`);
+  }
+
+  await deleteResource(context, config, name, namespace);
+});
 
 /**
  * Get actions available for a resource.
@@ -130,14 +131,14 @@ const defaultDeleteAction = createDeleteAction<KubernetesResource>(
 export function getResourceActions(resource: KubernetesResource): ResourceAction[] {
   const kind = resource.kind;
   if (!kind) return [];
-  
+
   const adapter = getAdapter(kind);
   const actions: ResourceAction[] = [];
 
   // Add adapter actions (filtered by visibility), excluding any delete (we add our own)
   if (adapter?.actions) {
-    const adapterActions = adapter.actions.filter(action => 
-      action.id !== 'delete' && (!action.isVisible || action.isVisible(resource))
+    const adapterActions = adapter.actions.filter(
+      (action) => action.id !== 'delete' && (!action.isVisible || action.isVisible(resource)),
     );
     actions.push(...adapterActions);
   }

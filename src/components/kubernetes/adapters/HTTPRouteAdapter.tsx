@@ -73,21 +73,29 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                   render: () => (
                     <div className="space-y-2">
                       {spec.parentRefs!.map((parent, idx) => {
-                        const parentStatus = status?.parents?.find((p) => p.parentRef.name === parent.name);
-                        const acceptedCond = parentStatus?.conditions?.find((c) => c.type === 'Accepted');
+                        const parentStatus = status?.parents?.find(
+                          (p) => p.parentRef.name === parent.name,
+                        );
+                        const acceptedCond = parentStatus?.conditions?.find(
+                          (c) => c.type === 'Accepted',
+                        );
                         const isAccepted = acceptedCond?.status === 'True';
                         // Gateway namespace: use explicit namespace or fall back to route's namespace
                         const gatewayNamespace = parent.namespace || routeNamespace;
-                        
+
                         const content = (
                           <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                             <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
                               <LinkIcon size={10} /> Parent Gateway
                             </div>
                             <div className="text-sm flex items-center gap-2">
-                              <span className="text-cyan-600 dark:text-cyan-400">{parent.name}</span>
+                              <span className="text-cyan-600 dark:text-cyan-400">
+                                {parent.name}
+                              </span>
                               {parent.namespace && (
-                                <span className="text-xs text-neutral-600 dark:text-neutral-500">({parent.namespace})</span>
+                                <span className="text-xs text-neutral-600 dark:text-neutral-500">
+                                  ({parent.namespace})
+                                </span>
                               )}
                               <span
                                 className={`text-xs px-1.5 py-0.5 rounded ml-auto ${
@@ -135,7 +143,9 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                   type: 'custom' as const,
                   render: () => (
                     <div className="bg-neutral-100 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-3">
-                      <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-2">Hostnames</div>
+                      <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-2">
+                        Hostnames
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {spec.hostnames!.map((hostname, idx) => (
                           <div
@@ -163,7 +173,11 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
                   render: () => (
                     <div className="space-y-2">
                       {spec.rules!.map((rule, idx) => (
-                        <HTTPRuleCard key={rule.matches?.[0]?.path?.value || `rule-${idx}`} rule={rule} index={idx} />
+                        <HTTPRuleCard
+                          key={rule.matches?.[0]?.path?.value || `rule-${idx}`}
+                          rule={rule}
+                          index={idx}
+                        />
                       ))}
                     </div>
                   ),
@@ -179,10 +193,10 @@ export const HTTPRouteAdapter: ResourceAdapter<HTTPRoute> = {
 // HTTP Rule Card Component
 function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
   const [expanded, setExpanded] = React.useState(false);
-  
+
   const matchCount = rule.matches?.length || 0;
   const backendCount = rule.backendRefs?.length || 0;
-  
+
   return (
     <div className="border border-purple-500/30 bg-purple-500/5 rounded-lg overflow-hidden">
       <button
@@ -197,7 +211,8 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
             </span>
           </div>
           <div className="text-xs text-neutral-600 dark:text-neutral-500">
-            {matchCount > 0 ? `${matchCount} match${matchCount !== 1 ? 'es' : ''}` : 'All requests'} • {backendCount} backend{backendCount !== 1 ? 's' : ''}
+            {matchCount > 0 ? `${matchCount} match${matchCount !== 1 ? 'es' : ''}` : 'All requests'}{' '}
+            • {backendCount} backend{backendCount !== 1 ? 's' : ''}
           </div>
         </div>
       </button>
@@ -209,17 +224,22 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
               <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Matches</div>
               <div className="space-y-2">
                 {rule.matches.map((match, i) => (
-                  <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
+                  <div
+                    key={i}
+                    className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2"
+                  >
                     {match.path?.value && (
                       <div className="flex items-center gap-2 mb-1">
                         <Route size={10} className="text-cyan-600 dark:text-cyan-400" />
                         <span className="text-neutral-600 dark:text-neutral-400">Path:</span>
-                        <span className="text-cyan-600 dark:text-cyan-400 font-mono">{match.path.value}</span>
+                        <span className="text-cyan-600 dark:text-cyan-400 font-mono">
+                          {match.path.value}
+                        </span>
                       </div>
                     )}
                     {match.method && (
                       <div className="flex items-center gap-2">
-                          <span className="text-neutral-500 dark:text-neutral-400 ml-4">Method:</span>
+                        <span className="text-neutral-500 dark:text-neutral-400 ml-4">Method:</span>
                         <span className="px-1 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-mono">
                           {match.method}
                         </span>
@@ -233,10 +253,15 @@ function HTTPRuleCard({ rule, index }: { rule: HTTPRule; index: number }) {
 
           {rule.backendRefs && rule.backendRefs.length > 0 && (
             <div>
-              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Backend Services</div>
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">
+                Backend Services
+              </div>
               <div className="space-y-2">
                 {rule.backendRefs.map((backend, i) => (
-                  <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
+                  <div
+                    key={i}
+                    className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2"
+                  >
                     <div className="flex items-center gap-2">
                       <GitBranch size={10} className="text-emerald-600 dark:text-emerald-400" />
                       <span className="text-emerald-600 dark:text-emerald-400">{backend.name}</span>

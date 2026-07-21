@@ -40,31 +40,31 @@ async function decodeHelmRelease(encoded: string): Promise<HelmRelease | null> {
   try {
     // First base64 decode (Kubernetes layer)
     const k8sDecoded = atob(encoded);
-    
+
     // Second base64 decode (Helm layer)
     const helmDecoded = atob(k8sDecoded);
-    
+
     // Convert to Uint8Array for decompression
     const bytes = new Uint8Array(helmDecoded.length);
     for (let i = 0; i < helmDecoded.length; i++) {
       bytes[i] = helmDecoded.charCodeAt(i);
     }
-    
+
     // Decompress using DecompressionStream (gzip)
     const ds = new DecompressionStream('gzip');
     const writer = ds.writable.getWriter();
     writer.write(bytes);
     writer.close();
-    
+
     const reader = ds.readable.getReader();
     const chunks: Uint8Array[] = [];
-    
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
     }
-    
+
     // Combine chunks
     const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
     const decompressed = new Uint8Array(totalLength);
@@ -73,10 +73,10 @@ async function decodeHelmRelease(encoded: string): Promise<HelmRelease | null> {
       decompressed.set(chunk, offset);
       offset += chunk.length;
     }
-    
+
     // Convert to JSON string
     const jsonString = new TextDecoder().decode(decompressed);
-    
+
     // Parse JSON
     return JSON.parse(jsonString);
   } catch (e) {
@@ -115,14 +115,14 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
   const [showValues, setShowValues] = useState(false);
   const [showManifest, setShowManifest] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
-  const toggleValues = () => setShowValues(prev => !prev);
-  const toggleManifest = () => setShowManifest(prev => !prev);
-  const toggleNotes = () => setShowNotes(prev => !prev);
+  const toggleValues = () => setShowValues((prev) => !prev);
+  const toggleManifest = () => setShowManifest((prev) => !prev);
+  const toggleNotes = () => setShowNotes((prev) => !prev);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
     decodeHelmRelease(encoded)
-      .then(data => {
+      .then((data) => {
         setRelease(data);
         setLoading(false);
       })
@@ -141,7 +141,9 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
   if (loading) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-        <span className="text-xs text-neutral-500 dark:text-neutral-400">Decoding Helm release...</span>
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+          Decoding Helm release...
+        </span>
       </div>
     );
   }
@@ -149,7 +151,9 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
   if (error || !release) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-        <span className="text-xs text-red-600 dark:text-red-400">{error || 'Failed to decode release'}</span>
+        <span className="text-xs text-red-600 dark:text-red-400">
+          {error || 'Failed to decode release'}
+        </span>
       </div>
     );
   }
@@ -169,35 +173,55 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
         <table className="w-full text-xs">
           <tbody>
             <tr className="border-b border-neutral-200 dark:border-neutral-700/50">
-              <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">Release</td>
-              <td className="py-1.5 text-neutral-900 dark:text-neutral-300">{release.name || 'Unknown'}</td>
+              <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">
+                Release
+              </td>
+              <td className="py-1.5 text-neutral-900 dark:text-neutral-300">
+                {release.name || 'Unknown'}
+              </td>
             </tr>
             <tr className="border-b border-neutral-200 dark:border-neutral-700/50">
-              <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">Revision</td>
-              <td className="py-1.5 text-neutral-900 dark:text-neutral-300">{release.version || 1}</td>
+              <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">
+                Revision
+              </td>
+              <td className="py-1.5 text-neutral-900 dark:text-neutral-300">
+                {release.version || 1}
+              </td>
             </tr>
             <tr className="border-b border-neutral-200 dark:border-neutral-700/50">
-              <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">Status</td>
+              <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">
+                Status
+              </td>
               <td className={`py-1.5 font-medium ${getHelmStatusColor(info?.status)}`}>
                 {info?.status || 'Unknown'}
               </td>
             </tr>
             {chart && (
               <tr className="border-b border-neutral-200 dark:border-neutral-700/50">
-                <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">Chart</td>
-                <td className="py-1.5 text-neutral-900 dark:text-neutral-300">{chart.name}-{chart.version}</td>
+                <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">
+                  Chart
+                </td>
+                <td className="py-1.5 text-neutral-900 dark:text-neutral-300">
+                  {chart.name}-{chart.version}
+                </td>
               </tr>
             )}
             {chart?.appVersion && (
               <tr className="border-b border-neutral-200 dark:border-neutral-700/50">
-                <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">App Version</td>
+                <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">
+                  App Version
+                </td>
                 <td className="py-1.5 text-cyan-600 dark:text-cyan-400">{chart.appVersion}</td>
               </tr>
             )}
             {info?.last_deployed && (
               <tr className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
-                <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">Last Deployed</td>
-                <td className="py-1.5 text-neutral-900 dark:text-neutral-300">{new Date(info.last_deployed).toLocaleString()}</td>
+                <td className="py-1.5 pr-3 text-neutral-500 dark:text-neutral-500 whitespace-nowrap">
+                  Last Deployed
+                </td>
+                <td className="py-1.5 text-neutral-900 dark:text-neutral-300">
+                  {new Date(info.last_deployed).toLocaleString()}
+                </td>
               </tr>
             )}
           </tbody>
@@ -213,7 +237,9 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
           >
             <div className="flex items-center gap-2">
               <Key size={14} className="text-amber-500 dark:text-amber-400" />
-              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">User Values</span>
+              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                User Values
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -256,7 +282,9 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
           >
             <div className="flex items-center gap-2">
               <FileText size={14} className="text-blue-500 dark:text-blue-400" />
-              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Release Notes</span>
+              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                Release Notes
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -299,7 +327,9 @@ export function HelmReleaseView({ encoded }: HelmReleaseViewProps) {
           >
             <div className="flex items-center gap-2">
               <FileText size={14} className="text-purple-500 dark:text-purple-400" />
-              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Rendered Manifest</span>
+              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                Rendered Manifest
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <button

@@ -1,7 +1,12 @@
 // Docker Adapter Registry
 // Maps Docker resource types to their adapters for data extraction
 
-import type { DockerAdapter, ResourceSections, ResourceAction, DockerResource } from './adapters/types';
+import type {
+  DockerAdapter,
+  ResourceSections,
+  ResourceAction,
+  DockerResource,
+} from './adapters/types';
 
 // Import all adapters
 import { ContainerAdapter } from './adapters/ContainerAdapter';
@@ -22,8 +27,8 @@ const adapters: DockerAdapter<any>[] = [
 
 // Build lookup map (type -> adapter)
 const adapterMap = new Map<string, DockerAdapter>();
-adapters.forEach(adapter => {
-  adapter.types.forEach(type => {
+adapters.forEach((adapter) => {
+  adapter.types.forEach((type) => {
     adapterMap.set(type.toLowerCase(), adapter);
   });
 });
@@ -45,7 +50,11 @@ export function hasAdapter(type: string): boolean {
 /**
  * Adapt a Docker resource to display sections using the appropriate adapter
  */
-export function adaptResource(resource: DockerResource, type: string, context: string): ResourceSections | null {
+export function adaptResource(
+  resource: DockerResource,
+  type: string,
+  context: string,
+): ResourceSections | null {
   const adapter = getAdapter(type);
   if (!adapter) return null;
   return adapter.adapt(context, resource);
@@ -57,11 +66,9 @@ export function adaptResource(resource: DockerResource, type: string, context: s
 export function getResourceActions(resource: DockerResource, type = 'container'): ResourceAction[] {
   const adapter = getAdapter(type);
   if (!adapter?.actions) return [];
-  
+
   // Filter actions based on visibility
-  return adapter.actions.filter(action => 
-    !action.isVisible || action.isVisible(resource)
-  );
+  return adapter.actions.filter((action) => !action.isVisible || action.isVisible(resource));
 }
 
 /**

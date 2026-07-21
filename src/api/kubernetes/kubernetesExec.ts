@@ -60,7 +60,7 @@ export class ExecSession {
   private tryConnect(command: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
       const { context, namespace, pod, container } = this.options;
-      
+
       // Build Kubernetes exec API URL with query params
       const params = new URLSearchParams();
       params.set('container', container);
@@ -68,19 +68,19 @@ export class ExecSession {
       params.set('stdout', 'true');
       params.set('stderr', 'true');
       params.set('tty', 'true');
-      
+
       for (const cmd of command) {
         params.append('command', cmd);
       }
-      
+
       // Connect through the proxy to Kubernetes exec API
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const url = `${protocol}//${window.location.host}/contexts/${context}/api/v1/namespaces/${namespace}/pods/${pod}/exec?${params.toString()}`;
-      
+
       this.ws = new WebSocket(url, ['v4.channel.k8s.io']);
-      
+
       let resolved = false;
-      
+
       // Set a connection timeout
       const connectionTimeout = setTimeout(() => {
         if (!resolved) {
@@ -89,9 +89,9 @@ export class ExecSession {
           reject(new Error('Connection timeout'));
         }
       }, 5000);
-      
+
       this.ws.binaryType = 'arraybuffer';
-      
+
       this.ws.onopen = () => {
         // Don't resolve immediately - wait for first data or a short delay
         // to confirm the shell actually started
@@ -110,7 +110,7 @@ export class ExecSession {
           }
         }, 200);
       };
-      
+
       this.ws.onmessage = (event) => {
         if (event.data instanceof ArrayBuffer) {
           const data = new Uint8Array(event.data);
@@ -137,7 +137,7 @@ export class ExecSession {
               let failureMessage: string | null = content;
               try {
                 const status = JSON.parse(content) as { status?: string; message?: string };
-                failureMessage = status.status === 'Success' ? null : (status.message || content);
+                failureMessage = status.status === 'Success' ? null : status.message || content;
               } catch {
                 // Not JSON — treat the raw text as the failure message.
               }
@@ -164,7 +164,7 @@ export class ExecSession {
           reject(new Error('WebSocket connection failed'));
         }
       };
-      
+
       this.ws.onclose = (event) => {
         clearTimeout(connectionTimeout);
         if (!resolved) {

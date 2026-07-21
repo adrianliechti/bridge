@@ -31,14 +31,14 @@ export function clearDiscoveryCache(context?: string): void {
 // Group priority for alias resolution (lower = higher priority, like kubectl)
 // Core API has highest priority, then well-known groups
 function getGroupPriority(group: string): number {
-  if (group === '') return 0;  // Core API (v1)
+  if (group === '') return 0; // Core API (v1)
   if (group === 'apps') return 1;
   if (group === 'batch') return 2;
   if (group === 'networking.k8s.io') return 3;
   if (group === 'storage.k8s.io') return 4;
   if (group === 'rbac.authorization.k8s.io') return 5;
-  if (group.endsWith('.k8s.io')) return 10;  // Other k8s.io groups
-  return 100;  // Custom/third-party groups
+  if (group.endsWith('.k8s.io')) return 10; // Other k8s.io groups
+  return 100; // Custom/third-party groups
 }
 
 // Build unique key for a resource (group/plural)
@@ -75,23 +75,21 @@ const WELL_KNOWN_GROUPS = new Set([
 // URL slug for the $resourceType route param (e.g. "pods" or "certificates.cert-manager.io")
 export function getResourceTypeSlug(resource: V1APIResource): string {
   const group = resource.group || '';
-  return group === '' || WELL_KNOWN_GROUPS.has(group)
-    ? resource.name
-    : `${resource.name}.${group}`;
+  return group === '' || WELL_KNOWN_GROUPS.has(group) ? resource.name : `${resource.name}.${group}`;
 }
 
 // Add a resource to the caches
 function addResourceToMap(
   resources: Map<string, V1APIResource>,
   aliases: Map<string, V1APIResource>,
-  resource: V1APIResource
+  resource: V1APIResource,
 ): void {
   // Always store by unique key (group/plural)
   const key = getResourceKey(resource);
   resources.set(key, resource);
-  
+
   const resourcePriority = getGroupPriority(resource.group || '');
-  
+
   // Helper to add alias with priority check
   const addAlias = (alias: string) => {
     const existing = aliases.get(alias);
@@ -105,14 +103,14 @@ function addResourceToMap(
       }
     }
   };
-  
+
   // Add aliases by plural, singular, and short names
   addAlias(resource.name);
-  
+
   if (resource.singularName) {
     addAlias(resource.singularName);
   }
-  
+
   if (resource.shortNames) {
     for (const shortName of resource.shortNames) {
       addAlias(shortName);
@@ -154,7 +152,7 @@ export async function discoverResources(context: string): Promise<Map<string, V1
       for (const resource of coreV1.resources) {
         // Skip subresources (they contain '/')
         if (resource.name.includes('/')) continue;
-        
+
         const enrichedResource = {
           ...resource,
           group: '',
@@ -169,7 +167,7 @@ export async function discoverResources(context: string): Promise<Map<string, V1
     // Fetch API groups
     try {
       const apiGroups = await fetchApiWithContext<V1APIGroupList>('/apis', context);
-      
+
       // Fetch resources for each group (use preferred version)
       await Promise.all(
         apiGroups.groups.map(async (group: V1APIGroup) => {
@@ -177,7 +175,7 @@ export async function discoverResources(context: string): Promise<Map<string, V1
           if (!preferredVersion) return;
 
           const apiBase = `/apis/${group.name}/${preferredVersion}`;
-          
+
           try {
             const resourceList = await fetchApiWithContext<V1APIResourceList>(apiBase, context);
             for (const resource of resourceList.resources) {
@@ -194,7 +192,7 @@ export async function discoverResources(context: string): Promise<Map<string, V1
           } catch (e) {
             console.warn(`Failed to fetch resources for ${apiBase}:`, e);
           }
-        })
+        }),
       );
     } catch (e) {
       console.warn('Failed to fetch API groups:', e);
@@ -211,27 +209,37 @@ export async function discoverResources(context: string): Promise<Map<string, V1
 }
 
 // Get resource config by plural name
-export async function getResourceConfig(context: string, plural: string): Promise<V1APIResource | undefined> {
+export async function getResourceConfig(
+  context: string,
+  plural: string,
+): Promise<V1APIResource | undefined> {
   const resources = await discoverResources(context);
   return resources.get(plural);
 }
 
 // Get resource config by fully qualified name (e.g., "pods.metrics.k8s.io")
-export async function getResourceConfigByQualifiedName(context: string, name: string): Promise<V1APIResource | undefined> {
+export async function getResourceConfigByQualifiedName(
+  context: string,
+  name: string,
+): Promise<V1APIResource | undefined> {
   await discoverResources(context); // Ensure discovery is complete
   return resourceCacheByContext.get(context)?.get(name);
 }
 
 // Get resource config by kind name
-export async function getResourceConfigByKind(context: string, kind: string, apiVersion?: string): Promise<V1APIResource | undefined> {
+export async function getResourceConfigByKind(
+  context: string,
+  kind: string,
+  apiVersion?: string,
+): Promise<V1APIResource | undefined> {
   const resources = await discoverResources(context);
-  
+
   // Parse apiVersion to get group (e.g., "apps/v1" -> "apps", "v1" -> "")
   let targetGroup = '';
   if (apiVersion && apiVersion.includes('/')) {
     targetGroup = apiVersion.split('/')[0];
   }
-  
+
   // Search through all resources to find matching kind
   for (const resource of resources.values()) {
     if (resource.kind === kind) {
@@ -247,7 +255,7 @@ export async function getResourceConfigByKind(context: string, kind: string, api
       }
     }
   }
-  
+
   // If no exact group match found but we have apiVersion, try without group matching
   if (apiVersion) {
     for (const resource of resources.values()) {
@@ -256,7 +264,7 @@ export async function getResourceConfigByKind(context: string, kind: string, api
       }
     }
   }
-  
+
   return undefined;
 }
 

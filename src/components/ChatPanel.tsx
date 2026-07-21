@@ -19,11 +19,11 @@ interface ChatPanelProps<T extends ChatEnvironment = ChatEnvironment> {
   buildInstructions: (environment: T) => string;
 }
 
-export function ChatPanel<T extends ChatEnvironment>({ 
-  isOpen, 
-  onClose, 
-  otherPanelOpen = false, 
-  adapterConfig, 
+export function ChatPanel<T extends ChatEnvironment>({
+  isOpen,
+  onClose,
+  otherPanelOpen = false,
+  adapterConfig,
   contextId,
   environment,
   tools,
@@ -67,7 +67,7 @@ export function ChatPanel<T extends ChatEnvironment>({
         agentLoopStrategy: maxIterations(10),
       });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adapterConfig.id, contextId]);
 
   // Keying the chat client by adapter + context makes useChat rebuild it (and
@@ -95,18 +95,23 @@ export function ChatPanel<T extends ChatEnvironment>({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-    
+
     // Inject current context into the message so LLM knows current state
     const contextInfo = [];
-    const env = environment as { currentNamespace?: string; selectedResourceKind?: string; selectedResourceName?: string };
+    const env = environment as {
+      currentNamespace?: string;
+      selectedResourceKind?: string;
+      selectedResourceName?: string;
+    };
     if (env.currentNamespace) contextInfo.push(`Namespace: ${env.currentNamespace}`);
     if (env.selectedResourceKind) contextInfo.push(`Viewing: ${env.selectedResourceKind}`);
     if (env.selectedResourceName) contextInfo.push(`Selected: ${env.selectedResourceName}`);
-    
-    const messageWithContext = contextInfo.length > 0
-      ? `[Current context: ${contextInfo.join(', ')}]\n\n${input.trim()}`
-      : input.trim();
-    
+
+    const messageWithContext =
+      contextInfo.length > 0
+        ? `[Current context: ${contextInfo.join(', ')}]\n\n${input.trim()}`
+        : input.trim();
+
     sendMessage(messageWithContext);
     setInput('');
   };
@@ -122,19 +127,18 @@ export function ChatPanel<T extends ChatEnvironment>({
   // Filter by type='text' AND truthy content to avoid undefined/empty
   const getMessageContent = (message: UIMessage): string => {
     return message.parts
-      .filter((part): part is { type: 'text'; content: string } => 
-        part.type === 'text' && Boolean(part.content)
+      .filter(
+        (part): part is { type: 'text'; content: string } =>
+          part.type === 'text' && Boolean(part.content),
       )
-      .map(part => part.content)
+      .map((part) => part.content)
       .join('')
       .replace(/^undefined/, ''); // Remove "undefined" prefix from library bug
   };
 
   // Check if message is currently streaming (last assistant message while loading)
   const isStreaming = (message: UIMessage, index: number): boolean => {
-    return isLoading && 
-           message.role === 'assistant' && 
-           index === messages.length - 1;
+    return isLoading && message.role === 'assistant' && index === messages.length - 1;
   };
 
   return (
@@ -148,7 +152,9 @@ export function ChatPanel<T extends ChatEnvironment>({
     >
       {/* Header */}
       <div className="shrink-0 h-16 px-4 flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800">
-        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">{adapterConfig.name}</h3>
+        <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">
+          {adapterConfig.name}
+        </h3>
         <div className="flex items-center gap-1">
           <button
             onClick={clear}
@@ -170,7 +176,7 @@ export function ChatPanel<T extends ChatEnvironment>({
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.map((message, index) => {
           const content = getMessageContent(message);
-          
+
           return (
             <div
               key={message.id}
@@ -180,7 +186,13 @@ export function ChatPanel<T extends ChatEnvironment>({
                   : ''
               }`}
             >
-              <div className={message.role === 'user' ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-800 dark:text-neutral-200'}>
+              <div
+                className={
+                  message.role === 'user'
+                    ? 'text-neutral-900 dark:text-neutral-100'
+                    : 'text-neutral-800 dark:text-neutral-200'
+                }
+              >
                 {message.role === 'assistant' ? (
                   content ? (
                     <Markdown>{content}</Markdown>
@@ -197,7 +209,7 @@ export function ChatPanel<T extends ChatEnvironment>({
             </div>
           );
         })}
-        
+
         {/* Stream/connection errors (e.g. AI backend unreachable) */}
         {error && !isLoading && (
           <div className="text-xs text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2">
@@ -216,12 +228,15 @@ export function ChatPanel<T extends ChatEnvironment>({
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="shrink-0 p-4 border-t border-neutral-200 dark:border-neutral-800">
+      <form
+        onSubmit={handleSubmit}
+        className="shrink-0 p-4 border-t border-neutral-200 dark:border-neutral-800"
+      >
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}

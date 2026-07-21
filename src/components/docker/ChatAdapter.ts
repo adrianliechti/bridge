@@ -2,7 +2,13 @@
 import { toolDefinition } from '@tanstack/ai';
 import { clientTools } from '@tanstack/ai-client';
 import { z } from 'zod';
-import { listContainers, listImages, inspectContainer, getContainerLogs, formatContainerName } from '../../api/docker/docker';
+import {
+  listContainers,
+  listImages,
+  inspectContainer,
+  getContainerLogs,
+  formatContainerName,
+} from '../../api/docker/docker';
 import type { ChatEnvironment } from '../../types/chat';
 
 export interface DockerEnvironment extends ChatEnvironment {
@@ -25,7 +31,10 @@ const inspectContainerSchema = z.object({
 
 const getContainerLogsSchema = z.object({
   container: z.string().describe('The container name or ID'),
-  tail: z.string().optional().describe('Number of lines to return from the end of the logs (default: 100)'),
+  tail: z
+    .string()
+    .optional()
+    .describe('Number of lines to return from the end of the logs (default: 100)'),
 });
 
 // Tool definitions with Zod schemas
@@ -75,13 +84,15 @@ export function createDockerTools(environment: DockerEnvironment) {
     const containers = await listContainers(context, all);
 
     return {
-      containers: containers.map(c => ({
+      containers: containers.map((c) => ({
         id: c.Id?.substring(0, 12),
         name: formatContainerName(c.Names ?? []),
         image: c.Image,
         state: c.State,
         status: c.Status,
-        ports: c.Ports?.filter(p => p.PublicPort).map(p => `${p.PublicPort}:${p.PrivatePort}/${p.Type}`),
+        ports: c.Ports?.filter((p) => p.PublicPort).map(
+          (p) => `${p.PublicPort}:${p.PrivatePort}/${p.Type}`,
+        ),
       })),
     };
   });
@@ -90,7 +101,7 @@ export function createDockerTools(environment: DockerEnvironment) {
     const images = await listImages(context);
 
     return {
-      images: images.map(img => {
+      images: images.map((img) => {
         const repoTag = img.RepoTags?.[0] || '<none>:<none>';
         const [repository, tag] = repoTag.split(':');
         return {
@@ -109,9 +120,10 @@ export function createDockerTools(environment: DockerEnvironment) {
     try {
       // Try to find container by name or ID
       const containers = await listContainers(context, true);
-      const container = containers.find(c =>
-        c.Id?.startsWith(input.container) ||
-        formatContainerName(c.Names ?? []).toLowerCase() === input.container.toLowerCase()
+      const container = containers.find(
+        (c) =>
+          c.Id?.startsWith(input.container) ||
+          formatContainerName(c.Names ?? []).toLowerCase() === input.container.toLowerCase(),
       );
 
       if (!container?.Id) {
@@ -135,7 +147,9 @@ export function createDockerTools(environment: DockerEnvironment) {
           env: details.Config?.Env,
           cmd: details.Config?.Cmd,
           workingDir: details.Config?.WorkingDir,
-          exposedPorts: details.Config?.ExposedPorts ? Object.keys(details.Config.ExposedPorts) : [],
+          exposedPorts: details.Config?.ExposedPorts
+            ? Object.keys(details.Config.ExposedPorts)
+            : [],
         },
         hostConfig: {
           portBindings: details.HostConfig?.PortBindings,
@@ -145,9 +159,11 @@ export function createDockerTools(environment: DockerEnvironment) {
         },
         networkSettings: {
           ipAddress: details.NetworkSettings?.IPAddress,
-          networks: details.NetworkSettings?.Networks ? Object.keys(details.NetworkSettings.Networks) : [],
+          networks: details.NetworkSettings?.Networks
+            ? Object.keys(details.NetworkSettings.Networks)
+            : [],
         },
-        mounts: details.Mounts?.map(m => ({
+        mounts: details.Mounts?.map((m) => ({
           type: m.Type,
           source: m.Source,
           destination: m.Destination,
@@ -164,9 +180,10 @@ export function createDockerTools(environment: DockerEnvironment) {
     try {
       // Try to find container by name or ID
       const containers = await listContainers(context, true);
-      const container = containers.find(c =>
-        c.Id?.startsWith(input.container) ||
-        formatContainerName(c.Names ?? []).toLowerCase() === input.container.toLowerCase()
+      const container = containers.find(
+        (c) =>
+          c.Id?.startsWith(input.container) ||
+          formatContainerName(c.Names ?? []).toLowerCase() === input.container.toLowerCase(),
       );
 
       if (!container?.Id) {
@@ -182,7 +199,12 @@ export function createDockerTools(environment: DockerEnvironment) {
     }
   });
 
-  return clientTools(listContainersTool, listImagesTool, inspectContainerTool, getContainerLogsTool);
+  return clientTools(
+    listContainersTool,
+    listImagesTool,
+    inspectContainerTool,
+    getContainerLogsTool,
+  );
 }
 
 // Build system instructions based on environment

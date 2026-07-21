@@ -4,7 +4,10 @@
 import type { ResourceAdapter, ResourceSections } from './types';
 import type { V1DaemonSet } from '@kubernetes/client-node';
 import { getContainerSections, getResourceQuotaSection } from './utils';
-import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
+import {
+  getPodMetricsBySelector,
+  aggregateContainerMetrics,
+} from '../../../api/kubernetes/kubernetesMetrics';
 import { getResourceConfig, restartWorkload } from '../../../api/kubernetes/kubernetes';
 import { createRestartAction } from '../../sections/actionHelpers';
 
@@ -12,16 +15,14 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
   kinds: ['DaemonSet', 'DaemonSets'],
 
   actions: [
-    createRestartAction(
-      async (context, resource) => {
-        const name = resource.metadata?.name;
-        const namespace = resource.metadata?.namespace;
-        if (!name || !namespace) throw new Error('DaemonSet name/namespace missing');
-        const config = await getResourceConfig(context, 'daemonsets');
-        if (!config) throw new Error('Could not get daemonset configuration');
-        await restartWorkload(context, config, name, namespace);
-      }
-    ),
+    createRestartAction(async (context, resource) => {
+      const name = resource.metadata?.name;
+      const namespace = resource.metadata?.namespace;
+      if (!name || !namespace) throw new Error('DaemonSet name/namespace missing');
+      const config = await getResourceConfig(context, 'daemonsets');
+      if (!config) throw new Error('Could not get daemonset configuration');
+      await restartWorkload(context, config, name, namespace);
+    }),
   ],
 
   adapt(context: string, resource): ResourceSections {
@@ -68,9 +69,24 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
           data: {
             type: 'gauges',
             items: [
-              { label: 'Scheduled', current: currentNumberScheduled, total: desiredNumberScheduled, color: 'blue' },
-              { label: 'Ready', current: numberReady, total: desiredNumberScheduled, color: 'emerald' },
-              { label: 'Available', current: numberAvailable, total: desiredNumberScheduled, color: 'cyan' },
+              {
+                label: 'Scheduled',
+                current: currentNumberScheduled,
+                total: desiredNumberScheduled,
+                color: 'blue',
+              },
+              {
+                label: 'Ready',
+                current: numberReady,
+                total: desiredNumberScheduled,
+                color: 'emerald',
+              },
+              {
+                label: 'Available',
+                current: numberAvailable,
+                total: desiredNumberScheduled,
+                color: 'cyan',
+              },
             ],
             showPodGrid: {
               total: desiredNumberScheduled,
@@ -88,40 +104,69 @@ export const DaemonSetAdapter: ResourceAdapter<V1DaemonSet> = {
             type: 'info-grid',
             items: [
               { label: 'Update Strategy', value: spec.updateStrategy?.type || 'RollingUpdate' },
-              { label: 'Updated', value: `${updatedNumberScheduled}/${desiredNumberScheduled}`, color: 'text-cyan-400' },
-              ...(numberMisscheduled > 0 ? [
-                { label: 'Misscheduled', value: `${numberMisscheduled} pods on wrong nodes`, color: 'text-red-400' },
-              ] : []),
+              {
+                label: 'Updated',
+                value: `${updatedNumberScheduled}/${desiredNumberScheduled}`,
+                color: 'text-cyan-400',
+              },
+              ...(numberMisscheduled > 0
+                ? [
+                    {
+                      label: 'Misscheduled',
+                      value: `${numberMisscheduled} pods on wrong nodes`,
+                      color: 'text-red-400',
+                    },
+                  ]
+                : []),
             ],
             columns: 2 as const,
           },
         },
 
         // Rolling update config
-        ...(spec.updateStrategy?.rollingUpdate ? [{
-          id: 'rolling-update',
-          title: 'Rolling Update Config',
-          data: {
-            type: 'info-grid' as const,
-            items: [
-              { label: 'Max Unavailable', value: String(spec.updateStrategy.rollingUpdate.maxUnavailable ?? 1), color: 'text-amber-400' },
-              ...(spec.updateStrategy.rollingUpdate.maxSurge ? [
-                { label: 'Max Surge', value: String(spec.updateStrategy.rollingUpdate.maxSurge), color: 'text-cyan-400' },
-              ] : []),
-            ],
-            columns: 2 as const,
-          },
-        }] : []),
+        ...(spec.updateStrategy?.rollingUpdate
+          ? [
+              {
+                id: 'rolling-update',
+                title: 'Rolling Update Config',
+                data: {
+                  type: 'info-grid' as const,
+                  items: [
+                    {
+                      label: 'Max Unavailable',
+                      value: String(spec.updateStrategy.rollingUpdate.maxUnavailable ?? 1),
+                      color: 'text-amber-400',
+                    },
+                    ...(spec.updateStrategy.rollingUpdate.maxSurge
+                      ? [
+                          {
+                            label: 'Max Surge',
+                            value: String(spec.updateStrategy.rollingUpdate.maxSurge),
+                            color: 'text-cyan-400',
+                          },
+                        ]
+                      : []),
+                  ],
+                  columns: 2 as const,
+                },
+              },
+            ]
+          : []),
 
         // Node selector
-        ...(spec.template?.spec?.nodeSelector && Object.keys(spec.template.spec.nodeSelector).length > 0 ? [{
-          id: 'node-selector',
-          data: {
-            type: 'labels' as const,
-            labels: spec.template.spec.nodeSelector,
-            title: 'Node Selector',
-          },
-        }] : []),
+        ...(spec.template?.spec?.nodeSelector &&
+        Object.keys(spec.template.spec.nodeSelector).length > 0
+          ? [
+              {
+                id: 'node-selector',
+                data: {
+                  type: 'labels' as const,
+                  labels: spec.template.spec.nodeSelector,
+                  title: 'Node Selector',
+                },
+              },
+            ]
+          : []),
 
         // Containers with live metrics
         ...getContainerSections(

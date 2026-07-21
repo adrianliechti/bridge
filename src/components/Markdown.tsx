@@ -107,10 +107,7 @@ const components: Partial<Components> = {
   table: ({ children, ...props }) => {
     return (
       <div className="overflow-x-auto my-3">
-        <table
-          className="w-full border-collapse border border-neutral-600 text-xs"
-          {...props}
-        >
+        <table className="w-full border-collapse border border-neutral-600 text-xs" {...props}>
           {children}
         </table>
       </div>
@@ -145,10 +142,7 @@ const components: Partial<Components> = {
   },
   td: ({ children, ...props }) => {
     return (
-      <td
-        className="p-2 border-r last:border-r-0 border-neutral-600"
-        {...props}
-      >
+      <td className="p-2 border-r last:border-r-0 border-neutral-600" {...props}>
         {children}
       </td>
     );
@@ -208,16 +202,10 @@ const NonMemoizedMarkdown = ({ children }: { children: string }) => {
   let processedContent = children;
 
   // Ensure blank line before code blocks that come after headings
-  processedContent = processedContent.replace(
-    /^(#{1,6}\s+.+)\n```/gm,
-    '$1\n\n```'
-  );
+  processedContent = processedContent.replace(/^(#{1,6}\s+.+)\n```/gm, '$1\n\n```');
 
   // Ensure blank line after code blocks before headings
-  processedContent = processedContent.replace(
-    /```\n(#{1,6}\s+)/gm,
-    '```\n\n$1'
-  );
+  processedContent = processedContent.replace(/```\n(#{1,6}\s+)/gm, '```\n\n$1');
 
   return (
     <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
@@ -228,5 +216,5 @@ const NonMemoizedMarkdown = ({ children }: { children: string }) => {
 
 export const Markdown = memo(
   NonMemoizedMarkdown,
-  (prevProps, nextProps) => prevProps.children === nextProps.children
+  (prevProps, nextProps) => prevProps.children === nextProps.children,
 );

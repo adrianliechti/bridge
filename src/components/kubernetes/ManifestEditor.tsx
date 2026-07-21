@@ -16,11 +16,19 @@ interface ManifestEditorProps {
 
 // Detect if dark mode is enabled
 function isDarkMode(): boolean {
-  return document.documentElement.classList.contains('dark') ||
-    window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return (
+    document.documentElement.classList.contains('dark') ||
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
 }
 
-export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }: ManifestEditorProps) {
+export function ManifestEditor({
+  resource,
+  loading,
+  error,
+  onSave,
+  toolbarRef,
+}: ManifestEditorProps) {
   const [value, setValue] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -60,36 +68,45 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
   }, []);
 
   // Collapse noisy sections in the editor
-  const collapseNoisySections = useCallback(async (editorInstance: editor.IStandaloneCodeEditor) => {
-    const model = editorInstance.getModel();
-    if (!model) return setEditorReady(true);
+  const collapseNoisySections = useCallback(
+    async (editorInstance: editor.IStandaloneCodeEditor) => {
+      const model = editorInstance.getModel();
+      if (!model) return setEditorReady(true);
 
-    const lines = model.getValue().split('\n');
-    const fieldRegex = /^(\s*)(managedFields|ownerReferences|kubectl\.kubernetes\.io\/last-applied-configuration):/;
+      const lines = model.getValue().split('\n');
+      const fieldRegex =
+        /^(\s*)(managedFields|ownerReferences|kubectl\.kubernetes\.io\/last-applied-configuration):/;
 
-    // Find all ranges to collapse
-    const ranges = lines.flatMap((line, i) => {
-      const match = line.match(fieldRegex);
-      if (!match) return [];
+      // Find all ranges to collapse
+      const ranges = lines.flatMap((line, i) => {
+        const match = line.match(fieldRegex);
+        if (!match) return [];
 
-      const indent = match[1].length;
-      const endIdx = lines.slice(i + 1).findIndex(l => 
-        l.trimStart().length > 0 && l.length - l.trimStart().length <= indent
-      );
-      const endLine = endIdx === -1 ? lines.length : i + 1 + endIdx;
-      
-      return endLine > i + 1 ? [{ start: i + 1, end: endLine }] : [];
-    });
+        const indent = match[1].length;
+        const endIdx = lines
+          .slice(i + 1)
+          .findIndex((l) => l.trimStart().length > 0 && l.length - l.trimStart().length <= indent);
+        const endLine = endIdx === -1 ? lines.length : i + 1 + endIdx;
 
-    // Collapse ranges in reverse order
-    for (const { start, end } of ranges.reverse()) {
-      editorInstance.setSelection({ startLineNumber: start, startColumn: 1, endLineNumber: end, endColumn: 1 });
-      await editorInstance.getAction('editor.fold')?.run();
-    }
-    editorInstance.setPosition({ lineNumber: 1, column: 1 });
-    editorInstance.revealLine(1);
-    setEditorReady(true);
-  }, []);
+        return endLine > i + 1 ? [{ start: i + 1, end: endLine }] : [];
+      });
+
+      // Collapse ranges in reverse order
+      for (const { start, end } of ranges.reverse()) {
+        editorInstance.setSelection({
+          startLineNumber: start,
+          startColumn: 1,
+          endLineNumber: end,
+          endColumn: 1,
+        });
+        await editorInstance.getAction('editor.fold')?.run();
+      }
+      editorInstance.setPosition({ lineNumber: 1, column: 1 });
+      editorInstance.revealLine(1);
+      setEditorReady(true);
+    },
+    [],
+  );
 
   // Serialize the resource once per object identity.
   const identity = resource
@@ -153,10 +170,12 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
           const text = model.getValue();
           const parsed = parseYaml(text);
           const formatted = toYaml(parsed, { lineWidth: 0 });
-          return [{
-            range: model.getFullModelRange(),
-            text: formatted,
-          }];
+          return [
+            {
+              range: model.getFullModelRange(),
+              text: formatted,
+            },
+          ];
         } catch {
           return [];
         }
@@ -186,7 +205,7 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
       setSaveError(null);
       const parsed = parseYaml(value) as KubernetesResource;
       await onSave(parsed);
-      setTracked(prev => ({ ...prev, baseline: value }));
+      setTracked((prev) => ({ ...prev, baseline: value }));
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
@@ -232,11 +251,7 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Save changes"
           >
-            {saving ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <Save size={12} />
-            )}
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
           </button>
           <button
             onClick={handleReset}
@@ -255,7 +270,9 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
           {parseError ? (
             <>
               <AlertCircle size={14} className="text-red-500 shrink-0" />
-              <span className="text-xs text-red-700 dark:text-red-400">Invalid YAML: {parseError}</span>
+              <span className="text-xs text-red-700 dark:text-red-400">
+                Invalid YAML: {parseError}
+              </span>
             </>
           ) : (
             <>
@@ -267,7 +284,9 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
       )}
 
       {/* Editor */}
-      <div className={`flex-1 min-h-0 transition-opacity duration-150 ${editorReady ? 'opacity-100' : 'opacity-0'}`}>
+      <div
+        className={`flex-1 min-h-0 transition-opacity duration-150 ${editorReady ? 'opacity-100' : 'opacity-0'}`}
+      >
         <Editor
           height="100%"
           language="yaml"
@@ -283,7 +302,8 @@ export function ManifestEditor({ resource, loading, error, onSave, toolbarRef }:
           options={{
             minimap: { enabled: false },
             fontSize: 13,
-            fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+            fontFamily:
+              'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
             lineNumbers: 'on',
             scrollBeyondLastLine: false,
             wordWrap: 'on',

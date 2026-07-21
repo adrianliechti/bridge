@@ -26,8 +26,14 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
 
     // Determine job status
     const isComplete = succeeded >= completions;
-    const isFailed = status?.conditions?.some(c => c.type === 'Failed' && c.status === 'True');
-    const jobStatus = isComplete ? 'Complete' : isFailed ? 'Failed' : active > 0 ? 'Running' : 'Pending';
+    const isFailed = status?.conditions?.some((c) => c.type === 'Failed' && c.status === 'True');
+    const jobStatus = isComplete
+      ? 'Complete'
+      : isFailed
+        ? 'Failed'
+        : active > 0
+          ? 'Running'
+          : 'Pending';
 
     // Parse timestamps
     const startTime = status?.startTime ? new Date(status.startTime) : undefined;
@@ -48,17 +54,33 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
           data: {
             type: 'status-cards',
             items: [
-              { 
-                label: 'Status', 
-                value: jobStatus, 
-                status: isComplete ? 'success' : isFailed ? 'error' : active > 0 ? 'warning' : 'neutral',
-                icon: isComplete ? <CheckCircle2 size={14} /> : isFailed ? <XCircle size={14} /> : <Play size={14} />,
+              {
+                label: 'Status',
+                value: jobStatus,
+                status: isComplete
+                  ? 'success'
+                  : isFailed
+                    ? 'error'
+                    : active > 0
+                      ? 'warning'
+                      : 'neutral',
+                icon: isComplete ? (
+                  <CheckCircle2 size={14} />
+                ) : isFailed ? (
+                  <XCircle size={14} />
+                ) : (
+                  <Play size={14} />
+                ),
               },
-              ...(startTime ? [{
-                label: 'Duration',
-                value: getDuration(startTime, completionTime),
-                icon: <Clock size={14} className="text-blue-400" />,
-              }] : []),
+              ...(startTime
+                ? [
+                    {
+                      label: 'Duration',
+                      value: getDuration(startTime, completionTime),
+                      icon: <Clock size={14} className="text-blue-400" />,
+                    },
+                  ]
+                : []),
             ],
           },
         },
@@ -86,31 +108,56 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
             type: 'info-grid',
             items: [
               { label: 'Parallelism', value: parallelism, color: 'text-cyan-400' },
-              { label: 'Backoff Limit', value: `${backoffLimit}${failed > 0 ? ` (${failed} failures)` : ''}`, color: failed >= backoffLimit ? 'text-red-400' : failed > 0 ? 'text-amber-400' : undefined },
-              ...(spec.activeDeadlineSeconds ? [
-                { label: 'Deadline', value: `${spec.activeDeadlineSeconds}s`, color: 'text-amber-400' },
-              ] : []),
-              ...(spec.ttlSecondsAfterFinished !== undefined ? [
-                { label: 'TTL After Finished', value: `${spec.ttlSecondsAfterFinished}s` },
-              ] : []),
-              ...(spec.completionMode ? [
-                { label: 'Completion Mode', value: spec.completionMode, color: 'text-purple-400' },
-              ] : []),
+              {
+                label: 'Backoff Limit',
+                value: `${backoffLimit}${failed > 0 ? ` (${failed} failures)` : ''}`,
+                color:
+                  failed >= backoffLimit
+                    ? 'text-red-400'
+                    : failed > 0
+                      ? 'text-amber-400'
+                      : undefined,
+              },
+              ...(spec.activeDeadlineSeconds
+                ? [
+                    {
+                      label: 'Deadline',
+                      value: `${spec.activeDeadlineSeconds}s`,
+                      color: 'text-amber-400',
+                    },
+                  ]
+                : []),
+              ...(spec.ttlSecondsAfterFinished !== undefined
+                ? [{ label: 'TTL After Finished', value: `${spec.ttlSecondsAfterFinished}s` }]
+                : []),
+              ...(spec.completionMode
+                ? [
+                    {
+                      label: 'Completion Mode',
+                      value: spec.completionMode,
+                      color: 'text-purple-400',
+                    },
+                  ]
+                : []),
             ],
             columns: 2 as const,
           },
         },
 
         // Timeline
-        ...(startTime ? [{
-          id: 'timeline',
-          title: 'Timeline',
-          data: {
-            type: 'timeline' as const,
-            startTime,
-            completionTime,
-          },
-        }] : []),
+        ...(startTime
+          ? [
+              {
+                id: 'timeline',
+                title: 'Timeline',
+                data: {
+                  type: 'timeline' as const,
+                  startTime,
+                  completionTime,
+                },
+              },
+            ]
+          : []),
 
         // Containers
         ...getContainerSections(
@@ -126,7 +173,7 @@ export const JobAdapter: ResourceAdapter<V1Job> = {
 function getDuration(start: Date, end?: Date): string {
   const endTime = end ?? new Date();
   const ms = endTime.getTime() - start.getTime();
-  
+
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);

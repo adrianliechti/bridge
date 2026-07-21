@@ -49,7 +49,9 @@ export function ResourceQuotaSection({ data }: ResourceQuotaSectionProps) {
         <div className="bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-2">
             <HardDrive size={14} className="text-purple-400" />
-            <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Memory</span>
+            <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+              Memory
+            </span>
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">

@@ -4,7 +4,16 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { useState } from 'react';
-import { Shield, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, Clock, Copy, Check } from 'lucide-react';
+import {
+  Shield,
+  ChevronDown,
+  ChevronRight,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Copy,
+  Check,
+} from 'lucide-react';
 import * as x509 from '@peculiar/x509';
 
 // Common PEM certificate prefixes
@@ -21,10 +30,7 @@ const PEM_PRIVATE_KEY_HEADERS = [
   '-----BEGIN ENCRYPTED PRIVATE KEY-----',
 ];
 
-const PEM_PUBLIC_KEY_HEADERS = [
-  '-----BEGIN PUBLIC KEY-----',
-  '-----BEGIN RSA PUBLIC KEY-----',
-];
+const PEM_PUBLIC_KEY_HEADERS = ['-----BEGIN PUBLIC KEY-----', '-----BEGIN RSA PUBLIC KEY-----'];
 
 const PEM_CSR_HEADERS = [
   '-----BEGIN CERTIFICATE REQUEST-----',
@@ -41,31 +47,31 @@ export interface PemDetectionResult {
 // Detect if content is a PEM-encoded item and what type
 export function detectPemType(content: string): PemDetectionResult | null {
   const trimmed = content.trim();
-  
+
   for (const header of PEM_CERTIFICATE_HEADERS) {
     if (trimmed.startsWith(header)) {
       return { type: 'certificate', content: trimmed };
     }
   }
-  
+
   for (const header of PEM_PRIVATE_KEY_HEADERS) {
     if (trimmed.startsWith(header)) {
       return { type: 'private-key', content: trimmed };
     }
   }
-  
+
   for (const header of PEM_PUBLIC_KEY_HEADERS) {
     if (trimmed.startsWith(header)) {
       return { type: 'public-key', content: trimmed };
     }
   }
-  
+
   for (const header of PEM_CSR_HEADERS) {
     if (trimmed.startsWith(header)) {
       return { type: 'csr', content: trimmed };
     }
   }
-  
+
   return null;
 }
 
@@ -92,7 +98,7 @@ function parseCertificate(pem: string): CertificateMetadata | null {
   try {
     const cert = new x509.X509Certificate(pem);
     const now = new Date();
-    
+
     // Parse subject
     const subject: Record<string, string> = {};
     for (const attr of cert.subject.split(', ')) {
@@ -101,7 +107,7 @@ function parseCertificate(pem: string): CertificateMetadata | null {
         subject[key] = value;
       }
     }
-    
+
     // Parse issuer
     const issuer: Record<string, string> = {};
     for (const attr of cert.issuer.split(', ')) {
@@ -110,17 +116,17 @@ function parseCertificate(pem: string): CertificateMetadata | null {
         issuer[key] = value;
       }
     }
-    
+
     // Calculate expiry
     const notBefore = cert.notBefore;
     const notAfter = cert.notAfter;
     const isExpired = now > notAfter;
     const isNotYetValid = now < notBefore;
     const daysUntilExpiry = Math.ceil((notAfter.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     // Check if self-signed
     const isSelfSigned = cert.subject === cert.issuer;
-    
+
     // Get key algorithm
     let keyAlgorithm = 'Unknown';
     try {
@@ -135,16 +141,16 @@ function parseCertificate(pem: string): CertificateMetadata | null {
     } catch {
       // Ignore
     }
-    
+
     // Get signature algorithm
     const signatureAlgorithm = cert.signatureAlgorithm.name || 'Unknown';
-    
+
     // Get extensions
     let keyUsage: string[] | undefined;
     let extKeyUsage: string[] | undefined;
     let subjectAltNames: string[] | undefined;
     let isCA = false;
-    
+
     for (const ext of cert.extensions) {
       if (ext.type === '2.5.29.15') {
         // Key Usage
@@ -162,12 +168,12 @@ function parseCertificate(pem: string): CertificateMetadata | null {
           // Ignore
         }
       }
-      
+
       if (ext.type === '2.5.29.37') {
         // Extended Key Usage
         try {
           const eku = ext as x509.ExtendedKeyUsageExtension;
-          extKeyUsage = eku.usages.map(oid => {
+          extKeyUsage = eku.usages.map((oid) => {
             const oidStr = String(oid);
             const knownOids: Record<string, string> = {
               '1.3.6.1.5.5.7.3.1': 'Server Authentication',
@@ -183,12 +189,12 @@ function parseCertificate(pem: string): CertificateMetadata | null {
           // Ignore
         }
       }
-      
+
       if (ext.type === '2.5.29.17') {
         // Subject Alternative Names
         try {
           const san = ext as x509.SubjectAlternativeNameExtension;
-          subjectAltNames = san.names.items.map(name => {
+          subjectAltNames = san.names.items.map((name) => {
             if (name.type === 'dns') return `DNS:${name.value}`;
             if (name.type === 'ip') return `IP:${name.value}`;
             if (name.type === 'email') return `Email:${name.value}`;
@@ -199,7 +205,7 @@ function parseCertificate(pem: string): CertificateMetadata | null {
           // Ignore
         }
       }
-      
+
       if (ext.type === '2.5.29.19') {
         // Basic Constraints
         try {
@@ -210,7 +216,7 @@ function parseCertificate(pem: string): CertificateMetadata | null {
         }
       }
     }
-    
+
     return {
       subject,
       issuer,
@@ -250,20 +256,20 @@ function formatDate(date: Date): string {
 function formatDN(dn: Record<string, string>): string {
   const order = ['CN', 'O', 'OU', 'L', 'ST', 'C'];
   const parts: string[] = [];
-  
+
   for (const key of order) {
     if (dn[key]) {
       parts.push(`${key}=${dn[key]}`);
     }
   }
-  
+
   // Add any remaining keys
   for (const [key, value] of Object.entries(dn)) {
     if (!order.includes(key)) {
       parts.push(`${key}=${value}`);
     }
   }
-  
+
   return parts.join(', ');
 }
 
@@ -274,17 +280,17 @@ interface CertificateViewProps {
 
 export function CertificateView({ name, pem }: CertificateViewProps) {
   const [expanded, setExpanded] = useState(false);
-  const toggleExpanded = () => setExpanded(prev => !prev);
+  const toggleExpanded = () => setExpanded((prev) => !prev);
   const [copied, setCopied] = useState(false);
-  
+
   const metadata = parseCertificate(pem);
-  
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(pem);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-  
+
   if (!metadata) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-3">
@@ -296,12 +302,12 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
       </div>
     );
   }
-  
+
   // Determine status color
   let statusColor = 'text-emerald-500';
   let statusBg = 'bg-emerald-100 dark:bg-emerald-500/20';
   let statusText = 'Valid';
-  
+
   if (metadata.isExpired) {
     statusColor = 'text-red-500';
     statusBg = 'bg-red-100 dark:bg-red-500/20';
@@ -315,7 +321,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
     statusBg = 'bg-amber-100 dark:bg-amber-500/20';
     statusText = `Expires in ${metadata.daysUntilExpiry} days`;
   }
-  
+
   return (
     <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg overflow-hidden">
       <button
@@ -361,7 +367,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
           )}
         </div>
       </button>
-      
+
       {expanded && (
         <div className="border-t border-neutral-200 dark:border-neutral-700 p-3 space-y-3">
           {/* Subject */}
@@ -376,7 +382,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
               </div>
             )}
           </div>
-          
+
           {/* Issuer (only if different from subject) */}
           {!metadata.isSelfSigned && (
             <div>
@@ -386,7 +392,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
               </div>
             </div>
           )}
-          
+
           {/* Validity */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -397,7 +403,9 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
             </div>
             <div>
               <div className="text-xs text-neutral-500 mb-1">Not After</div>
-              <div className={`text-xs font-mono flex items-center gap-1 ${metadata.isExpired ? 'text-red-500' : metadata.daysUntilExpiry <= 30 ? 'text-amber-500' : 'text-neutral-700 dark:text-neutral-300'}`}>
+              <div
+                className={`text-xs font-mono flex items-center gap-1 ${metadata.isExpired ? 'text-red-500' : metadata.daysUntilExpiry <= 30 ? 'text-amber-500' : 'text-neutral-700 dark:text-neutral-300'}`}
+              >
                 {metadata.isExpired ? (
                   <AlertTriangle size={12} />
                 ) : metadata.daysUntilExpiry <= 30 ? (
@@ -409,7 +417,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
               </div>
             </div>
           </div>
-          
+
           {/* Serial Number */}
           <div>
             <div className="text-xs text-neutral-500 mb-1">Serial Number</div>
@@ -417,7 +425,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
               {metadata.serialNumber}
             </div>
           </div>
-          
+
           {/* Algorithms */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -433,7 +441,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
               </div>
             </div>
           </div>
-          
+
           {/* Subject Alternative Names */}
           {metadata.subjectAltNames && metadata.subjectAltNames.length > 0 && (
             <div>
@@ -450,7 +458,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
               </div>
             </div>
           )}
-          
+
           {/* Key Usage */}
           {metadata.keyUsage && metadata.keyUsage.length > 0 && (
             <div>
@@ -467,7 +475,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
               </div>
             </div>
           )}
-          
+
           {/* Extended Key Usage */}
           {metadata.extKeyUsage && metadata.extKeyUsage.length > 0 && (
             <div>
@@ -493,7 +501,7 @@ export function CertificateView({ name, pem }: CertificateViewProps) {
 // Component for displaying private key info with optional reveal
 export function PrivateKeyView({ name, pem }: { name: string; pem: string }) {
   const [expanded, setExpanded] = useState(false);
-  const toggleExpanded = () => setExpanded(prev => !prev);
+  const toggleExpanded = () => setExpanded((prev) => !prev);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -551,7 +559,7 @@ export function PrivateKeyView({ name, pem }: { name: string; pem: string }) {
 // Component for displaying CSR info
 export function CsrView({ name, pem }: { name: string; pem: string }) {
   const [expanded, setExpanded] = useState(false);
-  const toggleExpanded = () => setExpanded(prev => !prev);
+  const toggleExpanded = () => setExpanded((prev) => !prev);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {

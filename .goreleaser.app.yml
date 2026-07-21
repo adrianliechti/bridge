@@ -26,14 +26,14 @@ archives:
   - id: app
     meta: true
     formats: [zip]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_macOS_arm64"
+    name_template: '{{ .ProjectName }}_{{ .Version }}_macOS_arm64'
     files:
-      - src: "app/build/bin/Bridge.app/**/*"
-        dst: "Bridge.app/Contents"
+      - src: 'app/build/bin/Bridge.app/**/*'
+        dst: 'Bridge.app/Contents'
 
 # Distinct name so it doesn't collide with a future CLI's checksums.txt on a shared release.
 checksum:
-  name_template: "{{ .ProjectName }}_checksums.txt"
+  name_template: '{{ .ProjectName }}_checksums.txt'
 
 # The cask is rendered + pushed to the tap by the script: GoReleaser's OSS cask
 # pipe only emits CLI `binary` stanzas (the `app "X.app"` stanza is Pro-only).

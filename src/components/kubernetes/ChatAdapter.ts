@@ -15,21 +15,39 @@ export interface KubernetesEnvironment extends ChatEnvironment {
 
 // Zod schemas for tool inputs
 const listResourcesSchema = z.object({
-  resource: z.string().describe('The type of resource to list (e.g., pods, deployments, services, configmaps, secrets, ingresses, gateways, httproutes, grpcroutes, tcproutes, udproutes, tlsroutes, jobs, cronjobs, daemonsets, statefulsets, replicasets, nodes, namespaces, persistentvolumes, persistentvolumeclaims, events)'),
-  namespace: z.string().optional().describe('The namespace to list resources from. Use "all" for all namespaces, or omit for cluster-scoped resources'),
+  resource: z
+    .string()
+    .describe(
+      'The type of resource to list (e.g., pods, deployments, services, configmaps, secrets, ingresses, gateways, httproutes, grpcroutes, tcproutes, udproutes, tlsroutes, jobs, cronjobs, daemonsets, statefulsets, replicasets, nodes, namespaces, persistentvolumes, persistentvolumeclaims, events)',
+    ),
+  namespace: z
+    .string()
+    .optional()
+    .describe(
+      'The namespace to list resources from. Use "all" for all namespaces, or omit for cluster-scoped resources',
+    ),
 });
 
 const getResourceSchema = z.object({
   resource: z.string().describe('The type of resource (e.g., pod, deployment, service)'),
   name: z.string().describe('The name of the resource'),
-  namespace: z.string().optional().describe('The namespace of the resource (required for namespaced resources)'),
+  namespace: z
+    .string()
+    .optional()
+    .describe('The namespace of the resource (required for namespaced resources)'),
 });
 
 const getPodLogsSchema = z.object({
   name: z.string().describe('The name of the pod'),
   namespace: z.string().describe('The namespace of the pod'),
-  container: z.string().optional().describe('The container name (optional, defaults to first container)'),
-  tailLines: z.string().optional().describe('Number of lines to return from the end of the logs (default: 100)'),
+  container: z
+    .string()
+    .optional()
+    .describe('The container name (optional, defaults to first container)'),
+  tailLines: z
+    .string()
+    .optional()
+    .describe('Number of lines to return from the end of the logs (default: 100)'),
 });
 
 const describeResourceSchema = z.object({
@@ -64,7 +82,10 @@ const describeResourceDef = toolDefinition({
 });
 
 // Get resource config from discovery API
-async function getResourceConfigForName(context: string, resourceName: string): Promise<{ config: V1APIResource; plural: string } | null> {
+async function getResourceConfigForName(
+  context: string,
+  resourceName: string,
+): Promise<{ config: V1APIResource; plural: string } | null> {
   const name = resourceName.toLowerCase();
   const config = await getResourceConfig(context, name);
   if (config) {
@@ -107,12 +128,18 @@ export function createKubernetesTools(environment: KubernetesEnvironment) {
 
     return {
       kind: data.kind,
-      items: data.items?.map((item: { metadata: { name: string; namespace?: string; creationTimestamp: string }; status?: unknown }) => ({
-        name: item.metadata?.name,
-        namespace: item.metadata?.namespace,
-        createdAt: item.metadata?.creationTimestamp,
-        status: item.status,
-      })) || [],
+      items:
+        data.items?.map(
+          (item: {
+            metadata: { name: string; namespace?: string; creationTimestamp: string };
+            status?: unknown;
+          }) => ({
+            name: item.metadata?.name,
+            namespace: item.metadata?.namespace,
+            createdAt: item.metadata?.creationTimestamp,
+            status: item.status,
+          }),
+        ) || [],
     };
   });
 
@@ -134,7 +161,9 @@ export function createKubernetesTools(environment: KubernetesEnvironment) {
 
     const response = await fetch(`/contexts/${context}${path}`);
     if (!response.ok) {
-      return { error: `Failed to get ${input.resource} ${input.name}: ${response.status} ${response.statusText}` };
+      return {
+        error: `Failed to get ${input.resource} ${input.name}: ${response.status} ${response.statusText}`,
+      };
     }
     return response.json();
   });
@@ -183,12 +212,15 @@ export function createKubernetesTools(environment: KubernetesEnvironment) {
     let events: unknown[] = [];
     if (eventsResponse.ok) {
       const eventsData = await eventsResponse.json();
-      events = eventsData.items?.map((e: { type: string; reason: string; message: string; lastTimestamp: string }) => ({
-        type: e.type,
-        reason: e.reason,
-        message: e.message,
-        lastTimestamp: e.lastTimestamp,
-      })) || [];
+      events =
+        eventsData.items?.map(
+          (e: { type: string; reason: string; message: string; lastTimestamp: string }) => ({
+            type: e.type,
+            reason: e.reason,
+            message: e.message,
+            lastTimestamp: e.lastTimestamp,
+          }),
+        ) || [];
     }
 
     return {

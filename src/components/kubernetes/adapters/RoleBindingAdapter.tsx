@@ -43,28 +43,53 @@ interface V1PolicyRule {
 }
 
 // Dangerous verbs that can lead to privilege escalation
-const DANGEROUS_VERBS = new Set(['*', 'delete', 'deletecollection', 'escalate', 'impersonate', 'bind']);
-const DANGEROUS_RESOURCES = new Set(['*', 'secrets', 'pods/exec', 'pods/attach', 'serviceaccounts/token']);
+const DANGEROUS_VERBS = new Set([
+  '*',
+  'delete',
+  'deletecollection',
+  'escalate',
+  'impersonate',
+  'bind',
+]);
+const DANGEROUS_RESOURCES = new Set([
+  '*',
+  'secrets',
+  'pods/exec',
+  'pods/attach',
+  'serviceaccounts/token',
+]);
 
 function isRuleDangerous(rule: V1PolicyRule): boolean {
   const verbs = rule.verbs ?? [];
   const resources = rule.resources ?? [];
   const apiGroups = rule.apiGroups ?? [];
-  
+
   if (verbs.includes('*')) return true;
-  if (verbs.some(v => DANGEROUS_VERBS.has(v))) return true;
+  if (verbs.some((v) => DANGEROUS_VERBS.has(v))) return true;
   if (resources.includes('*')) return true;
   if (apiGroups.includes('*')) return true;
-  if (resources.some(r => DANGEROUS_RESOURCES.has(r))) return true;
-  if ((verbs.includes('create') || verbs.includes('update') || verbs.includes('patch')) &&
-      resources.some(r => ['roles', 'clusterroles', 'rolebindings', 'clusterrolebindings'].includes(r))) {
+  if (resources.some((r) => DANGEROUS_RESOURCES.has(r))) return true;
+  if (
+    (verbs.includes('create') || verbs.includes('update') || verbs.includes('patch')) &&
+    resources.some((r) =>
+      ['roles', 'clusterroles', 'rolebindings', 'clusterrolebindings'].includes(r),
+    )
+  ) {
     return true;
   }
   return false;
 }
 
 // Component to render subjects table
-function SubjectsTable({ subjects, context, bindingNamespace }: { subjects: V1Subject[]; context: string; bindingNamespace?: string }) {
+function SubjectsTable({
+  subjects,
+  context,
+  bindingNamespace,
+}: {
+  subjects: V1Subject[];
+  context: string;
+  bindingNamespace?: string;
+}) {
   if (subjects.length === 0) {
     return (
       <div className="text-xs text-neutral-500 dark:text-neutral-500 italic">
@@ -75,10 +100,14 @@ function SubjectsTable({ subjects, context, bindingNamespace }: { subjects: V1Su
 
   const getSubjectIcon = (kind: string) => {
     switch (kind) {
-      case 'User': return <User size={14} className="text-blue-500" />;
-      case 'Group': return <Users size={14} className="text-purple-500" />;
-      case 'ServiceAccount': return <Bot size={14} className="text-emerald-500" />;
-      default: return <User size={14} className="text-neutral-500" />;
+      case 'User':
+        return <User size={14} className="text-blue-500" />;
+      case 'Group':
+        return <Users size={14} className="text-purple-500" />;
+      case 'ServiceAccount':
+        return <Bot size={14} className="text-emerald-500" />;
+      default:
+        return <User size={14} className="text-neutral-500" />;
     }
   };
 
@@ -87,11 +116,15 @@ function SubjectsTable({ subjects, context, bindingNamespace }: { subjects: V1Su
       {subjects.map((subject, index) => {
         const isServiceAccount = subject.kind === 'ServiceAccount';
         const subjectNamespace = subject.namespace ?? bindingNamespace;
-        
+
         const content = (
-          <div className={`flex items-center gap-3 p-2 rounded-lg bg-neutral-100 dark:bg-neutral-800/50 ${
-            isServiceAccount && subjectNamespace ? 'hover:bg-neutral-200 dark:hover:bg-neutral-700/50 cursor-pointer transition-colors' : ''
-          }`}>
+          <div
+            className={`flex items-center gap-3 p-2 rounded-lg bg-neutral-100 dark:bg-neutral-800/50 ${
+              isServiceAccount && subjectNamespace
+                ? 'hover:bg-neutral-200 dark:hover:bg-neutral-700/50 cursor-pointer transition-colors'
+                : ''
+            }`}
+          >
             {getSubjectIcon(subject.kind)}
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
@@ -126,13 +159,13 @@ function SubjectsTable({ subjects, context, bindingNamespace }: { subjects: V1Su
 }
 
 // Component to render role reference with permissions
-function RoleRefSection({ 
-  roleRef, 
-  context, 
-  namespace 
-}: { 
-  roleRef: V1RoleBinding['roleRef']; 
-  context: string; 
+function RoleRefSection({
+  roleRef,
+  context,
+  namespace,
+}: {
+  roleRef: V1RoleBinding['roleRef'];
+  context: string;
   namespace?: string;
 }) {
   const [rules, setRules] = useState<V1PolicyRule[]>([]);
@@ -148,7 +181,7 @@ function RoleRefSection({
           setError('Could not find role configuration');
           return;
         }
-        
+
         // For Roles, we need the namespace; for ClusterRoles, we don't
         const ns = roleRef.kind === 'Role' ? namespace : undefined;
         const role = await getResource(context, config, roleRef.name, ns);
@@ -165,16 +198,19 @@ function RoleRefSection({
   }, [roleRef, context, namespace]);
 
   const resourceType = roleRef.kind === 'ClusterRole' ? 'clusterroles' : 'roles';
-  const linkParams = roleRef.kind === 'ClusterRole' 
-    ? { context, resourceType, name: roleRef.name }
-    : { context, resourceType, name: roleRef.name };
+  const linkParams =
+    roleRef.kind === 'ClusterRole'
+      ? { context, resourceType, name: roleRef.name }
+      : { context, resourceType, name: roleRef.name };
 
   return (
     <div className="space-y-3">
       <Link
         to="/cluster/$context/$resourceType/$name"
         params={linkParams}
-        search={roleRef.kind === 'Role' && namespace ? (prev) => ({ ...prev, namespace }) : undefined}
+        search={
+          roleRef.kind === 'Role' && namespace ? (prev) => ({ ...prev, namespace }) : undefined
+        }
         className="flex items-center gap-2 text-sm font-medium text-blue-500 hover:text-blue-400 transition-colors"
       >
         <Shield size={16} />
@@ -182,9 +218,7 @@ function RoleRefSection({
         <span className="text-xs text-neutral-500 font-normal">({roleRef.kind})</span>
       </Link>
 
-      {loading && (
-        <div className="text-xs text-neutral-500">Loading permissions...</div>
-      )}
+      {loading && <div className="text-xs text-neutral-500">Loading permissions...</div>}
 
       {error && (
         <div className="flex items-center gap-2 text-xs text-red-500">
@@ -198,21 +232,34 @@ function RoleRefSection({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                <th className="text-left py-2 pr-4 font-medium text-neutral-600 dark:text-neutral-400">API Groups</th>
-                <th className="text-left py-2 pr-4 font-medium text-neutral-600 dark:text-neutral-400">Resources</th>
-                <th className="text-left py-2 pr-4 font-medium text-neutral-600 dark:text-neutral-400">Verbs</th>
-                <th className="text-left py-2 font-medium text-neutral-600 dark:text-neutral-400">Resource Names</th>
+                <th className="text-left py-2 pr-4 font-medium text-neutral-600 dark:text-neutral-400">
+                  API Groups
+                </th>
+                <th className="text-left py-2 pr-4 font-medium text-neutral-600 dark:text-neutral-400">
+                  Resources
+                </th>
+                <th className="text-left py-2 pr-4 font-medium text-neutral-600 dark:text-neutral-400">
+                  Verbs
+                </th>
+                <th className="text-left py-2 font-medium text-neutral-600 dark:text-neutral-400">
+                  Resource Names
+                </th>
               </tr>
             </thead>
             <tbody>
               {rules.map((rule, index) => {
                 const isDangerous = isRuleDangerous(rule);
-                const textClass = isDangerous ? 'text-orange-500 dark:text-orange-400' : 'text-neutral-900 dark:text-neutral-100';
-                
+                const textClass = isDangerous
+                  ? 'text-orange-500 dark:text-orange-400'
+                  : 'text-neutral-900 dark:text-neutral-100';
+
                 return (
-                  <tr key={index} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+                  <tr
+                    key={index}
+                    className="border-b border-neutral-100 dark:border-neutral-800 last:border-0"
+                  >
                     <td className={`py-2 pr-4 font-mono ${textClass}`}>
-                      {(rule.apiGroups ?? []).map(g => g === '' ? 'core' : g).join(', ') || '*'}
+                      {(rule.apiGroups ?? []).map((g) => (g === '' ? 'core' : g)).join(', ') || '*'}
                     </td>
                     <td className={`py-2 pr-4 font-mono ${textClass}`}>
                       {(rule.resources ?? []).join(', ') || '-'}
@@ -221,10 +268,11 @@ function RoleRefSection({
                       {(rule.verbs ?? []).join(', ')}
                     </td>
                     <td className={`py-2 font-mono ${textClass}`}>
-                      {rule.resourceNames && rule.resourceNames.length > 0 
-                        ? rule.resourceNames.join(', ')
-                        : <span className="text-neutral-500 dark:text-neutral-600">all</span>
-                      }
+                      {rule.resourceNames && rule.resourceNames.length > 0 ? (
+                        rule.resourceNames.join(', ')
+                      ) : (
+                        <span className="text-neutral-500 dark:text-neutral-600">all</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -268,11 +316,7 @@ export const RoleBindingAdapter: ResourceAdapter<V1RoleBinding> = {
       data: {
         type: 'custom',
         render: () => (
-          <RoleRefSection 
-            roleRef={resource.roleRef} 
-            context={context} 
-            namespace={namespace} 
-          />
+          <RoleRefSection roleRef={resource.roleRef} context={context} namespace={namespace} />
         ),
       },
     });
@@ -284,11 +328,7 @@ export const RoleBindingAdapter: ResourceAdapter<V1RoleBinding> = {
       data: {
         type: 'custom',
         render: () => (
-          <SubjectsTable 
-            subjects={subjects} 
-            context={context} 
-            bindingNamespace={namespace}
-          />
+          <SubjectsTable subjects={subjects} context={context} bindingNamespace={namespace} />
         ),
       },
     });
