@@ -16,7 +16,9 @@ const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
 // Hook for managing column visibility with TanStack Table
 // To reset state when resource changes, use key prop on the component using this hook
 export function useColumnVisibility() {
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => ({ ...DEFAULT_HIDDEN_COLUMNS }));
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => ({
+    ...DEFAULT_HIDDEN_COLUMNS,
+  }));
 
   const onColumnVisibilityChange: OnChangeFn<VisibilityState> = useCallback((updater) => {
     setColumnVisibility((prev) => (typeof updater === 'function' ? updater(prev) : updater));

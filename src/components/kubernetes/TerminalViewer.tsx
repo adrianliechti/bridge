@@ -23,11 +23,13 @@ function getPodContainers(resource: KubernetesResource): ContainerInfo[] {
   const containers: ContainerInfo[] = [];
 
   const spec = resource.spec as { containers?: Array<{ name: string }> } | undefined;
-  const status = resource.status as { containerStatuses?: Array<{ name: string; ready: boolean }> } | undefined;
+  const status = resource.status as
+    | { containerStatuses?: Array<{ name: string; ready: boolean }> }
+    | undefined;
 
   if (spec?.containers) {
     for (const container of spec.containers) {
-      const containerStatus = status?.containerStatuses?.find(s => s.name === container.name);
+      const containerStatus = status?.containerStatuses?.find((s) => s.name === container.name);
       containers.push({
         name: container.name,
         ready: containerStatus?.ready ?? false,
@@ -42,11 +44,7 @@ function getResourceKey(context: string, resource: KubernetesResource): string {
   return `${context}/${resource.metadata?.namespace ?? ''}/${resource.metadata?.name ?? ''}`;
 }
 
-function TerminalViewerInner({
-  context,
-  resource,
-  toolbarRef,
-}: TerminalViewerProps) {
+function TerminalViewerInner({ context, resource, toolbarRef }: TerminalViewerProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -62,9 +60,10 @@ function TerminalViewerInner({
   const podName = resource.metadata?.name;
   const containers = getPodContainers(resource);
 
-  const selectedContainer = requestedContainer && containers.some(c => c.name === requestedContainer)
-    ? requestedContainer
-    : containers[0]?.name ?? '';
+  const selectedContainer =
+    requestedContainer && containers.some((c) => c.name === requestedContainer)
+      ? requestedContainer
+      : (containers[0]?.name ?? '');
 
   useEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
@@ -72,7 +71,8 @@ function TerminalViewerInner({
     const xterm = new XTerm({
       cursorBlink: true,
       fontSize: 13,
-      fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+      fontFamily:
+        'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
       theme: {
         background: '#0a0a0a',
         foreground: '#e5e5e5',
@@ -228,7 +228,9 @@ function TerminalViewerInner({
                 onClick={() => setShowContainerDropdown(!showContainerDropdown)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors"
               >
-                <span className="max-w-30 truncate" title={selectedContainer}>{selectedContainer}</span>
+                <span className="max-w-30 truncate" title={selectedContainer}>
+                  {selectedContainer}
+                </span>
                 <ChevronDown size={12} />
               </button>
 
@@ -244,7 +246,9 @@ function TerminalViewerInner({
                           : 'text-neutral-700 dark:text-neutral-300'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${container.ready ? 'bg-emerald-500' : 'bg-neutral-400'}`} />
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${container.ready ? 'bg-emerald-500' : 'bg-neutral-400'}`}
+                      />
                       {container.name}
                     </button>
                   ))}
@@ -255,15 +259,13 @@ function TerminalViewerInner({
         </ToolbarPortal>
       )}
 
-      <div
-        ref={terminalRef}
-        className="flex-1 p-2"
-        style={{ minHeight: 0 }}
-      />
+      <div ref={terminalRef} className="flex-1 p-2" style={{ minHeight: 0 }} />
 
       <div className="shrink-0 px-4 py-1.5 border-t border-neutral-800 bg-neutral-900/50 flex items-center gap-3 text-xs text-neutral-500">
         <span className="flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : isConnecting ? 'bg-amber-500 animate-pulse' : 'bg-neutral-600'}`} />
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : isConnecting ? 'bg-amber-500 animate-pulse' : 'bg-neutral-600'}`}
+          />
           {isConnected ? 'Connected' : isConnecting ? 'Connecting...' : 'Disconnected'}
         </span>
         {selectedContainer && (
@@ -277,10 +279,5 @@ function TerminalViewerInner({
 }
 
 export function TerminalViewer(props: TerminalViewerProps) {
-  return (
-    <TerminalViewerInner
-      key={getResourceKey(props.context, props.resource)}
-      {...props}
-    />
-  );
+  return <TerminalViewerInner key={getResourceKey(props.context, props.resource)} {...props} />;
 }

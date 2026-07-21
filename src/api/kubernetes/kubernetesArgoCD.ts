@@ -26,10 +26,10 @@ async function patchApplication(
   context: string,
   name: string,
   namespace: string,
-  patch: object
+  patch: object,
 ): Promise<Response> {
   const url = `/contexts/${context}${ARGOCD_API}/namespaces/${namespace}/applications/${name}`;
-  
+
   const response = await fetch(url, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/merge-patch+json' },
@@ -38,7 +38,9 @@ async function patchApplication(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to patch application: ${response.status} ${response.statusText} - ${errorText}`);
+    throw new Error(
+      `Failed to patch application: ${response.status} ${response.statusText} - ${errorText}`,
+    );
   }
 
   return response;
@@ -48,7 +50,7 @@ export async function syncApplication(
   context: string,
   name: string,
   namespace: string = 'argocd',
-  options: SyncOptions = {}
+  options: SyncOptions = {},
 ): Promise<void> {
   const syncStrategy = options.strategy === 'apply' ? { apply: {} } : { hook: {} };
 
@@ -69,7 +71,7 @@ export async function syncApplication(
 export async function getApplicationStatus(
   context: string,
   name: string,
-  namespace: string = 'argocd'
+  namespace: string = 'argocd',
 ): Promise<ApplicationStatus> {
   const url = `${ARGOCD_API}/namespaces/${namespace}/applications/${name}`;
   const app = await fetchApi<{
@@ -94,12 +96,14 @@ export async function getApplicationStatus(
       status: app.status?.health?.status || 'Unknown',
       message: app.status?.health?.message,
     },
-    operationState: app.status?.operationState ? {
-      phase: app.status.operationState.phase || 'Unknown',
-      message: app.status.operationState.message,
-      startedAt: app.status.operationState.startedAt,
-      finishedAt: app.status.operationState.finishedAt,
-    } : undefined,
+    operationState: app.status?.operationState
+      ? {
+          phase: app.status.operationState.phase || 'Unknown',
+          message: app.status.operationState.message,
+          startedAt: app.status.operationState.startedAt,
+          finishedAt: app.status.operationState.finishedAt,
+        }
+      : undefined,
   };
 }
 
@@ -107,7 +111,7 @@ export async function refreshApplication(
   context: string,
   name: string,
   namespace: string = 'argocd',
-  hard: boolean = false
+  hard: boolean = false,
 ): Promise<void> {
   await patchApplication(context, name, namespace, {
     metadata: {
@@ -119,7 +123,7 @@ export async function refreshApplication(
 export async function terminateOperation(
   context: string,
   name: string,
-  namespace: string = 'argocd'
+  namespace: string = 'argocd',
 ): Promise<void> {
   await patchApplication(context, name, namespace, { operation: null });
 }
@@ -128,7 +132,7 @@ export async function rollbackApplication(
   context: string,
   name: string,
   namespace: string = 'argocd',
-  historyId: number
+  historyId: number,
 ): Promise<void> {
   const url = `${ARGOCD_API}/namespaces/${namespace}/applications/${name}`;
   const app = await fetchApi<{
@@ -137,7 +141,7 @@ export async function rollbackApplication(
     };
   }>(url, context);
 
-  const historyEntry = app.status?.history?.find(h => h.id === historyId);
+  const historyEntry = app.status?.history?.find((h) => h.id === historyId);
   if (!historyEntry?.revision) {
     throw new Error(`History entry with ID ${historyId} not found`);
   }

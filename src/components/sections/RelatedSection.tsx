@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
-import { 
-  Layers, 
-  HardDrive, 
+import {
+  Layers,
+  HardDrive,
   CheckCircle2,
   XCircle,
   Clock,
@@ -14,18 +14,30 @@ import {
 import type { ReplicaSetData, PVCData, JobData, RoleBindingData } from './types';
 import { formatTimeAgo } from './utils';
 
-export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Promise<ReplicaSetData[]>; title?: string }) {
+export function RelatedReplicaSetsSection({
+  loader,
+  title,
+}: {
+  loader: () => Promise<ReplicaSetData[]>;
+  title?: string;
+}) {
   const [items, setItems] = useState<ReplicaSetData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loader().then(setItems).finally(() => setLoading(false));
+    loader()
+      .then(setItems)
+      .finally(() => setLoading(false));
   }, [loader]);
 
   if (loading) {
     return (
       <div>
-        {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+        {title && (
+          <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+            {title}
+          </h5>
+        )}
         <div className="text-xs text-neutral-600 dark:text-neutral-500">Loading ReplicaSets...</div>
       </div>
     );
@@ -37,20 +49,34 @@ export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Pro
 
   return (
     <div>
-      {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+      {title && (
+        <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+          {title}
+        </h5>
+      )}
       <div className="space-y-2">
-        {items.map(rs => {
+        {items.map((rs) => {
           const content = (
-            <div className={`border rounded-lg p-3 ${
-              rs.isCurrent 
-                ? 'border-blue-500/30 bg-blue-500/5' 
-                : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50 opacity-60'
-            } ${rs.context && rs.namespace ? 'hover:border-blue-500/50 transition-colors cursor-pointer' : ''}`}>
+            <div
+              className={`border rounded-lg p-3 ${
+                rs.isCurrent
+                  ? 'border-blue-500/30 bg-blue-500/5'
+                  : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50 opacity-60'
+              } ${rs.context && rs.namespace ? 'hover:border-blue-500/50 transition-colors cursor-pointer' : ''}`}
+            >
               <div className="flex items-center gap-3">
-                <Layers size={16} className={rs.isCurrent ? 'text-blue-400' : 'text-neutral-600 dark:text-neutral-500'} />
+                <Layers
+                  size={16}
+                  className={
+                    rs.isCurrent ? 'text-blue-400' : 'text-neutral-600 dark:text-neutral-500'
+                  }
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={rs.name}>
+                    <span
+                      className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate"
+                      title={rs.name}
+                    >
                       {rs.name}
                     </span>
                   </div>
@@ -61,7 +87,13 @@ export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Pro
                   )}
                 </div>
                 <div className="text-xs">
-                  <span className={rs.readyReplicas === rs.replicas ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                  <span
+                    className={
+                      rs.readyReplicas === rs.replicas
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-amber-600 dark:text-amber-400'
+                    }
+                  >
                     {rs.readyReplicas}/{rs.replicas}
                   </span>
                   <span className="text-neutral-600 dark:text-neutral-500 ml-1">ready</span>
@@ -69,7 +101,7 @@ export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Pro
               </div>
             </div>
           );
-          
+
           return rs.context && rs.namespace ? (
             <Link
               key={rs.name}
@@ -88,18 +120,30 @@ export function RelatedReplicaSetsSection({ loader, title }: { loader: () => Pro
   );
 }
 
-export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PVCData[]>; title?: string }) {
+export function RelatedPVCsSection({
+  loader,
+  title,
+}: {
+  loader: () => Promise<PVCData[]>;
+  title?: string;
+}) {
   const [items, setItems] = useState<PVCData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loader().then(setItems).finally(() => setLoading(false));
+    loader()
+      .then(setItems)
+      .finally(() => setLoading(false));
   }, [loader]);
 
   if (loading) {
     return (
       <div>
-        {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+        {title && (
+          <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+            {title}
+          </h5>
+        )}
         <div className="text-xs text-neutral-600 dark:text-neutral-500">Loading PVCs...</div>
       </div>
     );
@@ -111,20 +155,38 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
 
   return (
     <div>
-      {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+      {title && (
+        <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+          {title}
+        </h5>
+      )}
       <div className="space-y-2">
-        {items.map(pvc => {
+        {items.map((pvc) => {
           const content = (
-            <div className={`border rounded-lg p-3 ${
-              pvc.status === 'Bound' 
-                ? 'border-emerald-500/30 bg-emerald-500/5'
-                : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50'
-            } ${pvc.context && pvc.namespace ? 'hover:border-emerald-500/50 transition-colors cursor-pointer' : ''}`}>
+            <div
+              className={`border rounded-lg p-3 ${
+                pvc.status === 'Bound'
+                  ? 'border-emerald-500/30 bg-emerald-500/5'
+                  : 'border-neutral-300 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-900/50'
+              } ${pvc.context && pvc.namespace ? 'hover:border-emerald-500/50 transition-colors cursor-pointer' : ''}`}
+            >
               <div className="flex items-center gap-3">
-                <HardDrive size={16} className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-600 dark:text-neutral-500'} />
+                <HardDrive
+                  size={16}
+                  className={
+                    pvc.status === 'Bound'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-neutral-600 dark:text-neutral-500'
+                  }
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={pvc.name}>{pvc.name}</span>
+                    <span
+                      className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate"
+                      title={pvc.name}
+                    >
+                      {pvc.name}
+                    </span>
                   </div>
                   <div className="text-xs text-neutral-600 dark:text-neutral-500">
                     {pvc.storageClass || 'default'} storage class
@@ -134,7 +196,13 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
                   {pvc.capacity && (
                     <span className="text-cyan-600 dark:text-cyan-400">{pvc.capacity}</span>
                   )}
-                  <span className={pvc.status === 'Bound' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                  <span
+                    className={
+                      pvc.status === 'Bound'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-amber-600 dark:text-amber-400'
+                    }
+                  >
                     {pvc.status}
                   </span>
                 </div>
@@ -146,7 +214,11 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
             <Link
               key={pvc.name}
               to="/cluster/$context/$resourceType/$name"
-              params={{ context: pvc.context, resourceType: 'persistentvolumeclaims', name: pvc.name }}
+              params={{
+                context: pvc.context,
+                resourceType: 'persistentvolumeclaims',
+                name: pvc.name,
+              }}
               search={(prev) => ({ ...prev, namespace: pvc.namespace })}
             >
               {content}
@@ -160,20 +232,32 @@ export function RelatedPVCsSection({ loader, title }: { loader: () => Promise<PV
   );
 }
 
-export function RelatedJobsSection({ loader, title }: { loader: () => Promise<JobData[]>; title?: string }) {
+export function RelatedJobsSection({
+  loader,
+  title,
+}: {
+  loader: () => Promise<JobData[]>;
+  title?: string;
+}) {
   const [items, setItems] = useState<JobData[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const toggleExpanded = () => setExpanded(prev => !prev);
+  const toggleExpanded = () => setExpanded((prev) => !prev);
 
   useEffect(() => {
-    loader().then(setItems).finally(() => setLoading(false));
+    loader()
+      .then(setItems)
+      .finally(() => setLoading(false));
   }, [loader]);
 
   if (loading) {
     return (
       <div>
-        {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+        {title && (
+          <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+            {title}
+          </h5>
+        )}
         <div className="text-xs text-neutral-600 dark:text-neutral-500">Loading jobs...</div>
       </div>
     );
@@ -187,17 +271,21 @@ export function RelatedJobsSection({ loader, title }: { loader: () => Promise<Jo
 
   return (
     <div>
-      {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+      {title && (
+        <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+          {title}
+        </h5>
+      )}
       <div className="space-y-2">
-        {displayJobs.map(job => {
+        {displayJobs.map((job) => {
           const content = (
-            <div 
+            <div
               className={`border rounded-lg p-3 ${
-                job.status === 'Complete' 
-                  ? 'border-emerald-500/30 bg-emerald-500/5' 
+                job.status === 'Complete'
+                  ? 'border-emerald-500/30 bg-emerald-500/5'
                   : job.status === 'Failed'
-                  ? 'border-red-500/30 bg-red-500/5'
-                  : 'border-amber-500/30 bg-amber-500/5'
+                    ? 'border-red-500/30 bg-red-500/5'
+                    : 'border-amber-500/30 bg-amber-500/5'
               } ${job.context && job.namespace ? 'hover:border-blue-500/50 transition-colors cursor-pointer' : ''}`}
             >
               <div className="flex items-center gap-3">
@@ -210,7 +298,12 @@ export function RelatedJobsSection({ loader, title }: { loader: () => Promise<Jo
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={job.name}>{job.name}</span>
+                    <span
+                      className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate"
+                      title={job.name}
+                    >
+                      {job.name}
+                    </span>
                   </div>
                   {job.startTime && (
                     <div className="text-xs text-neutral-600 dark:text-neutral-500">
@@ -218,10 +311,15 @@ export function RelatedJobsSection({ loader, title }: { loader: () => Promise<Jo
                     </div>
                   )}
                 </div>
-                <span className={`text-xs ${
-                  job.status === 'Complete' ? 'text-emerald-600 dark:text-emerald-400' :
-                  job.status === 'Failed' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
-                }`}>
+                <span
+                  className={`text-xs ${
+                    job.status === 'Complete'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : job.status === 'Failed'
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                >
                   {job.status}
                 </span>
               </div>
@@ -254,19 +352,33 @@ export function RelatedJobsSection({ loader, title }: { loader: () => Promise<Jo
     </div>
   );
 }
-export function RelatedRoleBindingsSection({ loader, title }: { loader: () => Promise<RoleBindingData[]>; title?: string }) {
+export function RelatedRoleBindingsSection({
+  loader,
+  title,
+}: {
+  loader: () => Promise<RoleBindingData[]>;
+  title?: string;
+}) {
   const [items, setItems] = useState<RoleBindingData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loader().then(setItems).finally(() => setLoading(false));
+    loader()
+      .then(setItems)
+      .finally(() => setLoading(false));
   }, [loader]);
 
   if (loading) {
     return (
       <div>
-        {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
-        <div className="text-xs text-neutral-600 dark:text-neutral-500">Loading role bindings...</div>
+        {title && (
+          <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+            {title}
+          </h5>
+        )}
+        <div className="text-xs text-neutral-600 dark:text-neutral-500">
+          Loading role bindings...
+        </div>
       </div>
     );
   }
@@ -274,7 +386,11 @@ export function RelatedRoleBindingsSection({ loader, title }: { loader: () => Pr
   if (items.length === 0) {
     return (
       <div>
-        {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+        {title && (
+          <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+            {title}
+          </h5>
+        )}
         <div className="text-xs text-neutral-500 italic">No role bindings found</div>
       </div>
     );
@@ -282,24 +398,33 @@ export function RelatedRoleBindingsSection({ loader, title }: { loader: () => Pr
 
   return (
     <div>
-      {title && <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">{title}</h5>}
+      {title && (
+        <h5 className="text-xs font-medium text-neutral-600 dark:text-neutral-500 uppercase tracking-wider mb-2">
+          {title}
+        </h5>
+      )}
       <div className="space-y-2">
-        {items.map(binding => {
+        {items.map((binding) => {
           const Icon = binding.isClusterBinding ? ShieldCheck : Shield;
           const iconColor = binding.isClusterBinding ? 'text-purple-500' : 'text-blue-500';
-          const borderColor = binding.isClusterBinding 
-            ? 'border-purple-500/30 bg-purple-500/5' 
+          const borderColor = binding.isClusterBinding
+            ? 'border-purple-500/30 bg-purple-500/5'
             : 'border-blue-500/30 bg-blue-500/5';
-          
+
           const content = (
-            <div className={`border rounded-lg p-3 ${borderColor} ${
-              binding.context ? 'hover:border-blue-500/50 transition-colors cursor-pointer' : ''
-            }`}>
+            <div
+              className={`border rounded-lg p-3 ${borderColor} ${
+                binding.context ? 'hover:border-blue-500/50 transition-colors cursor-pointer' : ''
+              }`}
+            >
               <div className="flex items-center gap-3">
                 <Icon size={16} className={iconColor} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate" title={binding.name}>
+                    <span
+                      className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate"
+                      title={binding.name}
+                    >
                       {binding.name}
                     </span>
                     {binding.isClusterBinding && (
@@ -322,13 +447,17 @@ export function RelatedRoleBindingsSection({ loader, title }: { loader: () => Pr
           );
 
           const resourceType = binding.isClusterBinding ? 'clusterrolebindings' : 'rolebindings';
-          
+
           return binding.context ? (
             <Link
               key={`${binding.isClusterBinding ? 'crb' : 'rb'}-${binding.name}`}
               to="/cluster/$context/$resourceType/$name"
               params={{ context: binding.context, resourceType, name: binding.name }}
-              search={binding.namespace ? (prev) => ({ ...prev, namespace: binding.namespace }) : undefined}
+              search={
+                binding.namespace
+                  ? (prev) => ({ ...prev, namespace: binding.namespace })
+                  : undefined
+              }
             >
               {content}
             </Link>

@@ -30,16 +30,20 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
           type: 'status-cards',
           items: [
             { label: 'Phase', value: phase, status: getPhaseStatus(phase) },
-            { 
-              label: 'Requested', 
+            {
+              label: 'Requested',
               value: requestedStorage ?? 'Not specified',
-              icon: <HardDrive size={14} className="text-purple-400" />
+              icon: <HardDrive size={14} className="text-purple-400" />,
             },
-            ...(actualCapacity ? [{ 
-              label: 'Actual Capacity', 
-              value: actualCapacity,
-              status: 'success' as const
-            }] : []),
+            ...(actualCapacity
+              ? [
+                  {
+                    label: 'Actual Capacity',
+                    value: actualCapacity,
+                    status: 'success' as const,
+                  },
+                ]
+              : []),
             { label: 'Volume Mode', value: spec.volumeMode ?? 'Filesystem' },
           ],
         },
@@ -56,10 +60,7 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
           render: () => (
             <div className="flex flex-wrap gap-2">
               {spec.accessModes!.map((mode, i) => (
-                <span 
-                  key={i} 
-                  className={`text-xs px-2 py-1 rounded ${getAccessModeStyle(mode)}`}
-                >
+                <span key={i} className={`text-xs px-2 py-1 rounded ${getAccessModeStyle(mode)}`}>
                   {formatAccessMode(mode)}
                 </span>
               ))}
@@ -77,7 +78,9 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
           type: 'custom',
           render: () => (
             <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
-              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Storage Class</div>
+              <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">
+                Storage Class
+              </div>
               <div className="text-sm text-purple-600 dark:text-purple-400 flex items-center gap-2">
                 <Database size={14} />
                 {spec.storageClassName}
@@ -142,9 +145,13 @@ export const PersistentVolumeClaimAdapter: ResourceAdapter<V1PersistentVolumeCla
 
 function getPhaseStatus(phase: string): 'success' | 'warning' | 'error' | 'neutral' {
   switch (phase) {
-    case 'Bound': return 'success';
-    case 'Pending': return 'warning';
-    case 'Lost': return 'error';
-    default: return 'neutral';
+    case 'Bound':
+      return 'success';
+    case 'Pending':
+      return 'warning';
+    case 'Lost':
+      return 'error';
+    default:
+      return 'neutral';
   }
 }

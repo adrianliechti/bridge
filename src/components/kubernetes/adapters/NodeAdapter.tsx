@@ -5,9 +5,9 @@ import { Server, Cpu, HardDrive, Box, CheckCircle2, XCircle } from 'lucide-react
 import type { ResourceAdapter, ResourceSections, MetricsData } from './types';
 import { formatMemory } from './utils';
 import type { V1Node } from '@kubernetes/client-node';
-import { 
-  getNodeMetrics, 
-  parseCpuToNanoCores, 
+import {
+  getNodeMetrics,
+  parseCpuToNanoCores,
   parseMemoryToBytes,
   formatCpu,
   formatBytes,
@@ -34,13 +34,13 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
     const labels = metadata?.labels ?? {};
 
     // Find Ready condition
-    const readyCondition = conditions.find(c => c.type === 'Ready');
+    const readyCondition = conditions.find((c) => c.type === 'Ready');
     const isReady = readyCondition?.status === 'True';
 
     // Get role from labels
     const roles = Object.keys(labels)
-      .filter(k => k.startsWith('node-role.kubernetes.io/'))
-      .map(k => k.replace('node-role.kubernetes.io/', ''));
+      .filter((k) => k.startsWith('node-role.kubernetes.io/'))
+      .map((k) => k.replace('node-role.kubernetes.io/', ''));
 
     return {
       sections: [
@@ -50,14 +50,14 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
           data: {
             type: 'status-cards',
             items: [
-              { 
-                label: 'Status', 
-                value: isReady ? 'Ready' : 'NotReady', 
+              {
+                label: 'Status',
+                value: isReady ? 'Ready' : 'NotReady',
                 status: isReady ? 'success' : 'error',
                 icon: isReady ? <CheckCircle2 size={14} /> : <XCircle size={14} />,
               },
-              { 
-                label: 'Role', 
+              {
+                label: 'Role',
                 value: roles.length > 0 ? roles.join(', ') : 'worker',
                 icon: <Server size={14} className="text-purple-400" />,
               },
@@ -100,14 +100,21 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
         },
 
         // Addresses
-        ...(addresses.length > 0 ? [{
-          id: 'addresses',
-          title: 'Addresses',
-          data: {
-            type: 'addresses' as const,
-            addresses: addresses.map(a => ({ type: a.type || '', address: a.address || '' })),
-          },
-        }] : []),
+        ...(addresses.length > 0
+          ? [
+              {
+                id: 'addresses',
+                title: 'Addresses',
+                data: {
+                  type: 'addresses' as const,
+                  addresses: addresses.map((a) => ({
+                    type: a.type || '',
+                    address: a.address || '',
+                  })),
+                },
+              },
+            ]
+          : []),
 
         // Resource capacity
         {
@@ -134,48 +141,60 @@ export const NodeAdapter: ResourceAdapter<V1Node> = {
                 capacity: capacity.pods ?? '0',
                 allocatable: allocatable.pods ?? '0',
               },
-              ...(capacity['ephemeral-storage'] ? [{
-                label: 'Storage',
-                icon: <HardDrive size={14} className="text-amber-400" />,
-                capacity: formatMemory(capacity['ephemeral-storage']),
-                allocatable: formatMemory(allocatable['ephemeral-storage'] ?? '0'),
-              }] : []),
+              ...(capacity['ephemeral-storage']
+                ? [
+                    {
+                      label: 'Storage',
+                      icon: <HardDrive size={14} className="text-amber-400" />,
+                      capacity: formatMemory(capacity['ephemeral-storage']),
+                      allocatable: formatMemory(allocatable['ephemeral-storage'] ?? '0'),
+                    },
+                  ]
+                : []),
             ],
           },
         },
 
         // Node info
-        ...(nodeInfo ? [{
-          id: 'system-info',
-          title: 'System Info',
-          data: {
-            type: 'info-grid' as const,
-            items: [
-              { label: 'OS', value: nodeInfo.operatingSystem },
-              { label: 'Arch', value: nodeInfo.architecture },
-              { label: 'Kernel', value: nodeInfo.kernelVersion },
-              { label: 'OS Image', value: nodeInfo.osImage },
-              { label: 'Container Runtime', value: nodeInfo.containerRuntimeVersion },
-              { label: 'Kubelet', value: nodeInfo.kubeletVersion },
-              { label: 'Kube-Proxy', value: nodeInfo.kubeProxyVersion },
-            ],
-            columns: 2 as const,
-          },
-        }] : []),
+        ...(nodeInfo
+          ? [
+              {
+                id: 'system-info',
+                title: 'System Info',
+                data: {
+                  type: 'info-grid' as const,
+                  items: [
+                    { label: 'OS', value: nodeInfo.operatingSystem },
+                    { label: 'Arch', value: nodeInfo.architecture },
+                    { label: 'Kernel', value: nodeInfo.kernelVersion },
+                    { label: 'OS Image', value: nodeInfo.osImage },
+                    { label: 'Container Runtime', value: nodeInfo.containerRuntimeVersion },
+                    { label: 'Kubelet', value: nodeInfo.kubeletVersion },
+                    { label: 'Kube-Proxy', value: nodeInfo.kubeProxyVersion },
+                  ],
+                  columns: 2 as const,
+                },
+              },
+            ]
+          : []),
 
         // Taints
-        ...(taints.length > 0 ? [{
-          id: 'taints',
-          title: 'Taints',
-          data: {
-            type: 'taints' as const,
-            items: taints.map(t => ({
-              key: t.key || '',
-              value: t.value,
-              effect: t.effect || '',
-            })),
-          },
-        }] : []),
+        ...(taints.length > 0
+          ? [
+              {
+                id: 'taints',
+                title: 'Taints',
+                data: {
+                  type: 'taints' as const,
+                  items: taints.map((t) => ({
+                    key: t.key || '',
+                    value: t.value,
+                    effect: t.effect || '',
+                  })),
+                },
+              },
+            ]
+          : []),
       ],
     };
   },

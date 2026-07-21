@@ -1,8 +1,9 @@
+import { MonitorCog, FolderOpen } from 'lucide-react';
 import {
-  MonitorCog,
-  FolderOpen,
-} from 'lucide-react';
-import { getResourceConfig, discoverResources, getResourceTypeSlug } from '../../api/kubernetes/kubernetesDiscovery';
+  getResourceConfig,
+  discoverResources,
+  getResourceTypeSlug,
+} from '../../api/kubernetes/kubernetesDiscovery';
 import { getResourceTable, type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import type {
   CommandPaletteAdapter,
@@ -28,17 +29,26 @@ function normalizeForSearch(str: string): string {
 
 // Virtual resources for command palette (contexts with ctx/context aliases)
 const commandPaletteVirtualResources: ResourceTypeItem[] = [
-  { kind: 'contexts', label: 'Contexts', icon: MonitorCog, category: 'Cluster', aliases: ['ctx', 'context'] },
+  {
+    kind: 'contexts',
+    label: 'Contexts',
+    icon: MonitorCog,
+    category: 'Cluster',
+    aliases: ['ctx', 'context'],
+  },
 ];
 
 /**
  * Build ResourceTypeItem from V1APIResource + shared config
  */
-function buildResourceTypeItem(config: V1APIResource, resourceConfig?: ResourceTypeConfig): ResourceTypeItem {
+function buildResourceTypeItem(
+  config: V1APIResource,
+  resourceConfig?: ResourceTypeConfig,
+): ResourceTypeItem {
   const aliases = getResourceAliases(config);
   const icon = resourceConfig?.icon ?? getResourceIcon(config.name);
   const category = resourceConfig?.label ? categoryLabels[resourceConfig.category] : 'Other';
-  
+
   return {
     kind: config.name,
     label: config.kind, // Use API's kind as label (e.g., "Pod", "Deployment")
@@ -66,30 +76,42 @@ interface KubernetesAdapterOptions {
  */
 function findResourceTypeByQuery(
   query: string,
-  resourceTypeItems: ResourceTypeItem[]
+  resourceTypeItems: ResourceTypeItem[],
 ): ResourceTypeItem | undefined {
   const q = query.toLowerCase();
-  
+
   // First check virtual resources (like contexts)
-  const virtual = commandPaletteVirtualResources.find(rt =>
-    rt.kind.toLowerCase() === q ||
-    rt.label.toLowerCase() === q ||
-    rt.aliases?.some(a => a.toLowerCase() === q)
+  const virtual = commandPaletteVirtualResources.find(
+    (rt) =>
+      rt.kind.toLowerCase() === q ||
+      rt.label.toLowerCase() === q ||
+      rt.aliases?.some((a) => a.toLowerCase() === q),
   );
   if (virtual) return virtual;
-  
+
   // Then check discovered resources
-  return resourceTypeItems.find(rt => {
+  return resourceTypeItems.find((rt) => {
     if (rt.kind.toLowerCase() === q) return true;
     if (rt.label.toLowerCase() === q) return true;
-    if (rt.aliases?.some(a => a.toLowerCase() === q)) return true;
+    if (rt.aliases?.some((a) => a.toLowerCase() === q)) return true;
     return false;
   });
 }
 
 export function createKubernetesAdapter(options: KubernetesAdapterOptions): CommandPaletteAdapter {
-  const { context, namespace, namespaces, contexts, currentContext, setNamespace, setContext, setSelectedResource, setSelectedItem, onClose } = options;
-  
+  const {
+    context,
+    namespace,
+    namespaces,
+    contexts,
+    currentContext,
+    setNamespace,
+    setContext,
+    setSelectedResource,
+    setSelectedItem,
+    onClose,
+  } = options;
+
   // Cache for resource configs from discovery API
   let resourceConfigCache = new Map<string, V1APIResource>();
   // Built resource type items (from discovery + metadata)
@@ -100,7 +122,7 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
     resourceTypes: [], // Will be populated after initialize()
     supportsNamespaces: true,
     supportsContexts: true,
-    
+
     searchModePrefixes: [
       { prefix: '::', mode: 'searchAll' },
       { prefix: ':', mode: 'resources' },
@@ -111,7 +133,7 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       const configs = new Map<string, V1APIResource>();
       const builtInItems: ResourceTypeItem[] = [];
       const crdItems: ResourceTypeItem[] = [];
-      
+
       // Fetch configs for built-in resource types
       for (const rt of builtInResourceTypes) {
         try {
@@ -124,14 +146,14 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
           // Resource type not available in cluster
         }
       }
-      
+
       // Discover all API resources (including CRDs) - metadata only, not instances
       try {
         const allResources = await discoverResources(context);
         for (const [, config] of allResources) {
           // Skip if already loaded as built-in
           if (configs.has(config.name)) continue;
-          
+
           // Add CRD to cache and items
           configs.set(config.name, config);
           const aliases = getResourceAliases(config);
@@ -146,10 +168,10 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       } catch {
         // Discovery failed, continue with built-in types only
       }
-      
+
       // Sort CRDs alphabetically by label
       crdItems.sort((a, b) => a.label.localeCompare(b.label));
-      
+
       resourceConfigCache = configs;
       resourceTypeItems = [...builtInItems, ...crdItems];
       adapter.resourceTypes = [...builtInItems, ...crdItems, ...commandPaletteVirtualResources];
@@ -159,19 +181,19 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       // Include all types that have API resources, plus virtual types like
       // contexts (which live outside resourceTypeItems and have no config)
       return [
-        ...resourceTypeItems.filter(rt => resourceConfigCache.has(rt.kind)),
+        ...resourceTypeItems.filter((rt) => resourceConfigCache.has(rt.kind)),
         ...commandPaletteVirtualResources,
       ];
     },
 
     getNamespaces(): NamespaceItem[] {
       return namespaces
-        .filter(ns => ns.metadata?.name)
-        .map(ns => ({ name: ns.metadata!.name! }));
+        .filter((ns) => ns.metadata?.name)
+        .map((ns) => ({ name: ns.metadata!.name! }));
     },
 
     getContexts(): ContextItem[] {
-      return contexts.map(ctx => ({
+      return contexts.map((ctx) => ({
         name: ctx.name,
         cluster: ctx.cluster,
         isCurrent: ctx.name === currentContext,
@@ -188,12 +210,14 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       const aliases = getResourceAliases(config);
       // For virtual types like 'contexts', use hardcoded aliases
       const displayAliases = aliases.length > 0 ? aliases : item.aliases;
-      
+
       return {
         id: `type-${item.kind}`,
         type: 'resource-type',
         label: item.label,
-        sublabel: displayAliases?.length ? `${item.category} · ${displayAliases.join(', ')}` : item.category,
+        sublabel: displayAliases?.length
+          ? `${item.category} · ${displayAliases.join(', ')}`
+          : item.category,
         icon: item.icon,
         category: item.category,
         data: {
@@ -227,7 +251,11 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       };
     },
 
-    async searchResources(query: string, allScopes: boolean, resourceKind?: string): Promise<SearchResult[]> {
+    async searchResources(
+      query: string,
+      allScopes: boolean,
+      resourceKind?: string,
+    ): Promise<SearchResult[]> {
       if (!query || query.length < 2) {
         return [];
       }
@@ -237,10 +265,8 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       const targetNamespace = allScopes ? undefined : namespace;
 
       // Determine which resource types to search
-      let resourcesToSearch = resourceTypeItems.filter(rt => 
-        resourceConfigCache.has(rt.kind)
-      );
-      
+      let resourcesToSearch = resourceTypeItems.filter((rt) => resourceConfigCache.has(rt.kind));
+
       // Filter by specific resource kind if provided
       if (resourceKind) {
         const targetType = findResourceTypeByQuery(resourceKind, resourceTypeItems);
@@ -253,42 +279,42 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       }
 
       const searchPromises = resourcesToSearch.map(async (rt: ResourceTypeItem) => {
-          const config = resourceConfigCache.get(rt.kind);
-          if (!config) return [];
+        const config = resourceConfigCache.get(rt.kind);
+        if (!config) return [];
 
-          try {
-            const table = await getResourceTable(context, config, targetNamespace);
-            const matches: SearchResult[] = [];
-            
-            for (const row of table.rows) {
-              if (!row.object.metadata) continue;
-              const name = row.object.metadata.name;
-              const rowNamespace = row.object.metadata.namespace;
-              
-              if (name && normalizeForSearch(name).includes(searchNormalized)) {
-                matches.push({
-                  id: `${rt.kind}/${rowNamespace || ''}/${name}`,
-                  type: 'resource',
-                  label: name,
-                  sublabel: rowNamespace ? `${rt.label} in ${rowNamespace}` : rt.label,
-                  icon: rt.icon,
-                  category: rt.category,
-                  data: {
-                    resourceConfig: config,
-                    namespace: rowNamespace,
-                    resourceName: name,
-                  },
-                  completionValue: name,
-                });
-              }
+        try {
+          const table = await getResourceTable(context, config, targetNamespace);
+          const matches: SearchResult[] = [];
+
+          for (const row of table.rows) {
+            if (!row.object.metadata) continue;
+            const name = row.object.metadata.name;
+            const rowNamespace = row.object.metadata.namespace;
+
+            if (name && normalizeForSearch(name).includes(searchNormalized)) {
+              matches.push({
+                id: `${rt.kind}/${rowNamespace || ''}/${name}`,
+                type: 'resource',
+                label: name,
+                sublabel: rowNamespace ? `${rt.label} in ${rowNamespace}` : rt.label,
+                icon: rt.icon,
+                category: rt.category,
+                data: {
+                  resourceConfig: config,
+                  namespace: rowNamespace,
+                  resourceName: name,
+                },
+                completionValue: name,
+              });
             }
-            
-            return matches;
-          } catch {
-            // Resource type may not be available or permission denied
-            return [];
           }
-        });
+
+          return matches;
+        } catch {
+          // Resource type may not be available or permission denied
+          return [];
+        }
+      });
 
       const allResults = await Promise.all(searchPromises);
       for (const matches of allResults) {
@@ -311,13 +337,13 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       if (result.type === 'resource-type') {
         const config = result.data.resourceConfig as V1APIResource | undefined;
         const kind = result.data.kind as string | undefined;
-        
+
         // Special handling for virtual types
         if (kind === 'contexts') {
           // Don't close, let the adapter show contexts list
           return;
         }
-        
+
         if (config) {
           setSelectedResource(config);
         }

@@ -30,7 +30,8 @@ function TerminalViewerInner({ context, container }: DockerTerminalViewerProps) 
     const xterm = new XTerm({
       cursorBlink: true,
       fontSize: 13,
-      fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+      fontFamily:
+        'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
       theme: {
         background: '#0a0a0a',
         foreground: '#e5e5e5',
@@ -170,15 +171,13 @@ function TerminalViewerInner({ context, container }: DockerTerminalViewerProps) 
 
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a]">
-      <div
-        ref={terminalRef}
-        className="flex-1 p-2"
-        style={{ minHeight: 0 }}
-      />
+      <div ref={terminalRef} className="flex-1 p-2" style={{ minHeight: 0 }} />
 
       <div className="shrink-0 px-4 py-1.5 border-t border-neutral-800 bg-neutral-900/50 flex items-center gap-3 text-xs text-neutral-500">
         <span className="flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : isConnecting ? 'bg-amber-500 animate-pulse' : 'bg-neutral-600'}`} />
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500' : isConnecting ? 'bg-amber-500 animate-pulse' : 'bg-neutral-600'}`}
+          />
           {isConnected ? 'Connected' : isConnecting ? 'Connecting...' : 'Disconnected'}
         </span>
         <span className="text-neutral-600">{containerName}</span>
@@ -188,10 +187,5 @@ function TerminalViewerInner({ context, container }: DockerTerminalViewerProps) 
 }
 
 export function DockerTerminalViewer(props: DockerTerminalViewerProps) {
-  return (
-    <TerminalViewerInner
-      key={`${props.context}/${props.container.Id ?? ''}`}
-      {...props}
-    />
-  );
+  return <TerminalViewerInner key={`${props.context}/${props.container.Id ?? ''}`} {...props} />;
 }

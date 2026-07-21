@@ -9,12 +9,7 @@ export interface KubernetesLogViewerProps {
 }
 
 // Inner component that handles log streaming
-function KubernetesLogViewerInner({ 
-  context,
-  resource,
-  toolbarRef,
-}: KubernetesLogViewerProps) {
-  
+function KubernetesLogViewerInner({ context, resource, toolbarRef }: KubernetesLogViewerProps) {
   const { logs, sources, isLoading, error } = useKubernetesLogs({
     context,
     resource,

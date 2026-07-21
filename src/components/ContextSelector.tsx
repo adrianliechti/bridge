@@ -52,7 +52,7 @@ export function ContextSelector({
 
   // Determine what's currently selected for display
   const isDockerMode = mode === 'docker';
-  const displayContext = isDockerMode ? (selectedDockerContext || DOCKER_CONTEXT) : selectedContext;
+  const displayContext = isDockerMode ? selectedDockerContext || DOCKER_CONTEXT : selectedContext;
   const DisplayIcon = isDockerMode ? Container : Server;
 
   // Calculate total contexts available
@@ -74,10 +74,12 @@ export function ContextSelector({
         className="flex items-center gap-1.5 w-full px-1 py-0.5 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors rounded group"
       >
         <DisplayIcon size={12} className="opacity-60 group-hover:opacity-80" />
-        <span className="truncate flex-1 text-left" title={displayContext}>{displayContext}</span>
-        <ChevronDown 
-          size={12} 
-          className={`opacity-40 group-hover:opacity-60 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        <span className="truncate flex-1 text-left" title={displayContext}>
+          {displayContext}
+        </span>
+        <ChevronDown
+          size={12}
+          className={`opacity-40 group-hover:opacity-60 transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -92,7 +94,7 @@ export function ContextSelector({
                 </div>
                 {dockerContexts.map((ctx) => {
                   const isSelected = isDockerMode && selectedDockerContext === ctx;
-                  
+
                   return (
                     <div
                       key={`docker-${ctx}`}
@@ -105,10 +107,15 @@ export function ContextSelector({
                     >
                       <div className="flex items-center gap-2 truncate">
                         <Container size={14} className="opacity-50 shrink-0" />
-                        <span className="truncate" title={ctx}>{ctx}</span>
+                        <span className="truncate" title={ctx}>
+                          {ctx}
+                        </span>
                       </div>
                       {isSelected && (
-                        <Check size={14} className="text-neutral-500 dark:text-neutral-400 shrink-0" />
+                        <Check
+                          size={14}
+                          className="text-neutral-500 dark:text-neutral-400 shrink-0"
+                        />
                       )}
                     </div>
                   );
@@ -119,12 +126,14 @@ export function ContextSelector({
             {/* Kubernetes clusters */}
             {contexts.length > 0 && (
               <>
-                <div className={`px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider ${dockerContexts.length > 0 ? 'mt-1' : ''}`}>
+                <div
+                  className={`px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider ${dockerContexts.length > 0 ? 'mt-1' : ''}`}
+                >
                   Kubernetes
                 </div>
                 {contexts.map((ctx) => {
                   const isSelected = !isDockerMode && selectedContext === ctx;
-                  
+
                   return (
                     <div
                       key={ctx}
@@ -137,10 +146,15 @@ export function ContextSelector({
                     >
                       <div className="flex items-center gap-2 truncate">
                         <Server size={14} className="opacity-50 shrink-0" />
-                        <span className="truncate" title={ctx}>{ctx}</span>
+                        <span className="truncate" title={ctx}>
+                          {ctx}
+                        </span>
                       </div>
                       {isSelected && (
-                        <Check size={14} className="text-neutral-500 dark:text-neutral-400 shrink-0" />
+                        <Check
+                          size={14}
+                          className="text-neutral-500 dark:text-neutral-400 shrink-0"
+                        />
                       )}
                     </div>
                   );

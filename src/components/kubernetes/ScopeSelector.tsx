@@ -17,9 +17,9 @@ interface ScopeSelectorProps {
   platformNamespaces?: string[];
 }
 
-export function ScopeSelector({ 
-  namespaces, 
-  selectedNamespace, 
+export function ScopeSelector({
+  namespaces,
+  selectedNamespace,
   onSelectNamespace,
   disabled = false,
   spaceLabels = [],
@@ -45,7 +45,7 @@ export function ScopeSelector({
     // Group by labels in order
     for (const labelKey of spaceLabels) {
       const grouped = new Map<string, V1Namespace[]>();
-      
+
       for (const ns of namespaces) {
         const name = ns.metadata?.name;
         if (!name || assigned.has(name)) continue;
@@ -60,11 +60,13 @@ export function ScopeSelector({
       }
 
       // Add groups sorted by label value
-      for (const [value, nsList] of Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+      for (const [value, nsList] of Array.from(grouped.entries()).sort(([a], [b]) =>
+        a.localeCompare(b),
+      )) {
         result.push({
           label: value,
-          namespaces: nsList.sort((a, b) => 
-            (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
+          namespaces: nsList.sort((a, b) =>
+            (a.metadata?.name || '').localeCompare(b.metadata?.name || ''),
           ),
         });
       }
@@ -72,28 +74,24 @@ export function ScopeSelector({
 
     // User namespaces (fallback - before platform)
     const userNs = namespaces
-      .filter(ns => {
+      .filter((ns) => {
         const name = ns.metadata?.name;
         return name && !assigned.has(name) && !isPlatformNamespace(name);
       })
-      .sort((a, b) => 
-        (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
-      );
-    
+      .sort((a, b) => (a.metadata?.name || '').localeCompare(b.metadata?.name || ''));
+
     if (userNs.length > 0) {
       result.push({ label: 'User', namespaces: userNs });
     }
 
     // Platform namespaces (last)
     const platformNs = namespaces
-      .filter(ns => {
+      .filter((ns) => {
         const name = ns.metadata?.name;
         return name && !assigned.has(name) && isPlatformNamespace(name);
       })
-      .sort((a, b) => 
-        (a.metadata?.name || '').localeCompare(b.metadata?.name || '')
-      );
-    
+      .sort((a, b) => (a.metadata?.name || '').localeCompare(b.metadata?.name || ''));
+
     if (platformNs.length > 0) {
       result.push({ label: 'Platform', namespaces: platformNs });
     }
@@ -104,26 +102,26 @@ export function ScopeSelector({
   // Filter namespaces based on query
   const filteredGroups = useMemo(() => {
     if (query === '') return groups;
-    
+
     return groups
-      .map(group => ({
+      .map((group) => ({
         ...group,
-        namespaces: group.namespaces.filter(ns => 
-          ns.metadata?.name?.toLowerCase().includes(query.toLowerCase())
+        namespaces: group.namespaces.filter((ns) =>
+          ns.metadata?.name?.toLowerCase().includes(query.toLowerCase()),
         ),
       }))
-      .filter(group => group.namespaces.length > 0);
+      .filter((group) => group.namespaces.length > 0);
   }, [groups, query]);
 
   // Flatten options for keyboard navigation
   const flatOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
     const showAllNamespacesOption = query === '' || 'all namespaces'.includes(query.toLowerCase());
-    
+
     if (showAllNamespacesOption) {
       options.push({ value: '', label: 'All Namespaces' });
     }
-    
+
     for (const group of filteredGroups) {
       for (const ns of group.namespaces) {
         const name = ns.metadata?.name;
@@ -132,11 +130,11 @@ export function ScopeSelector({
         }
       }
     }
-    
+
     return options;
   }, [filteredGroups, query]);
 
-  const hasResults = filteredGroups.some(g => g.namespaces.length > 0);
+  const hasResults = filteredGroups.some((g) => g.namespaces.length > 0);
   const showAllNamespacesOption = query === '' || 'all namespaces'.includes(query.toLowerCase());
 
   // Close on click outside
@@ -160,7 +158,7 @@ export function ScopeSelector({
   const openDropdown = () => {
     if (disabled || isOpen) return;
     setIsOpen(true);
-    const selectedIndex = flatOptions.findIndex(opt => opt.value === (selectedNamespace || ''));
+    const selectedIndex = flatOptions.findIndex((opt) => opt.value === (selectedNamespace || ''));
     setFocusedIndex(selectedIndex >= 0 ? selectedIndex : -1);
   };
 
@@ -181,11 +179,11 @@ export function ScopeSelector({
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
-        setFocusedIndex(prev => Math.min(prev + 1, flatOptions.length - 1));
+        setFocusedIndex((prev) => Math.min(prev + 1, flatOptions.length - 1));
         break;
       case 'ArrowUp':
         event.preventDefault();
-        setFocusedIndex(prev => Math.max(prev - 1, 0));
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
         break;
       case 'Enter':
         event.preventDefault();
@@ -217,11 +215,11 @@ export function ScopeSelector({
           ref={inputRef}
           type="text"
           className="w-full px-3 py-1.5 pr-8 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg text-sm text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-neutral-400/50 dark:focus:ring-neutral-500/50 cursor-default placeholder:text-neutral-400"
-          value={isOpen ? query : (selectedNamespace || 'All Namespaces')}
+          value={isOpen ? query : selectedNamespace || 'All Namespaces'}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={openDropdown}
           onKeyDown={handleKeyDown}
-          placeholder={isOpen ? "Search..." : undefined}
+          placeholder={isOpen ? 'Search...' : undefined}
           disabled={disabled}
           readOnly={!isOpen}
           title={disabled ? 'Cluster-scoped resource' : undefined}
@@ -252,9 +250,7 @@ export function ScopeSelector({
                   data-index={++optionIndex}
                   onClick={() => handleSelect('')}
                   className={`px-3 py-2 cursor-pointer text-sm flex items-center justify-between ${
-                    focusedIndex === optionIndex
-                      ? 'bg-neutral-100 dark:bg-neutral-700'
-                      : ''
+                    focusedIndex === optionIndex ? 'bg-neutral-100 dark:bg-neutral-700' : ''
                   } ${
                     selectedNamespace === undefined
                       ? 'text-neutral-900 dark:text-neutral-100'
@@ -275,11 +271,11 @@ export function ScopeSelector({
                   {group.namespaces.map((ns) => {
                     const name = ns.metadata?.name;
                     if (!name) return null;
-                    
+
                     const currentIndex = ++optionIndex;
                     const isSelected = selectedNamespace === name;
                     const isFocused = focusedIndex === currentIndex;
-                    
+
                     return (
                       <div
                         key={name}
@@ -293,7 +289,9 @@ export function ScopeSelector({
                             : 'text-neutral-600 dark:text-neutral-400'
                         }`}
                       >
-                        <span className="truncate" title={name}>{name}</span>
+                        <span className="truncate" title={name}>
+                          {name}
+                        </span>
                         {isSelected && (
                           <Check size={16} className="text-neutral-500 dark:text-neutral-400" />
                         )}

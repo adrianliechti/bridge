@@ -126,18 +126,12 @@ export const GatewayAdapter: ResourceAdapter<Gateway> = {
 };
 
 // Listener Card Component
-function ListenerCard({ 
-  listener, 
-  status 
-}: { 
-  listener: Listener; 
-  status?: Gateway['status'];
-}) {
+function ListenerCard({ listener, status }: { listener: Listener; status?: Gateway['status'] }) {
   const [expanded, setExpanded] = React.useState(false);
-  
+
   const listenerStatus = status?.listeners?.find((l) => l.name === listener.name);
   const attachedRoutes = listenerStatus?.attachedRoutes ?? 0;
-  
+
   return (
     <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-lg overflow-hidden">
       <button
@@ -192,7 +186,9 @@ function ListenerCard({
             <div className="text-xs text-neutral-500 mb-1">Attached Routes</div>
             <div className="text-xs">
               <span className="text-emerald-400 font-medium">{attachedRoutes}</span>
-              <span className="text-neutral-500 ml-1">route{attachedRoutes !== 1 ? 's' : ''} attached</span>
+              <span className="text-neutral-500 ml-1">
+                route{attachedRoutes !== 1 ? 's' : ''} attached
+              </span>
             </div>
           </div>
         </div>

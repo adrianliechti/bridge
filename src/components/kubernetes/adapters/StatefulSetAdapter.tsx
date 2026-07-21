@@ -2,10 +2,18 @@
 // Extracts display data from StatefulSet resources
 
 import type { ResourceAdapter, ResourceSections, PVCData } from './types';
-import { getResourceList, getResourceConfig, restartWorkload, scaleResource } from '../../../api/kubernetes/kubernetes';
+import {
+  getResourceList,
+  getResourceConfig,
+  restartWorkload,
+  scaleResource,
+} from '../../../api/kubernetes/kubernetes';
 import type { V1StatefulSet } from '@kubernetes/client-node';
 import { getContainerSections, getResourceQuotaSection } from './utils';
-import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
+import {
+  getPodMetricsBySelector,
+  aggregateContainerMetrics,
+} from '../../../api/kubernetes/kubernetesMetrics';
 import { createScaleAction, createRestartAction } from '../../sections/actionHelpers';
 
 export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
@@ -22,18 +30,16 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
         await scaleResource(context, config, name, replicas, namespace);
       },
       (resource) => (resource.spec as V1StatefulSet['spec'])?.replicas ?? 1,
-      { title: 'Scale StatefulSet' }
+      { title: 'Scale StatefulSet' },
     ),
-    createRestartAction(
-      async (context, resource) => {
-        const name = resource.metadata?.name;
-        const namespace = resource.metadata?.namespace;
-        if (!name || !namespace) throw new Error('StatefulSet name/namespace missing');
-        const config = await getResourceConfig(context, 'statefulsets');
-        if (!config) throw new Error('Could not get statefulset configuration');
-        await restartWorkload(context, config, name, namespace);
-      }
-    ),
+    createRestartAction(async (context, resource) => {
+      const name = resource.metadata?.name;
+      const namespace = resource.metadata?.namespace;
+      if (!name || !namespace) throw new Error('StatefulSet name/namespace missing');
+      const config = await getResourceConfig(context, 'statefulsets');
+      if (!config) throw new Error('Could not get statefulset configuration');
+      await restartWorkload(context, config, name, namespace);
+    }),
   ],
 
   adapt(context: string, resource): ResourceSections {
@@ -106,44 +112,58 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
               { label: 'Service Name', value: spec.serviceName, color: 'text-cyan-400' },
               { label: 'Pod Management', value: spec.podManagementPolicy || 'OrderedReady' },
               { label: 'Update Strategy', value: spec.updateStrategy?.type || 'RollingUpdate' },
-              ...(spec.updateStrategy?.rollingUpdate?.partition !== undefined ? [
-                { label: 'Partition', value: spec.updateStrategy.rollingUpdate.partition, color: 'text-amber-400' },
-              ] : []),
+              ...(spec.updateStrategy?.rollingUpdate?.partition !== undefined
+                ? [
+                    {
+                      label: 'Partition',
+                      value: spec.updateStrategy.rollingUpdate.partition,
+                      color: 'text-amber-400',
+                    },
+                  ]
+                : []),
             ],
             columns: 2,
           },
         },
 
         // Revision info
-        ...(status?.currentRevision ? [{
-          id: 'revisions',
-          title: 'Revisions',
-          data: {
-            type: 'info-grid' as const,
-            items: [
-              { label: 'Current', value: status.currentRevision, color: 'text-cyan-400' },
-              ...(status.updateRevision && status.updateRevision !== status.currentRevision ? [
-                { label: 'Update', value: status.updateRevision, color: 'text-amber-400' },
-              ] : []),
-            ],
-            columns: 1 as const,
-          },
-        }] : []),
+        ...(status?.currentRevision
+          ? [
+              {
+                id: 'revisions',
+                title: 'Revisions',
+                data: {
+                  type: 'info-grid' as const,
+                  items: [
+                    { label: 'Current', value: status.currentRevision, color: 'text-cyan-400' },
+                    ...(status.updateRevision && status.updateRevision !== status.currentRevision
+                      ? [{ label: 'Update', value: status.updateRevision, color: 'text-amber-400' }]
+                      : []),
+                  ],
+                  columns: 1 as const,
+                },
+              },
+            ]
+          : []),
 
         // Volume Claim Templates
-        ...(spec.volumeClaimTemplates?.length ? [{
-          id: 'volume-templates',
-          title: 'Volume Claim Templates',
-          data: {
-            type: 'volume-claim-templates' as const,
-            items: spec.volumeClaimTemplates.map(template => ({
-              name: template.metadata?.name || '',
-              size: template.spec?.resources?.requests?.storage as string | undefined,
-              storageClass: template.spec?.storageClassName,
-              accessModes: template.spec?.accessModes,
-            })),
-          },
-        }] : []),
+        ...(spec.volumeClaimTemplates?.length
+          ? [
+              {
+                id: 'volume-templates',
+                title: 'Volume Claim Templates',
+                data: {
+                  type: 'volume-claim-templates' as const,
+                  items: spec.volumeClaimTemplates.map((template) => ({
+                    name: template.metadata?.name || '',
+                    size: template.spec?.resources?.requests?.storage as string | undefined,
+                    storageClass: template.spec?.storageClassName,
+                    accessModes: template.spec?.accessModes,
+                  })),
+                },
+              },
+            ]
+          : []),
 
         // Associated PVCs (async loaded)
         {
@@ -153,33 +173,34 @@ export const StatefulSetAdapter: ResourceAdapter<V1StatefulSet> = {
             title: 'Persistent Volume Claims',
             loader: async (): Promise<PVCData[]> => {
               if (!namespace || !metadata?.name) return [];
-              
+
               try {
                 const pvcConfig = await getResourceConfig(context, 'persistentvolumeclaims');
                 if (!pvcConfig) return [];
-                
+
                 const pvcs = await getResourceList(context, pvcConfig, namespace);
                 const stsName = metadata.name;
-                const claimTemplates = spec?.volumeClaimTemplates?.map(t => t.metadata?.name) ?? [];
-                
+                const claimTemplates =
+                  spec?.volumeClaimTemplates?.map((t) => t.metadata?.name) ?? [];
+
                 return pvcs
-                  .filter(pvc => {
+                  .filter((pvc) => {
                     const meta = pvc.metadata as Record<string, unknown>;
                     const pvcName = meta.name as string;
-                    
+
                     // Check if PVC matches any volume claim template pattern
-                    return claimTemplates.some(claimName => 
-                      pvcName.startsWith(`${claimName}-${stsName}-`)
+                    return claimTemplates.some((claimName) =>
+                      pvcName.startsWith(`${claimName}-${stsName}-`),
                     );
                   })
-                  .map(pvc => {
+                  .map((pvc) => {
                     const meta = pvc.metadata as Record<string, unknown>;
                     const pvcSpec = pvc.spec as Record<string, unknown>;
                     const pvcStatus = pvc.status as Record<string, unknown>;
-                    
+
                     return {
                       name: meta.name as string,
-                      status: pvcStatus?.phase as string ?? 'Unknown',
+                      status: (pvcStatus?.phase as string) ?? 'Unknown',
                       capacity: (pvcStatus?.capacity as Record<string, string>)?.storage,
                       storageClass: pvcSpec?.storageClassName as string,
                       namespace,

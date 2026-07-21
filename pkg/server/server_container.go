@@ -80,6 +80,34 @@ func (h *containerHandler) run(ctx context.Context, args ...string) ([]byte, err
 	return stdout.Bytes(), nil
 }
 
+// runtimeActive reports whether the per-container runtime helper process
+// (container-runtime-linux --uuid <id>) is still running.
+func (h *containerHandler) runtimeActive(ctx context.Context, id string) (bool, error) {
+	data, err := exec.CommandContext(ctx, "pgrep", "-fl", "container-runtime-linux").Output()
+
+	if err != nil {
+		var exitErr *exec.ExitError
+
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+
+		for i, f := range fields {
+			if f == "--uuid" && i+1 < len(fields) && fields[i+1] == id {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
 func containerError(w http.ResponseWriter, status int, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -135,6 +163,7 @@ type containerContainer struct {
 				Volume *struct {
 					Name string `json:"name"`
 				} `json:"volume"`
+				Tmpfs *struct{} `json:"tmpfs"`
 			} `json:"type"`
 		} `json:"mounts"`
 
@@ -265,6 +294,9 @@ func containerMounts(c containerContainer) []map[string]any {
 		if m.Type.Volume != nil {
 			mount["Type"] = "volume"
 			mount["Name"] = m.Type.Volume.Name
+		} else if m.Type.Tmpfs != nil {
+			mount["Type"] = "tmpfs"
+			mount["Source"] = ""
 		}
 
 		mounts = append(mounts, mount)
@@ -510,27 +542,52 @@ func (h *containerHandler) handleImagePull(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-func (h *containerHandler) handleContainerInspect(w http.ResponseWriter, r *http.Request) {
-	data, err := h.run(r.Context(), "inspect", r.PathValue("id"))
+var (
+	errContainerNotFound       = errors.New("container not found")
+	errInvalidContainerInspect = errors.New("invalid container inspect response")
+)
 
-	if err != nil {
-		containerError(w, http.StatusNotFound, err)
-		return
-	}
-
+func decodeContainerInspect(data []byte) (*containerContainer, error) {
 	var items []containerContainer
 
 	if err := json.Unmarshal(data, &items); err != nil {
-		containerError(w, http.StatusInternalServerError, err)
-		return
+		return nil, errors.Join(errInvalidContainerInspect, err)
 	}
 
 	if len(items) == 0 {
-		containerError(w, http.StatusNotFound, errors.New("container not found"))
+		return nil, errContainerNotFound
+	}
+
+	return &items[0], nil
+}
+
+func containerInspectErrorStatus(err error) int {
+	if errors.Is(err, errInvalidContainerInspect) {
+		return http.StatusInternalServerError
+	}
+
+	return http.StatusNotFound
+}
+
+func (h *containerHandler) inspect(ctx context.Context, id string) (*containerContainer, error) {
+	data, err := h.run(ctx, "inspect", id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return decodeContainerInspect(data)
+}
+
+func (h *containerHandler) handleContainerInspect(w http.ResponseWriter, r *http.Request) {
+	c, err := h.inspect(r.Context(), r.PathValue("id"))
+
+	if err != nil {
+		containerError(w, containerInspectErrorStatus(err), err)
 		return
 	}
 
-	containerJSON(w, containerInspect(items[0]))
+	containerJSON(w, containerInspect(*c))
 }
 
 func (h *containerHandler) handleContainerLogs(w http.ResponseWriter, r *http.Request) {
@@ -618,12 +675,41 @@ func (h *containerHandler) handleContainerStop(w http.ResponseWriter, r *http.Re
 }
 
 func (h *containerHandler) handleContainerRestart(w http.ResponseWriter, r *http.Request) {
-	if _, err := h.run(r.Context(), "stop", r.PathValue("id")); err != nil {
+	id := r.PathValue("id")
+
+	if _, err := h.run(r.Context(), "stop", id); err != nil {
 		containerError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	if _, err := h.run(r.Context(), "start", r.PathValue("id")); err != nil {
+	// `container stop` returns while the per-container runtime helper is still
+	// tearing down. Starting before that process exits can delete the container
+	// record after an invalid-state failure.
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	for {
+		active, err := h.runtimeActive(ctx, id)
+
+		if err != nil {
+			containerError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if !active {
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			containerError(w, http.StatusInternalServerError, errors.New("timeout waiting for container to stop"))
+			return
+
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
+
+	if _, err := h.run(r.Context(), "start", id); err != nil {
 		containerError(w, http.StatusInternalServerError, err)
 		return
 	}

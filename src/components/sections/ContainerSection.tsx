@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
-  Box, 
-  HardDrive, 
-  Cpu,
-  FileKey,
-  FileText,
-  Hash,
-} from 'lucide-react';
+import { Box, HardDrive, Cpu, FileKey, FileText, Hash } from 'lucide-react';
 import type { ContainerData, EnvVarData, EnvFromData } from './types';
 
 // Get container state styling info
@@ -23,7 +16,9 @@ function getContainerStateInfo(state?: string, reason?: string) {
     const isError = reason === 'CrashLoopBackOff' || reason === 'Error';
     return {
       label: reason || 'Waiting',
-      borderClass: isError ? 'border-red-500/30 bg-red-500/5' : 'border-amber-500/30 bg-amber-500/5',
+      borderClass: isError
+        ? 'border-red-500/30 bg-red-500/5'
+        : 'border-amber-500/30 bg-amber-500/5',
       badgeClass: isError ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400',
       iconClass: isError ? 'text-red-400' : 'text-amber-400',
     };
@@ -31,7 +26,8 @@ function getContainerStateInfo(state?: string, reason?: string) {
   if (state === 'terminated') {
     return {
       label: reason || 'Terminated',
-      borderClass: 'border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/50',
+      borderClass:
+        'border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900/50',
       badgeClass: 'bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400',
       iconClass: 'text-neutral-500 dark:text-neutral-400',
     };
@@ -46,13 +42,16 @@ function getContainerStateInfo(state?: string, reason?: string) {
 
 const METRICS_REFRESH_INTERVAL = 15000;
 
-type ContainerMetrics = { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } };
+type ContainerMetrics = {
+  cpu: { usage: string; usageNanoCores: number };
+  memory: { usage: string; usageBytes: number };
+};
 type MetricsMap = Map<string, ContainerMetrics>;
 
-export function ContainersSection({ 
-  items, 
-  metricsLoader 
-}: { 
+export function ContainersSection({
+  items,
+  metricsLoader,
+}: {
   items: ContainerData[];
   metricsLoader?: () => Promise<MetricsMap | null>;
 }) {
@@ -60,19 +59,19 @@ export function ContainersSection({
 
   useEffect(() => {
     if (!metricsLoader) return;
-    
+
     let mounted = true;
-    
+
     const fetchMetrics = async () => {
       const data = await metricsLoader();
       if (mounted) {
         setMetricsMap(data);
       }
     };
-    
+
     fetchMetrics();
     const interval = setInterval(fetchMetrics, METRICS_REFRESH_INTERVAL);
-    
+
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -80,12 +79,12 @@ export function ContainersSection({
   }, [metricsLoader]);
 
   if (items.length === 0) return null;
-  
+
   return (
     <div className="space-y-2">
       {items.map((container) => (
-        <ContainerCard 
-          key={container.name} 
+        <ContainerCard
+          key={container.name}
           container={container}
           metrics={metricsMap?.get(container.name)}
         />
@@ -94,15 +93,15 @@ export function ContainersSection({
   );
 }
 
-export function ContainerCard({ 
-  container, 
+export function ContainerCard({
+  container,
   metrics,
-}: { 
+}: {
   container: ContainerData;
   metrics?: ContainerMetrics;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const toggleExpanded = () => setExpanded(prev => !prev);
+  const toggleExpanded = () => setExpanded((prev) => !prev);
   const stateInfo = getContainerStateInfo(container.state, container.stateReason);
 
   return (
@@ -114,26 +113,32 @@ export function ContainerCard({
         <Box size={16} className={stateInfo.iconClass} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{container.name}</span>
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+              {container.name}
+            </span>
             {container.state && (
               <span className={`px-1.5 py-0.5 rounded text-xs ${stateInfo.badgeClass}`}>
                 {stateInfo.label}
               </span>
             )}
           </div>
-          <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">{container.image}</div>
+          <div className="text-xs text-neutral-600 dark:text-neutral-500 truncate">
+            {container.image}
+          </div>
         </div>
         {/* Compact metrics display in header */}
         {metrics && (
           <div className="flex items-center gap-3 text-xs font-mono">
-            <span className="text-blue-400" title="CPU">{metrics.cpu.usage}</span>
-            <span className="text-purple-400" title="Memory">{metrics.memory.usage}</span>
+            <span className="text-blue-400" title="CPU">
+              {metrics.cpu.usage}
+            </span>
+            <span className="text-purple-400" title="Memory">
+              {metrics.memory.usage}
+            </span>
           </div>
         )}
         {(container.restartCount ?? 0) > 0 && (
-          <div className="text-xs text-amber-400">
-            {container.restartCount} restarts
-          </div>
+          <div className="text-xs text-amber-400">{container.restartCount} restarts</div>
         )}
         {/* Replica count display */}
         {container.replicas && (
@@ -152,28 +157,34 @@ export function ContainerCard({
               <div className="text-xs space-y-1">
                 {container.currentTermination.reason && (
                   <div className="text-neutral-700 dark:text-neutral-400">
-                    <span className="text-neutral-600 dark:text-neutral-500">Reason:</span> {container.currentTermination.reason}
+                    <span className="text-neutral-600 dark:text-neutral-500">Reason:</span>{' '}
+                    {container.currentTermination.reason}
                   </div>
                 )}
                 {container.currentTermination.exitCode !== undefined && (
                   <div className="text-neutral-700 dark:text-neutral-400">
-                    <span className="text-neutral-600 dark:text-neutral-500">Exit Code:</span> {container.currentTermination.exitCode}
+                    <span className="text-neutral-600 dark:text-neutral-500">Exit Code:</span>{' '}
+                    {container.currentTermination.exitCode}
                   </div>
                 )}
                 {container.currentTermination.signal !== undefined && (
                   <div className="text-neutral-700 dark:text-neutral-400">
-                    <span className="text-neutral-600 dark:text-neutral-500">Signal:</span> {container.currentTermination.signal}
+                    <span className="text-neutral-600 dark:text-neutral-500">Signal:</span>{' '}
+                    {container.currentTermination.signal}
                   </div>
                 )}
                 {container.currentTermination.finishedAt && (
                   <div className="text-neutral-700 dark:text-neutral-400">
-                    <span className="text-neutral-600 dark:text-neutral-500">Finished:</span> {new Date(container.currentTermination.finishedAt).toLocaleString()}
+                    <span className="text-neutral-600 dark:text-neutral-500">Finished:</span>{' '}
+                    {new Date(container.currentTermination.finishedAt).toLocaleString()}
                   </div>
                 )}
                 {container.currentTermination.message && (
                   <div className="mt-2 p-2 bg-neutral-900/50 rounded">
                     <div className="text-neutral-600 dark:text-neutral-500 mb-1">Message:</div>
-                    <div className="text-red-300 text-[11px] font-mono break-all whitespace-pre-wrap">{container.currentTermination.message}</div>
+                    <div className="text-red-300 text-[11px] font-mono break-all whitespace-pre-wrap">
+                      {container.currentTermination.message}
+                    </div>
                   </div>
                 )}
               </div>
@@ -183,15 +194,21 @@ export function ContainerCard({
           {/* Waiting state message */}
           {container.state === 'waiting' && container.stateMessage && (
             <div className="bg-amber-500/10 border border-amber-500/30 rounded p-2">
-              <div className="text-xs text-amber-400 font-medium mb-1">Waiting: {container.stateReason}</div>
-              <div className="text-amber-300 text-[11px] font-mono break-all whitespace-pre-wrap">{container.stateMessage}</div>
+              <div className="text-xs text-amber-400 font-medium mb-1">
+                Waiting: {container.stateReason}
+              </div>
+              <div className="text-amber-300 text-[11px] font-mono break-all whitespace-pre-wrap">
+                {container.stateMessage}
+              </div>
             </div>
           )}
 
           {/* Image */}
           <div>
             <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Image</div>
-            <div className="text-xs text-cyan-600 dark:text-cyan-400 break-all">{container.image}</div>
+            <div className="text-xs text-cyan-600 dark:text-cyan-400 break-all">
+              {container.image}
+            </div>
           </div>
 
           {/* Command & Args */}
@@ -211,22 +228,26 @@ export function ContainerCard({
               <div className="text-xs space-y-0.5">
                 {container.lastTermination.reason && (
                   <div className="text-neutral-700 dark:text-neutral-400">
-                    <span className="text-neutral-600 dark:text-neutral-500">Reason:</span> {container.lastTermination.reason}
+                    <span className="text-neutral-600 dark:text-neutral-500">Reason:</span>{' '}
+                    {container.lastTermination.reason}
                   </div>
                 )}
                 {container.lastTermination.exitCode !== undefined && (
                   <div className="text-neutral-700 dark:text-neutral-400">
-                    <span className="text-neutral-600 dark:text-neutral-500">Exit Code:</span> {container.lastTermination.exitCode}
+                    <span className="text-neutral-600 dark:text-neutral-500">Exit Code:</span>{' '}
+                    {container.lastTermination.exitCode}
                   </div>
                 )}
                 {container.lastTermination.signal !== undefined && (
                   <div className="text-neutral-700 dark:text-neutral-400">
-                    <span className="text-neutral-600 dark:text-neutral-500">Signal:</span> {container.lastTermination.signal}
+                    <span className="text-neutral-600 dark:text-neutral-500">Signal:</span>{' '}
+                    {container.lastTermination.signal}
                   </div>
                 )}
                 {container.lastTermination.finishedAt && (
                   <div className="text-neutral-700 dark:text-neutral-400">
-                    <span className="text-neutral-600 dark:text-neutral-500">Finished:</span> {new Date(container.lastTermination.finishedAt).toLocaleString()}
+                    <span className="text-neutral-600 dark:text-neutral-500">Finished:</span>{' '}
+                    {new Date(container.lastTermination.finishedAt).toLocaleString()}
                   </div>
                 )}
               </div>
@@ -239,9 +260,16 @@ export function ContainerCard({
               <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Ports</div>
               <div className="flex flex-wrap gap-1">
                 {container.ports.map((port, i) => (
-                  <span key={i} className="text-xs text-neutral-900 dark:text-neutral-100 bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded">
+                  <span
+                    key={i}
+                    className="text-xs text-neutral-900 dark:text-neutral-100 bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded"
+                  >
                     {port.containerPort}/{port.protocol || 'TCP'}
-                    {port.name && <span className="text-neutral-600 dark:text-neutral-500 ml-1">({port.name})</span>}
+                    {port.name && (
+                      <span className="text-neutral-600 dark:text-neutral-500 ml-1">
+                        ({port.name})
+                      </span>
+                    )}
                   </span>
                 ))}
               </div>
@@ -283,7 +311,8 @@ export function ContainerCard({
           )}
 
           {/* Environment Variables */}
-          {((container.env && container.env.length > 0) || (container.envFrom && container.envFrom.length > 0)) && (
+          {((container.env && container.env.length > 0) ||
+            (container.envFrom && container.envFrom.length > 0)) && (
             <ContainerEnvVars env={container.env} envFrom={container.envFrom} />
           )}
 
@@ -295,11 +324,25 @@ export function ContainerCard({
               </div>
               <div className="text-xs space-y-1.5">
                 {container.mounts.map((mount, i) => (
-                  <div key={i} className="bg-neutral-100 dark:bg-neutral-900/50 rounded p-2 flex items-center gap-2">
-                    <span className="text-purple-400 truncate max-w-35" title={mount.name}>{mount.name}</span>
+                  <div
+                    key={i}
+                    className="bg-neutral-100 dark:bg-neutral-900/50 rounded p-2 flex items-center gap-2"
+                  >
+                    <span className="text-purple-400 truncate max-w-35" title={mount.name}>
+                      {mount.name}
+                    </span>
                     <span className="text-neutral-600">→</span>
-                    <span className="text-cyan-400 font-mono truncate flex-1" title={mount.mountPath}>{mount.mountPath}</span>
-                    {mount.readOnly && <span className="text-amber-400 text-[10px] px-1 py-0.5 bg-amber-500/10 rounded">(ro)</span>}
+                    <span
+                      className="text-cyan-400 font-mono truncate flex-1"
+                      title={mount.mountPath}
+                    >
+                      {mount.mountPath}
+                    </span>
+                    {mount.readOnly && (
+                      <span className="text-amber-400 text-[10px] px-1 py-0.5 bg-amber-500/10 rounded">
+                        (ro)
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -317,9 +360,7 @@ function ContainerEnvVars({ env, envFrom }: { env?: EnvVarData[]; envFrom?: EnvF
 
   return (
     <div>
-      <div className="text-xs text-neutral-500 mb-2">
-        Environment
-      </div>
+      <div className="text-xs text-neutral-500 mb-2">Environment</div>
 
       {/* EnvFrom bulk imports */}
       {hasEnvFrom && (
@@ -352,12 +393,12 @@ function ContainerEnvVars({ env, envFrom }: { env?: EnvVarData[]; envFrom?: EnvF
         <table className="w-full text-xs">
           <tbody>
             {env.map((e, index) => (
-              <tr 
+              <tr
                 key={e.name}
                 className={index % 2 === 0 ? 'bg-neutral-50 dark:bg-neutral-800/30' : ''}
               >
-                <td 
-                  className="py-1 px-2 text-sky-600 dark:text-sky-400 font-mono truncate max-w-35" 
+                <td
+                  className="py-1 px-2 text-sky-600 dark:text-sky-400 font-mono truncate max-w-35"
                   title={e.name}
                 >
                   {e.name}
@@ -378,10 +419,7 @@ function EnvValue({ env }: { env: EnvVarData }) {
   // Plain value
   if (env.value !== undefined) {
     return (
-      <span
-        className="text-emerald-600 dark:text-emerald-400 font-mono"
-        title={env.value}
-      >
+      <span className="text-emerald-600 dark:text-emerald-400 font-mono" title={env.value}>
         {env.value}
       </span>
     );
@@ -394,23 +432,36 @@ function EnvValue({ env }: { env: EnvVarData }) {
     switch (type) {
       case 'secretKeyRef':
         return (
-          <span className="flex items-center gap-1 text-amber-600 dark:text-amber-500" title={`Secret: ${source}/${key}`}>
+          <span
+            className="flex items-center gap-1 text-amber-600 dark:text-amber-500"
+            title={`Secret: ${source}/${key}`}
+          >
             <FileKey size={10} className="shrink-0" />
-            <span className="truncate font-mono">{source}/{key}</span>
+            <span className="truncate font-mono">
+              {source}/{key}
+            </span>
           </span>
         );
 
       case 'configMapKeyRef':
         return (
-          <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400" title={`ConfigMap: ${source}/${key}`}>
+          <span
+            className="flex items-center gap-1 text-blue-600 dark:text-blue-400"
+            title={`ConfigMap: ${source}/${key}`}
+          >
             <FileText size={10} className="shrink-0" />
-            <span className="truncate font-mono">{source}/{key}</span>
+            <span className="truncate font-mono">
+              {source}/{key}
+            </span>
           </span>
         );
 
       case 'fieldRef':
         return (
-          <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400" title={`Field: ${source}`}>
+          <span
+            className="flex items-center gap-1 text-purple-600 dark:text-purple-400"
+            title={`Field: ${source}`}
+          >
             <Hash size={10} className="shrink-0" />
             <span className="truncate font-mono">{source}</span>
           </span>
@@ -418,7 +469,10 @@ function EnvValue({ env }: { env: EnvVarData }) {
 
       case 'resourceFieldRef':
         return (
-          <span className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400" title={`Resource: ${source}`}>
+          <span
+            className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400"
+            title={`Resource: ${source}`}
+          >
             <Hash size={10} className="shrink-0" />
             <span className="truncate font-mono">{source}</span>
           </span>
@@ -428,4 +482,3 @@ function EnvValue({ env }: { env: EnvVarData }) {
 
   return <span className="text-neutral-500 italic">not set</span>;
 }
-

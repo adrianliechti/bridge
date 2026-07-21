@@ -102,15 +102,11 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   clusterRoute.addChildren([
     clusterIndexRoute,
-    clusterResourceRoute.addChildren([
-      clusterResourceDetailRoute,
-    ]),
+    clusterResourceRoute.addChildren([clusterResourceDetailRoute]),
   ]),
   dockerRoute.addChildren([
     dockerIndexRoute,
-    dockerResourceRoute.addChildren([
-      dockerResourceDetailRoute,
-    ]),
+    dockerResourceRoute.addChildren([dockerResourceDetailRoute]),
   ]),
 ]);
 

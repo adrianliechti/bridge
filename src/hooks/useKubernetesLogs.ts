@@ -1,5 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { streamCombinedLogs, getWorkloadPods, getPodContainers, type LogEntry as KubeLogEntry } from '../api/kubernetes/kubernetesLogs';
+import {
+  streamCombinedLogs,
+  getWorkloadPods,
+  getPodContainers,
+  type LogEntry as KubeLogEntry,
+} from '../api/kubernetes/kubernetesLogs';
 import type { LogEntry } from '../components/sections/LogViewer';
 import type { KubernetesResource } from '../api/kubernetes/kubernetes';
 
@@ -106,52 +111,62 @@ export function useKubernetesLogs({
     if (isPodWithMultipleContainers) {
       const perContainerTail = Math.ceil(tailLines / podContainers.length);
       for (const container of podContainers) {
-        controllers.push(streamCombinedLogs({
+        controllers.push(
+          streamCombinedLogs({
+            context,
+            namespace,
+            podNames: sources,
+            container,
+            follow: true,
+            tailLines: perContainerTail,
+            timestamps: true,
+            onLog: (log: KubeLogEntry) => {
+              if (cancelled) return;
+              setLogs((prev) => [
+                ...prev,
+                {
+                  timestamp: log.timestamp,
+                  message: log.message,
+                  source: log.podName,
+                  container,
+                },
+              ]);
+            },
+            onError: (err) => {
+              if (cancelled) return;
+              setError(err.message);
+            },
+          }),
+        );
+      }
+    } else {
+      controllers.push(
+        streamCombinedLogs({
           context,
           namespace,
           podNames: sources,
-          container,
+          container: podContainers.length === 1 ? podContainers[0] : undefined,
           follow: true,
-          tailLines: perContainerTail,
+          tailLines,
           timestamps: true,
           onLog: (log: KubeLogEntry) => {
             if (cancelled) return;
-            setLogs(prev => [...prev, {
-              timestamp: log.timestamp,
-              message: log.message,
-              source: log.podName,
-              container,
-            }]);
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: log.timestamp,
+                message: log.message,
+                source: log.podName,
+                container: log.container,
+              },
+            ]);
           },
           onError: (err) => {
             if (cancelled) return;
             setError(err.message);
           },
-        }));
-      }
-    } else {
-      controllers.push(streamCombinedLogs({
-        context,
-        namespace,
-        podNames: sources,
-        container: podContainers.length === 1 ? podContainers[0] : undefined,
-        follow: true,
-        tailLines,
-        timestamps: true,
-        onLog: (log: KubeLogEntry) => {
-          if (cancelled) return;
-          setLogs(prev => [...prev, {
-            timestamp: log.timestamp,
-            message: log.message,
-            source: log.podName,
-            container: log.container,
-          }]);
-        },
-        onError: (err) => {
-          if (cancelled) return;
-          setError(err.message);
-        },
-      }));
+        }),
+      );
     }
 
     return () => {

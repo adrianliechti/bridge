@@ -1,7 +1,8 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Prevent Safari overscroll bounce */
-html, body {
+html,
+body {
   overscroll-behavior: none;
   overflow: hidden;
   height: 100%;

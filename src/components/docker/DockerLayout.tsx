@@ -16,7 +16,13 @@ import { usePanels } from '../../hooks/usePanelState';
 import { ResourcePage } from './ResourcePage';
 import { getConfig } from '../../config';
 
-const validResourceTypes: DockerResourceType[] = ['applications', 'containers', 'images', 'volumes', 'networks'];
+const validResourceTypes: DockerResourceType[] = [
+  'applications',
+  'containers',
+  'images',
+  'volumes',
+  'networks',
+];
 
 function isValidResourceType(type: string): type is DockerResourceType {
   return validResourceTypes.includes(type as DockerResourceType);
@@ -50,59 +56,74 @@ export function DockerLayout() {
     }
   }, [context, resourceType, navigate]);
 
-  const setContext = useCallback((newContext: string) => {
-    if (currentResourceType) {
+  const setContext = useCallback(
+    (newContext: string) => {
+      if (currentResourceType) {
+        navigate({
+          to: '/docker/$context/$resourceType',
+          params: { context: newContext, resourceType: currentResourceType },
+        });
+      } else {
+        navigate({
+          to: '/docker/$context',
+          params: { context: newContext },
+        });
+      }
+    },
+    [currentResourceType, navigate],
+  );
+
+  const setResource = useCallback(
+    (resource: DockerResourceType) => {
       navigate({
         to: '/docker/$context/$resourceType',
-        params: { context: newContext, resourceType: currentResourceType },
+        params: { context: context!, resourceType: resource },
       });
-    } else {
-      navigate({
-        to: '/docker/$context',
-        params: { context: newContext },
-      });
-    }
-  }, [currentResourceType, navigate]);
+    },
+    [context, navigate],
+  );
 
-  const setResource = useCallback((resource: DockerResourceType) => {
-    navigate({
-      to: '/docker/$context/$resourceType',
-      params: { context: context!, resourceType: resource },
-    });
-  }, [context, navigate]);
+  const setSelectedItem = useCallback(
+    (itemName: string | undefined) => {
+      if (!currentResourceType) return;
+      if (itemName) {
+        navigate({
+          to: '/docker/$context/$resourceType/$name',
+          params: { context: context!, resourceType: currentResourceType, name: itemName },
+        });
+      } else {
+        navigate({
+          to: '/docker/$context/$resourceType',
+          params: { context: context!, resourceType: currentResourceType },
+        });
+      }
+    },
+    [context, currentResourceType, navigate],
+  );
 
-  const setSelectedItem = useCallback((itemName: string | undefined) => {
-    if (!currentResourceType) return;
-    if (itemName) {
+  const setClusterContext = useCallback(
+    (clusterContext: string) => {
       navigate({
-        to: '/docker/$context/$resourceType/$name',
-        params: { context: context!, resourceType: currentResourceType, name: itemName },
+        to: '/cluster/$context',
+        params: { context: clusterContext },
       });
-    } else {
-      navigate({
-        to: '/docker/$context/$resourceType',
-        params: { context: context!, resourceType: currentResourceType },
-      });
-    }
-  }, [context, currentResourceType, navigate]);
-
-  const setClusterContext = useCallback((clusterContext: string) => {
-    navigate({
-      to: '/cluster/$context',
-      params: { context: clusterContext },
-    });
-  }, [navigate]);
+    },
+    [navigate],
+  );
 
   const closeCommandPalette = useCallback(() => {
     setIsCommandPaletteOpen(false);
   }, []);
 
-  const navigateToItem = useCallback((resourceType: DockerResourceType, itemId: string) => {
-    navigate({
-      to: '/docker/$context/$resourceType/$name',
-      params: { context: context!, resourceType, name: itemId },
-    });
-  }, [context, navigate]);
+  const navigateToItem = useCallback(
+    (resourceType: DockerResourceType, itemId: string) => {
+      navigate({
+        to: '/docker/$context/$resourceType/$name',
+        params: { context: context!, resourceType, name: itemId },
+      });
+    },
+    [context, navigate],
+  );
 
   const commandPaletteAdapter = useMemo(() => {
     return createDockerAdapter({
@@ -117,17 +138,20 @@ export function DockerLayout() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
+        setIsCommandPaletteOpen((prev) => !prev);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const chatEnvironment = useMemo((): DockerEnvironment => ({
-    context: context || '',
-    selectedResourceType: currentResourceType || undefined,
-  }), [context, currentResourceType]);
+  const chatEnvironment = useMemo(
+    (): DockerEnvironment => ({
+      context: context || '',
+      selectedResourceType: currentResourceType || undefined,
+    }),
+    [context, currentResourceType],
+  );
 
   const chatTools = useMemo(() => createDockerTools(chatEnvironment), [chatEnvironment]);
 
@@ -182,7 +206,11 @@ export function DockerLayout() {
             <img src="/logo.png" alt="Logo" className="w-48 h-48 mx-auto dark:hidden" />
             <img src="/logo_dark.png" alt="Logo" className="w-48 h-48 mx-auto hidden dark:block" />
             <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
-              Select a resource from the sidebar or press <kbd className="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-xs">⌘K</kbd> to search
+              Select a resource from the sidebar or press{' '}
+              <kbd className="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-xs">
+                ⌘K
+              </kbd>{' '}
+              to search
             </p>
           </div>
         </main>

@@ -1,11 +1,26 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Sparkles } from 'lucide-react';
-import type { DockerContainer, DockerImage, DockerVolume, DockerNetwork, DockerNetworkInspect, ComposeApplication } from '../../api/docker/docker';
-import { 
-  listContainers, listImages, listVolumes, listNetworks, listApplications,
-  dockerContainersToTable, dockerImagesToTable, dockerVolumesToTable, dockerNetworksToTable, dockerApplicationsToTable,
-  formatContainerName 
+import type {
+  DockerContainer,
+  DockerImage,
+  DockerVolume,
+  DockerNetwork,
+  DockerNetworkInspect,
+  ComposeApplication,
+} from '../../api/docker/docker';
+import {
+  listContainers,
+  listImages,
+  listVolumes,
+  listNetworks,
+  listApplications,
+  dockerContainersToTable,
+  dockerImagesToTable,
+  dockerVolumesToTable,
+  dockerNetworksToTable,
+  dockerApplicationsToTable,
+  formatContainerName,
 } from '../../api/docker/docker';
 import type { TableRow, ResourceConfig, TableResponse } from '../../types/table';
 import { ResourcePage as BaseResourcePage } from '../ResourcePage';
@@ -15,10 +30,19 @@ import { getConfig } from '../../config';
 
 export type DockerResourceType = 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
 
-type DockerResourceObject = DockerContainer | DockerImage | DockerVolume | DockerNetwork | DockerNetworkInspect | ComposeApplication;
+type DockerResourceObject =
+  | DockerContainer
+  | DockerImage
+  | DockerVolume
+  | DockerNetwork
+  | DockerNetworkInspect
+  | ComposeApplication;
 
 // Get stable sort key for each resource type
-function getResourceSortKey(resource: DockerResourceObject, resourceType: DockerResourceType): string {
+function getResourceSortKey(
+  resource: DockerResourceObject,
+  resourceType: DockerResourceType,
+): string {
   switch (resourceType) {
     case 'applications':
       return (resource as ComposeApplication).name ?? '';
@@ -42,7 +66,9 @@ function getResourceName(resource: DockerResourceObject, resourceType: DockerRes
       return (resource as ComposeApplication).name ?? '';
     case 'containers': {
       const container = resource as DockerContainer;
-      return container.Names ? formatContainerName(container.Names) : container.Id?.substring(0, 12) ?? '';
+      return container.Names
+        ? formatContainerName(container.Names)
+        : (container.Id?.substring(0, 12) ?? '');
     }
     case 'images': {
       const image = resource as DockerImage;
@@ -61,7 +87,7 @@ function getResourceName(resource: DockerResourceObject, resourceType: DockerRes
 // Fetch function for Docker resources
 async function fetchDockerResources(
   dockerContext: string,
-  resourceType: DockerResourceType
+  resourceType: DockerResourceType,
 ): Promise<TableRow<DockerResourceObject>[]> {
   let tableData: TableResponse<DockerResourceObject>;
   switch (resourceType) {
@@ -108,10 +134,22 @@ interface ResourcePageProps {
   onToggleChatPanel?: () => void;
 }
 
-export function ResourcePage({ resourceType, context: dockerContext, selectedItem, onSelectItem, isChatPanelOpen = false, onToggleChatPanel }: ResourcePageProps) {
-
+export function ResourcePage({
+  resourceType,
+  context: dockerContext,
+  selectedItem,
+  onSelectItem,
+  isChatPanelOpen = false,
+  onToggleChatPanel,
+}: ResourcePageProps) {
   // Fetch Docker data using TanStack Query
-  const { data = [], isLoading: loading, error, refetch, isFetching } = useQuery({
+  const {
+    data = [],
+    isLoading: loading,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ['docker', dockerContext, resourceType],
     queryFn: () => fetchDockerResources(dockerContext, resourceType),
     refetchInterval: 5000,
@@ -119,23 +157,26 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   const isRefetching = isFetching && !loading;
 
   // Build config and table data
-  const config: ResourceConfig = useMemo(() => ({
-    name: resourceType,
-    namespaced: false,
-  }), [resourceType]);
+  const config: ResourceConfig = useMemo(
+    () => ({
+      name: resourceType,
+      namespaced: false,
+    }),
+    [resourceType],
+  );
 
   const tableData = useMemo(() => {
     switch (resourceType) {
       case 'applications':
-        return dockerApplicationsToTable(data.map(row => row.object as ComposeApplication));
+        return dockerApplicationsToTable(data.map((row) => row.object as ComposeApplication));
       case 'containers':
-        return dockerContainersToTable(data.map(row => row.object as DockerContainer));
+        return dockerContainersToTable(data.map((row) => row.object as DockerContainer));
       case 'images':
-        return dockerImagesToTable(data.map(row => row.object as DockerImage));
+        return dockerImagesToTable(data.map((row) => row.object as DockerImage));
       case 'volumes':
-        return dockerVolumesToTable(data.map(row => row.object as DockerVolume));
+        return dockerVolumesToTable(data.map((row) => row.object as DockerVolume));
       case 'networks':
-        return dockerNetworksToTable(data.map(row => row.object as DockerNetwork));
+        return dockerNetworksToTable(data.map((row) => row.object as DockerNetwork));
     }
   }, [resourceType, data]);
 
@@ -152,29 +193,31 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
 
   // Run-container and AI chat buttons, rendered left of the search button
   const renderHeaderActions = useCallback(() => {
-    const createButton = resourceType === 'containers' ? (
-      <button
-        onClick={() => setShowCreateDialog(true)}
-        className="p-2 rounded-md transition-colors text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800"
-        title="Run Container"
-      >
-        <Plus size={18} />
-      </button>
-    ) : null;
+    const createButton =
+      resourceType === 'containers' ? (
+        <button
+          onClick={() => setShowCreateDialog(true)}
+          className="p-2 rounded-md transition-colors text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800"
+          title="Run Container"
+        >
+          <Plus size={18} />
+        </button>
+      ) : null;
 
-    const chatButton = getConfig().ai && onToggleChatPanel ? (
-      <button
-        onClick={onToggleChatPanel}
-        className={`p-2 rounded-md transition-colors ${
-          isChatPanelOpen
-            ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-            : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
-        }`}
-        title="AI Assistant"
-      >
-        <Sparkles size={18} />
-      </button>
-    ) : null;
+    const chatButton =
+      getConfig().ai && onToggleChatPanel ? (
+        <button
+          onClick={onToggleChatPanel}
+          className={`p-2 rounded-md transition-colors ${
+            isChatPanelOpen
+              ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+              : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
+          }`}
+          title="AI Assistant"
+        >
+          <Sparkles size={18} />
+        </button>
+      ) : null;
 
     if (!createButton && !chatButton) return null;
 
@@ -187,28 +230,39 @@ export function ResourcePage({ resourceType, context: dockerContext, selectedIte
   }, [resourceType, isChatPanelOpen, onToggleChatPanel]);
 
   // Custom detail panel for Docker resources using the new ResourcePanel
-  const showDetailPanel = resourceType === 'applications' || resourceType === 'containers' || resourceType === 'images' || resourceType === 'volumes' || resourceType === 'networks';
-  
-  const renderDetailPanel = useMemo(() => showDetailPanel
-    ? (item: TableRow<DockerResourceObject>, onClose: () => void, otherPanelOpen: boolean) => {
-        return (
-          <ResourcePanel
-            context={dockerContext}
-            isOpen={true}
-            onClose={onClose}
-            otherPanelOpen={otherPanelOpen || isChatPanelOpen}
-            resource={item.object}
-            resourceType={resourceType}
-          />
-        );
-      }
-    : undefined,
-  [showDetailPanel, resourceType, isChatPanelOpen, dockerContext]);
+  const showDetailPanel =
+    resourceType === 'applications' ||
+    resourceType === 'containers' ||
+    resourceType === 'images' ||
+    resourceType === 'volumes' ||
+    resourceType === 'networks';
+
+  const renderDetailPanel = useMemo(
+    () =>
+      showDetailPanel
+        ? (item: TableRow<DockerResourceObject>, onClose: () => void, otherPanelOpen: boolean) => {
+            return (
+              <ResourcePanel
+                context={dockerContext}
+                isOpen={true}
+                onClose={onClose}
+                otherPanelOpen={otherPanelOpen || isChatPanelOpen}
+                resource={item.object}
+                resourceType={resourceType}
+              />
+            );
+          }
+        : undefined,
+    [showDetailPanel, resourceType, isChatPanelOpen, dockerContext],
+  );
 
   // Get item name for URL sync
-  const getItemName = useCallback((row: TableRow<DockerResourceObject>) => {
-    return getResourceName(row.object, resourceType);
-  }, [resourceType]);
+  const getItemName = useCallback(
+    (row: TableRow<DockerResourceObject>) => {
+      return getResourceName(row.object, resourceType);
+    },
+    [resourceType],
+  );
 
   return (
     <>

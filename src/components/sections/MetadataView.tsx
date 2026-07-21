@@ -2,14 +2,14 @@
 export function MetadataView({ metadata }: { metadata: Record<string, unknown> }) {
   const labels = metadata.labels as Record<string, string> | undefined;
   const annotations = metadata.annotations as Record<string, string> | undefined;
-  
+
   // Labels that are typically not useful for users (internal/auto-generated)
   const hiddenLabels = new Set<string>([
     'pod-template-hash',
     'controller-revision-hash',
     'pod-template-generation',
   ]);
-  
+
   // Annotations that are too verbose or internal
   const hiddenAnnotations = new Set<string>([
     'kubectl.kubernetes.io/last-applied-configuration',
@@ -18,23 +18,27 @@ export function MetadataView({ metadata }: { metadata: Record<string, unknown> }
     'deprecated.daemonset.template.generation',
     'kubernetes.io/description',
   ]);
-  
-  const filteredLabels = labels 
-    ? Object.fromEntries(
-        Object.entries(labels).filter(([key]) => !hiddenLabels.has(key))
-      )
+
+  const filteredLabels = labels
+    ? Object.fromEntries(Object.entries(labels).filter(([key]) => !hiddenLabels.has(key)))
     : undefined;
-  
-  const filteredAnnotations = annotations 
-    ? Object.fromEntries(
-        Object.entries(annotations).filter(([key]) => !hiddenAnnotations.has(key))
-      )
+
+  const filteredAnnotations = annotations
+    ? Object.fromEntries(Object.entries(annotations).filter(([key]) => !hiddenAnnotations.has(key)))
     : undefined;
 
   // Combine all entries into a single table for aligned columns
   const allEntries: Array<{ key: string; value: string; type: 'label' | 'annotation' }> = [
-    ...Object.entries(filteredLabels ?? {}).map(([key, value]) => ({ key, value, type: 'label' as const })),
-    ...Object.entries(filteredAnnotations ?? {}).map(([key, value]) => ({ key, value, type: 'annotation' as const })),
+    ...Object.entries(filteredLabels ?? {}).map(([key, value]) => ({
+      key,
+      value,
+      type: 'label' as const,
+    })),
+    ...Object.entries(filteredAnnotations ?? {}).map(([key, value]) => ({
+      key,
+      value,
+      type: 'annotation' as const,
+    })),
   ];
 
   const hasLabels = filteredLabels && Object.keys(filteredLabels).length > 0;
@@ -59,7 +63,10 @@ export function MetadataView({ metadata }: { metadata: Record<string, unknown> }
                 </td>
               </tr>
               {Object.entries(filteredLabels!).map(([key, value]) => (
-                <tr key={`label-${key}`} className="border-b border-neutral-200 dark:border-neutral-700/50">
+                <tr
+                  key={`label-${key}`}
+                  className="border-b border-neutral-200 dark:border-neutral-700/50"
+                >
                   <td className="py-1.5 pr-3 text-sky-600 dark:text-sky-400 align-top whitespace-nowrap w-[1%]">
                     {key}
                   </td>
@@ -70,7 +77,7 @@ export function MetadataView({ metadata }: { metadata: Record<string, unknown> }
               ))}
             </>
           )}
-          
+
           {/* Annotations section */}
           {hasAnnotations && (
             <>
@@ -82,7 +89,14 @@ export function MetadataView({ metadata }: { metadata: Record<string, unknown> }
                 </td>
               </tr>
               {Object.entries(filteredAnnotations!).map(([key, value], idx, arr) => (
-                <tr key={`annotation-${key}`} className={idx < arr.length - 1 ? 'border-b border-neutral-200 dark:border-neutral-700/50' : ''}>
+                <tr
+                  key={`annotation-${key}`}
+                  className={
+                    idx < arr.length - 1
+                      ? 'border-b border-neutral-200 dark:border-neutral-700/50'
+                      : ''
+                  }
+                >
                   <td className="py-1.5 pr-3 text-purple-600 dark:text-purple-400 align-top whitespace-nowrap w-[1%]">
                     {key}
                   </td>

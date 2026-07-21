@@ -3,9 +3,24 @@ import { StatusCardsSection, GaugesSection } from './StatusSection';
 import { ContainersSection } from './ContainerSection';
 import { VolumesSection } from './VolumeSection';
 import { CapacityBarsSection, TaintsSection } from './NodeSection';
-import { RelatedReplicaSetsSection, RelatedPVCsSection, RelatedJobsSection, RelatedRoleBindingsSection } from './RelatedSection';
-import { VolumeClaimTemplatesSection, ScheduleSection, JobProgressSection, TimelineSection } from './JobSection';
-import { InfoGridSection, LabelsSection, ContainerImagesSection, AddressesSection } from './InfoSection';
+import {
+  RelatedReplicaSetsSection,
+  RelatedPVCsSection,
+  RelatedJobsSection,
+  RelatedRoleBindingsSection,
+} from './RelatedSection';
+import {
+  VolumeClaimTemplatesSection,
+  ScheduleSection,
+  JobProgressSection,
+  TimelineSection,
+} from './JobSection';
+import {
+  InfoGridSection,
+  LabelsSection,
+  ContainerImagesSection,
+  AddressesSection,
+} from './InfoSection';
 import { NodeMetricsSection } from './MetricsSection';
 import { ResourceQuotaSection } from './ResourceQuotaSection';
 

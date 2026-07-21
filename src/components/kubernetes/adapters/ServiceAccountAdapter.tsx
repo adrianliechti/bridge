@@ -63,19 +63,19 @@ export const ServiceAccountAdapter: ResourceAdapter<V1ServiceAccount> = {
     const automount = resource.automountServiceAccountToken;
     const secretsCount = resource.secrets?.length ?? 0;
     const pullSecretsCount = resource.imagePullSecrets?.length ?? 0;
-    
+
     sections.push({
       id: 'status',
       data: {
         type: 'status-cards',
         items: [
-          { 
-            label: 'Automount Token', 
+          {
+            label: 'Automount Token',
             value: automount === false ? 'Disabled' : 'Enabled',
-            status: automount === false ? 'warning' : 'success'
+            status: automount === false ? 'warning' : 'success',
           },
-          { 
-            label: 'Secrets', 
+          {
+            label: 'Secrets',
             value: `${secretsCount} mounted, ${pullSecretsCount} pull`,
           },
         ],
@@ -127,7 +127,10 @@ export const ServiceAccountAdapter: ResourceAdapter<V1ServiceAccount> = {
             const rb = item as unknown as V1RoleBinding;
             const subjects = rb.subjects ?? [];
             const matches = subjects.some(
-              s => s.kind === 'ServiceAccount' && s.name === name && (s.namespace === namespace || !s.namespace)
+              (s) =>
+                s.kind === 'ServiceAccount' &&
+                s.name === name &&
+                (s.namespace === namespace || !s.namespace),
             );
             if (matches) {
               bindings.push({
@@ -157,7 +160,7 @@ export const ServiceAccountAdapter: ResourceAdapter<V1ServiceAccount> = {
             const crb = item as unknown as V1ClusterRoleBinding;
             const subjects = crb.subjects ?? [];
             const matches = subjects.some(
-              s => s.kind === 'ServiceAccount' && s.name === name && s.namespace === namespace
+              (s) => s.kind === 'ServiceAccount' && s.name === name && s.namespace === namespace,
             );
             if (matches) {
               bindings.push({

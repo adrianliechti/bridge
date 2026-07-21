@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
-import type { CommandPaletteAdapter, SearchResult, ParsedQuery, ResourceTypeItem } from '../types/commandPalette';
+import type {
+  CommandPaletteAdapter,
+  SearchResult,
+  ParsedQuery,
+  ResourceTypeItem,
+} from '../types/commandPalette';
 
 // Normalize string for fuzzy matching (remove hyphens, underscores, dots)
 function normalizeForSearch(str: string): string {
@@ -20,10 +25,10 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   const [asyncResults, setAsyncResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  
+
   // Track pre-completion input for escape revert behavior
   const [preCompletionInput, setPreCompletionInput] = useState<string | null>(null);
-  
+
   // Track the adapter and isOpen in state to detect changes during render
   const [trackedAdapter, setTrackedAdapter] = useState(adapter);
   const [wasOpen, setWasOpen] = useState(false);
@@ -86,7 +91,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   //   "/filter" -> { mode: 'filter', query: 'filter', allNamespaces: false }
   const parsedQuery = useMemo((): ParsedQuery => {
     const trimmed = query.trim();
-    
+
     // Check for filter mode first (/)
     if (trimmed.startsWith('/')) {
       return {
@@ -96,11 +101,11 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         prefix: '/',
       };
     }
-    
+
     // Check for all-namespaces search (::)
     const allNamespaces = trimmed.startsWith('::');
-    const prefix = allNamespaces ? '::' : (trimmed.startsWith(':') ? ':' : '');
-    
+    const prefix = allNamespaces ? '::' : trimmed.startsWith(':') ? ':' : '';
+
     if (!prefix) {
       // Plain search in current namespace
       return {
@@ -110,16 +115,16 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         prefix: '',
       };
     }
-    
+
     // Parse ":resourceType query" or "::resourceType query"
     const afterPrefix = trimmed.slice(prefix.length).trim();
     const spaceIndex = afterPrefix.indexOf(' ');
-    
+
     if (spaceIndex === -1) {
       // No space: either typing resource type or exact match
       // Check if it matches a known resource type
       const resourceType = adapter.findResourceType?.(afterPrefix);
-      
+
       if (resourceType) {
         // Check for special types
         if (resourceType.kind === 'namespaces') {
@@ -129,19 +134,25 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
           return { mode: 'contexts', query: '', allNamespaces: false, prefix };
         }
         // Exact resource type match, show that type's resources
-        return { mode: 'resources', resourceKind: resourceType.kind, query: '', allNamespaces, prefix };
+        return {
+          mode: 'resources',
+          resourceKind: resourceType.kind,
+          query: '',
+          allNamespaces,
+          prefix,
+        };
       }
-      
+
       // Partial match or no match - show resource types filtered
       return { mode: 'resources', query: afterPrefix, allNamespaces, prefix };
     }
-    
+
     // Has space: "resourceType query"
     const firstWord = afterPrefix.slice(0, spaceIndex);
     const searchQuery = afterPrefix.slice(spaceIndex + 1).trim();
-    
+
     const resourceType = adapter.findResourceType?.(firstWord);
-    
+
     if (resourceType) {
       // Check for special types with query
       if (resourceType.kind === 'namespaces') {
@@ -151,9 +162,15 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         return { mode: 'contexts', query: searchQuery, allNamespaces: false, prefix };
       }
       // Search within specific resource type
-      return { mode: 'search', resourceKind: resourceType.kind, query: searchQuery, allNamespaces, prefix };
+      return {
+        mode: 'search',
+        resourceKind: resourceType.kind,
+        query: searchQuery,
+        allNamespaces,
+        prefix,
+      };
     }
-    
+
     // Unknown resource type, treat as plain search
     return { mode: 'search', query: afterPrefix, allNamespaces, prefix };
   }, [query, adapter]);
@@ -163,11 +180,12 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   // Filter resource types (synchronous) - includes matching by aliases
   const filteredResourceTypes = useMemo(() => {
     const q = normalizeForSearch(searchQuery);
-    return availableResourceTypes.filter(rt => 
-      normalizeForSearch(rt.label).includes(q) ||
-      normalizeForSearch(rt.kind).includes(q) ||
-      normalizeForSearch(rt.category).includes(q) ||
-      rt.aliases?.some(alias => normalizeForSearch(alias).includes(q))
+    return availableResourceTypes.filter(
+      (rt) =>
+        normalizeForSearch(rt.label).includes(q) ||
+        normalizeForSearch(rt.kind).includes(q) ||
+        normalizeForSearch(rt.category).includes(q) ||
+        rt.aliases?.some((alias) => normalizeForSearch(alias).includes(q)),
     );
   }, [searchQuery, availableResourceTypes]);
 
@@ -175,50 +193,65 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   const filteredNamespaces = useMemo(() => {
     if (!adapter.supportsNamespaces) return [];
     const q = normalizeForSearch(searchQuery);
-    return adapter.getNamespaces().filter(ns => 
-      normalizeForSearch(ns.name).includes(q)
-    );
+    return adapter.getNamespaces().filter((ns) => normalizeForSearch(ns.name).includes(q));
   }, [searchQuery, adapter]);
 
   // Filter contexts (synchronous)
   const filteredContexts = useMemo(() => {
     if (!adapter.supportsContexts || !adapter.getContexts) return [];
     const q = normalizeForSearch(searchQuery);
-    return adapter.getContexts().filter(ctx => 
-      normalizeForSearch(ctx.name).includes(q) ||
-      (ctx.cluster && normalizeForSearch(ctx.cluster).includes(q))
-    );
+    return adapter
+      .getContexts()
+      .filter(
+        (ctx) =>
+          normalizeForSearch(ctx.name).includes(q) ||
+          (ctx.cluster && normalizeForSearch(ctx.cluster).includes(q)),
+      );
   }, [searchQuery, adapter]);
 
   // Compute synchronous results based on mode
   const syncResults = useMemo((): SearchResult[] => {
     if (searchMode === 'resources') {
-      return filteredResourceTypes.map(rt => adapter.resourceTypeToSearchResult(rt));
+      return filteredResourceTypes.map((rt) => adapter.resourceTypeToSearchResult(rt));
     }
-    
-    if (searchMode === 'namespaces' && adapter.supportsNamespaces && adapter.namespaceToSearchResult) {
-      return filteredNamespaces.map(ns => adapter.namespaceToSearchResult!(ns));
+
+    if (
+      searchMode === 'namespaces' &&
+      adapter.supportsNamespaces &&
+      adapter.namespaceToSearchResult
+    ) {
+      return filteredNamespaces.map((ns) => adapter.namespaceToSearchResult!(ns));
     }
-    
-    if (searchMode === 'contexts' && adapter.supportsContexts && adapter.contextToSearchResult && adapter.getContexts) {
-      return filteredContexts.map(ctx => adapter.contextToSearchResult!(ctx));
+
+    if (
+      searchMode === 'contexts' &&
+      adapter.supportsContexts &&
+      adapter.contextToSearchResult &&
+      adapter.getContexts
+    ) {
+      return filteredContexts.map((ctx) => adapter.contextToSearchResult!(ctx));
     }
-    
+
     // search, searchAll, and filter modes use async results
     return [];
   }, [searchMode, filteredResourceTypes, filteredNamespaces, filteredContexts, adapter]);
 
   // Final results: sync results or async results depending on mode
-  const results = (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') ? asyncResults : syncResults;
-  
+  const results =
+    searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter'
+      ? asyncResults
+      : syncResults;
+
   // Compute isSearching synchronously based on search state changes
-  const shouldStartSearching = (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') && 
-    searchQuery.length >= 2 && isInitialized;
-  
+  const shouldStartSearching =
+    (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') &&
+    searchQuery.length >= 2 &&
+    isInitialized;
+
   // Track previous searchMode and syncResults for focusedIndex reset using state
   const [trackedSearchMode, setTrackedSearchMode] = useState(searchMode);
   const [trackedSyncResultsLength, setTrackedSyncResultsLength] = useState(syncResults.length);
-  
+
   // Reset focused index during render when search mode or sync results change
   if (searchMode !== trackedSearchMode) {
     setTrackedSearchMode(searchMode);
@@ -226,11 +259,16 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     if (searchMode !== 'search' && searchMode !== 'searchAll' && searchMode !== 'filter') {
       setFocusedIndex(0);
     }
-  } else if (searchMode !== 'search' && searchMode !== 'searchAll' && searchMode !== 'filter' && syncResults.length !== trackedSyncResultsLength) {
+  } else if (
+    searchMode !== 'search' &&
+    searchMode !== 'searchAll' &&
+    searchMode !== 'filter' &&
+    syncResults.length !== trackedSyncResultsLength
+  ) {
     setTrackedSyncResultsLength(syncResults.length);
     setFocusedIndex(0);
   }
-  
+
   // Track whether we're starting a new search to set isSearching during render
   const [trackedShouldSearch, setTrackedShouldSearch] = useState(shouldStartSearching);
   if (shouldStartSearching && !trackedShouldSearch) {
@@ -269,112 +307,127 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
       }
     };
   }, [shouldStartSearching, searchMode, searchQuery, allNamespaces, resourceKind, adapter]);
-  
+
   // Clear async state synchronously when search mode changes or query is too short
-  const shouldClearSearch = (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') && 
-    searchQuery.length < 2 && asyncResults.length > 0;
+  const shouldClearSearch =
+    (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') &&
+    searchQuery.length < 2 &&
+    asyncResults.length > 0;
   if (shouldClearSearch) {
     setAsyncResults([]);
     setIsSearching(false);
   }
 
   // Handle selection
-  const handleSelect = useCallback((result: SearchResult) => {
-    // Virtual "Contexts" type (no backing resource config): selecting it
-    // enters context-search mode instead of navigating, same as typing :ctx.
-    // The adapter's handleSelect can't do this — it has no access to the query.
-    if (result.type === 'resource-type' && result.data?.kind === 'contexts' && !result.data?.resourceConfig) {
-      setQuery(':ctx ');
-      return;
-    }
-    adapter.handleSelect(result);
-  }, [adapter]);
+  const handleSelect = useCallback(
+    (result: SearchResult) => {
+      // Virtual "Contexts" type (no backing resource config): selecting it
+      // enters context-search mode instead of navigating, same as typing :ctx.
+      // The adapter's handleSelect can't do this — it has no access to the query.
+      if (
+        result.type === 'resource-type' &&
+        result.data?.kind === 'contexts' &&
+        !result.data?.resourceConfig
+      ) {
+        setQuery(':ctx ');
+        return;
+      }
+      adapter.handleSelect(result);
+    },
+    [adapter],
+  );
 
   // Handle tab completion
-  const handleTabComplete = useCallback((shift: boolean) => {
-    if (results.length === 0) return;
-    
-    // Store current input before completion if not already stored
-    if (preCompletionInput === null) {
-      setPreCompletionInput(query);
-    }
-    
-    // Get the focused result
-    const focusedResult = results[focusedIndex];
-    if (!focusedResult) return;
-    
-    // Get completion value from the focused result
-    const completionValue = focusedResult.completionValue || focusedResult.label;
-    
-    // Build the new query based on current mode
-    let newQuery: string;
-    const prefix = parsedQuery.prefix;
-    
-    if (searchMode === 'resources' && focusedResult.type === 'resource-type') {
-      // Completing a resource type - add space after for search
-      newQuery = `${prefix}${completionValue} `;
-    } else if (searchMode === 'namespaces' || searchMode === 'contexts') {
-      // Completing namespace or context
-      const typePrefix = searchMode === 'namespaces' ? 'ns' : 'ctx';
-      newQuery = `${prefix}${typePrefix} ${completionValue}`;
-    } else if (searchMode === 'search' || searchMode === 'searchAll') {
-      // Completing a resource name within a type search
-      if (parsedQuery.resourceKind) {
-        newQuery = `${prefix}${parsedQuery.resourceKind} ${completionValue}`;
-      } else {
-        newQuery = `${prefix}${completionValue}`;
+  const handleTabComplete = useCallback(
+    (shift: boolean) => {
+      if (results.length === 0) return;
+
+      // Store current input before completion if not already stored
+      if (preCompletionInput === null) {
+        setPreCompletionInput(query);
       }
-    } else if (searchMode === 'filter') {
-      newQuery = `/${completionValue}`;
-    } else {
-      newQuery = completionValue;
-    }
-    
-    setQuery(newQuery);
-    
-    // If there are multiple results with the same completion, cycle through them
-    if (results.length > 1) {
-      if (shift) {
-        setFocusedIndex(prev => (prev - 1 + results.length) % results.length);
+
+      // Get the focused result
+      const focusedResult = results[focusedIndex];
+      if (!focusedResult) return;
+
+      // Get completion value from the focused result
+      const completionValue = focusedResult.completionValue || focusedResult.label;
+
+      // Build the new query based on current mode
+      let newQuery: string;
+      const prefix = parsedQuery.prefix;
+
+      if (searchMode === 'resources' && focusedResult.type === 'resource-type') {
+        // Completing a resource type - add space after for search
+        newQuery = `${prefix}${completionValue} `;
+      } else if (searchMode === 'namespaces' || searchMode === 'contexts') {
+        // Completing namespace or context
+        const typePrefix = searchMode === 'namespaces' ? 'ns' : 'ctx';
+        newQuery = `${prefix}${typePrefix} ${completionValue}`;
+      } else if (searchMode === 'search' || searchMode === 'searchAll') {
+        // Completing a resource name within a type search
+        if (parsedQuery.resourceKind) {
+          newQuery = `${prefix}${parsedQuery.resourceKind} ${completionValue}`;
+        } else {
+          newQuery = `${prefix}${completionValue}`;
+        }
+      } else if (searchMode === 'filter') {
+        newQuery = `/${completionValue}`;
       } else {
-        setFocusedIndex(prev => (prev + 1) % results.length);
+        newQuery = completionValue;
       }
-    }
-  }, [results, focusedIndex, preCompletionInput, query, searchMode, parsedQuery]);
+
+      setQuery(newQuery);
+
+      // If there are multiple results with the same completion, cycle through them
+      if (results.length > 1) {
+        if (shift) {
+          setFocusedIndex((prev) => (prev - 1 + results.length) % results.length);
+        } else {
+          setFocusedIndex((prev) => (prev + 1) % results.length);
+        }
+      }
+    },
+    [results, focusedIndex, preCompletionInput, query, searchMode, parsedQuery],
+  );
 
   // Keyboard navigation
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setFocusedIndex(prev => Math.min(prev + 1, results.length - 1));
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setFocusedIndex(prev => Math.max(prev - 1, 0));
-        break;
-      case 'Tab':
-        e.preventDefault();
-        handleTabComplete(e.shiftKey);
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (results[focusedIndex]) {
-          handleSelect(results[focusedIndex]);
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        // If we have a pre-completion input, revert to it first
-        if (preCompletionInput !== null) {
-          setQuery(preCompletionInput);
-          setPreCompletionInput(null);
-        } else {
-          onClose();
-        }
-        break;
-    }
-  }, [results, focusedIndex, handleSelect, handleTabComplete, preCompletionInput, onClose]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setFocusedIndex((prev) => Math.min(prev + 1, results.length - 1));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setFocusedIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case 'Tab':
+          e.preventDefault();
+          handleTabComplete(e.shiftKey);
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (results[focusedIndex]) {
+            handleSelect(results[focusedIndex]);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          // If we have a pre-completion input, revert to it first
+          if (preCompletionInput !== null) {
+            setQuery(preCompletionInput);
+            setPreCompletionInput(null);
+          } else {
+            onClose();
+          }
+          break;
+      }
+    },
+    [results, focusedIndex, handleSelect, handleTabComplete, preCompletionInput, onClose],
+  );
 
   // Focus input when opened
   useEffect(() => {
@@ -402,7 +455,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   if (!isOpen) return null;
 
   return createPortal(
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -410,7 +463,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      
+
       {/* Palette */}
       <div className="relative w-full max-w-2xl mx-4 bg-white dark:bg-neutral-900 rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
         {/* Search input */}
@@ -440,7 +493,9 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
             <div className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400">
               {isSearching ? (
                 'Searching...'
-              ) : searchQuery.length > 0 && (searchMode === 'search' || searchMode === 'searchAll') && searchQuery.length < 2 ? (
+              ) : searchQuery.length > 0 &&
+                (searchMode === 'search' || searchMode === 'searchAll') &&
+                searchQuery.length < 2 ? (
                 'Type at least 2 characters to search'
               ) : searchQuery.length > 0 ? (
                 'No results found'
@@ -448,9 +503,12 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
                 <div className="space-y-2">
                   <p>Type to search or use prefixes:</p>
                   <div className="text-sm space-y-1">
-                    {helpItems.map(item => (
+                    {helpItems.map((item) => (
                       <p key={item.prefix}>
-                        <kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-xs">{item.prefix}</kbd> {item.label}
+                        <kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-xs">
+                          {item.prefix}
+                        </kbd>{' '}
+                        {item.label}
                       </p>
                     ))}
                   </div>
@@ -462,28 +520,28 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
               {results.map((result, index) => {
                 const Icon = result.icon;
                 const isFocused = index === focusedIndex;
-                
+
                 return (
                   <div
                     key={result.id}
                     data-index={index}
                     onClick={() => handleSelect(result)}
                     className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer ${
-                      isFocused 
-                        ? 'bg-neutral-100 dark:bg-neutral-800' 
+                      isFocused
+                        ? 'bg-neutral-100 dark:bg-neutral-800'
                         : 'hover:bg-neutral-50 dark:hover:bg-neutral-800/50'
                     }`}
                   >
-                    <Icon 
-                      size={18} 
+                    <Icon
+                      size={18}
                       className={`shrink-0 ${
-                        result.type === 'namespace' 
-                          ? 'text-blue-500' 
+                        result.type === 'namespace'
+                          ? 'text-blue-500'
                           : result.type === 'context'
-                          ? 'text-purple-500'
-                          : result.type === 'resource'
-                          ? 'text-green-500'
-                          : 'text-neutral-400 dark:text-neutral-500'
+                            ? 'text-purple-500'
+                            : result.type === 'resource'
+                              ? 'text-green-500'
+                              : 'text-neutral-400 dark:text-neutral-500'
                       }`}
                     />
                     <div className="flex-1 min-w-0">
@@ -517,10 +575,21 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2 border-t border-neutral-200 dark:border-neutral-700 text-xs text-neutral-400 dark:text-neutral-500">
           <div className="flex items-center gap-4">
-            <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">↑↓</kbd> Navigate</span>
-            <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">⇥</kbd> Complete</span>
-            <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">↵</kbd> Select</span>
-            <span><kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">esc</kbd> {preCompletionInput !== null ? 'Revert' : 'Close'}</span>
+            <span>
+              <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">↑↓</kbd>{' '}
+              Navigate
+            </span>
+            <span>
+              <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">⇥</kbd>{' '}
+              Complete
+            </span>
+            <span>
+              <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">↵</kbd> Select
+            </span>
+            <span>
+              <kbd className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded">esc</kbd>{' '}
+              {preCompletionInput !== null ? 'Revert' : 'Close'}
+            </span>
           </div>
           {adapter.getCurrentScopeLabel?.() && searchMode === 'search' && (
             <span>Scope: {adapter.getCurrentScopeLabel()}</span>
@@ -528,6 +597,6 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

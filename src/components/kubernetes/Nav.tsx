@@ -1,20 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Hexagon,
-  Network,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Hexagon, Network } from 'lucide-react';
 import { getCustomResourceDefinitions, crdToResourceConfig } from '../../api/kubernetes/kubernetes';
 import { getResourceConfig } from '../../api/kubernetes/kubernetesDiscovery';
 import { ScopeSelector } from './ScopeSelector';
 import { type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getConfig } from '../../config';
-import {
-  builtInResourceTypes,
-  categoryLabels,
-  type ResourceTypeConfig,
-} from './resourceTypes';
+import { builtInResourceTypes, categoryLabels, type ResourceTypeConfig } from './resourceTypes';
 
 // Compare two resources for equality (by name and group)
 function isSameResource(a: V1APIResource, b: V1APIResource): boolean {
@@ -90,19 +81,25 @@ export function Nav({
   }, []);
 
   // Group built-in items by category
-  const groupedBuiltIn = builtInResourceTypes.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
-    return acc;
-  }, {} as Record<string, ResourceTypeConfig[]>);
+  const groupedBuiltIn = builtInResourceTypes.reduce(
+    (acc, item) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    },
+    {} as Record<string, ResourceTypeConfig[]>,
+  );
 
   // Group CRDs by API group
-  const groupedCRDs = crdConfigs.reduce((acc, config) => {
-    const groupKey = config.group || 'core';
-    if (!acc[groupKey]) acc[groupKey] = [];
-    acc[groupKey].push(config);
-    return acc;
-  }, {} as Record<string, V1APIResource[]>);
+  const groupedCRDs = crdConfigs.reduce(
+    (acc, config) => {
+      const groupKey = config.group || 'core';
+      if (!acc[groupKey]) acc[groupKey] = [];
+      acc[groupKey].push(config);
+      return acc;
+    },
+    {} as Record<string, V1APIResource[]>,
+  );
 
   // Sort CRD groups by reversed domain (e.g., pkg.crossplane.io -> io.crossplane.pkg)
   const sortedCRDGroups = Object.entries(groupedCRDs).sort(([a], [b]) => {
@@ -150,7 +147,11 @@ export function Nav({
               onClick={() => toggleCategory(category)}
             >
               <span className="mr-1.5 opacity-60">
-                {expandedCategories[category] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                {expandedCategories[category] ? (
+                  <ChevronDown size={12} />
+                ) : (
+                  <ChevronRight size={12} />
+                )}
               </span>
               <span>{categoryLabels[category]}</span>
             </button>
@@ -159,7 +160,8 @@ export function Nav({
                 {items.map((item) => {
                   const config = builtInConfigs.get(item.kind);
                   if (!config) return null;
-                  const isActive = selectedResource !== null && isSameResource(config, selectedResource);
+                  const isActive =
+                    selectedResource !== null && isSameResource(config, selectedResource);
                   return (
                     <li key={item.kind}>
                       <button
@@ -171,7 +173,9 @@ export function Nav({
                         onClick={() => onSelectResource(config)}
                       >
                         <item.icon size={16} className="mr-2.5 shrink-0 opacity-70" />
-                        <span className="truncate" title={item.label}>{item.label}</span>
+                        <span className="truncate" title={item.label}>
+                          {item.label}
+                        </span>
                       </button>
                     </li>
                   );
@@ -200,12 +204,16 @@ export function Nav({
               <div className="px-2">
                 {sortedCRDGroups.map(([group, configs]) => (
                   <div key={group} className="mb-1">
-                    <div className="px-3 py-1 text-[10px] text-neutral-400 truncate lowercase dark:text-neutral-600" title={group}>
+                    <div
+                      className="px-3 py-1 text-[10px] text-neutral-400 truncate lowercase dark:text-neutral-600"
+                      title={group}
+                    >
                       {group}
                     </div>
                     <ul>
                       {configs.map((config) => {
-                        const isActive = selectedResource !== null && isSameResource(config, selectedResource);
+                        const isActive =
+                          selectedResource !== null && isSameResource(config, selectedResource);
                         return (
                           <li key={`${config.group || ''}/${config.name}`}>
                             <button
@@ -218,7 +226,9 @@ export function Nav({
                               title={`${config.kind} (${config.group})`}
                             >
                               <Hexagon size={16} className="mr-2.5 shrink-0 opacity-70" />
-                              <span className="truncate" title={config.kind}>{config.kind}</span>
+                              <span className="truncate" title={config.kind}>
+                                {config.kind}
+                              </span>
                             </button>
                           </li>
                         );

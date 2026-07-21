@@ -1,16 +1,31 @@
 // DockerConfigView - Display decoded Docker config from kubernetes.io/dockerconfigjson secrets
 
 import { useState } from 'react';
-import { Server, User, Key, Eye, EyeOff, Copy, Check, FileText, ChevronDown, ChevronRight, Mail } from 'lucide-react';
+import {
+  Server,
+  User,
+  Key,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  FileText,
+  ChevronDown,
+  ChevronRight,
+  Mail,
+} from 'lucide-react';
 
 // Docker config structure
 interface DockerConfig {
-  auths?: Record<string, {
-    username?: string;
-    password?: string;
-    email?: string;
-    auth?: string;
-  }>;
+  auths?: Record<
+    string,
+    {
+      username?: string;
+      password?: string;
+      email?: string;
+      auth?: string;
+    }
+  >;
 }
 
 // Decode Docker config (base64 JSON)
@@ -53,7 +68,7 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
   };
 
   const toggleReveal = (registry: string) => {
-    setRevealedRegistries(prev => {
+    setRevealedRegistries((prev) => {
       const next = new Set(prev);
       if (next.has(registry)) {
         next.delete(registry);
@@ -67,7 +82,9 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
   if (!config || !config.auths) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-        <span className="text-xs text-red-600 dark:text-red-400">Failed to decode Docker config</span>
+        <span className="text-xs text-red-600 dark:text-red-400">
+          Failed to decode Docker config
+        </span>
       </div>
     );
   }
@@ -77,7 +94,9 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
   if (registries.length === 0) {
     return (
       <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-        <span className="text-xs text-neutral-500 dark:text-neutral-400">No registries configured</span>
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+          No registries configured
+        </span>
       </div>
     );
   }
@@ -88,7 +107,7 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
         // Try to get username/password from auth field if not directly provided
         let username = credentials.username;
         let password = credentials.password;
-        
+
         if (!username && credentials.auth) {
           const decoded = decodeAuth(credentials.auth);
           if (decoded) {
@@ -120,9 +139,7 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
                         Username
                       </div>
                     </td>
-                    <td className="py-1.5 text-neutral-900 dark:text-neutral-300">
-                      {username}
-                    </td>
+                    <td className="py-1.5 text-neutral-900 dark:text-neutral-300">{username}</td>
                     <td className="py-1.5">
                       <div className="flex items-center gap-1 justify-end">
                         <div className="w-7" />
@@ -151,9 +168,13 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
                     </td>
                     <td className="py-1.5 font-mono">
                       {isRevealed ? (
-                        <span className="text-neutral-900 dark:text-neutral-300 break-all">{password}</span>
+                        <span className="text-neutral-900 dark:text-neutral-300 break-all">
+                          {password}
+                        </span>
                       ) : (
-                        <span className="text-neutral-500 dark:text-neutral-400">••••••••••••••••</span>
+                        <span className="text-neutral-500 dark:text-neutral-400">
+                          ••••••••••••••••
+                        </span>
                       )}
                     </td>
                     <td className="py-1.5">
@@ -228,7 +249,9 @@ export function DockerConfigView({ encoded }: DockerConfigViewProps) {
           >
             <div className="flex items-center gap-2">
               <FileText size={14} className="text-purple-500 dark:text-purple-400" />
-              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Docker Config</span>
+              <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                Docker Config
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <button
