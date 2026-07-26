@@ -20,7 +20,7 @@ export interface DockerEnvironment extends ChatEnvironment {
 
 // Zod schemas for tool inputs
 const listContainersSchema = z.object({
-  all: z.string().optional().describe('Whether to include stopped containers (default: true)'),
+  all: z.boolean().optional().describe('Whether to include stopped containers (default: true)'),
 });
 
 const listImagesSchema = z.object({});
@@ -32,7 +32,9 @@ const inspectContainerSchema = z.object({
 const getContainerLogsSchema = z.object({
   container: z.string().describe('The container name or ID'),
   tail: z
-    .string()
+    .number()
+    .int()
+    .positive()
     .optional()
     .describe('Number of lines to return from the end of the logs (default: 100)'),
 });
@@ -62,11 +64,6 @@ const getContainerLogsDef = toolDefinition({
   inputSchema: getContainerLogsSchema,
 });
 
-// Type aliases for tool inputs
-type ListContainersInput = z.infer<typeof listContainersSchema>;
-type InspectContainerInput = z.infer<typeof inspectContainerSchema>;
-type GetContainerLogsInput = z.infer<typeof getContainerLogsSchema>;
-
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -74,14 +71,21 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+// Resolve a container reference (name or ID prefix) to a container
+async function findContainer(context: string, ref: string) {
+  const containers = await listContainers(context, true);
+  return containers.find(
+    (c) =>
+      c.Id?.startsWith(ref) || formatContainerName(c.Names ?? []).toLowerCase() === ref.toLowerCase(),
+  );
+}
+
 // Create client tool implementations
 export function createDockerTools(environment: DockerEnvironment) {
   const context = environment.context;
 
-  const listContainersTool = listContainersDef.client(async (args: unknown) => {
-    const input = args as ListContainersInput;
-    const all = input.all !== 'false';
-    const containers = await listContainers(context, all);
+  const listContainersTool = listContainersDef.client(async ({ all }) => {
+    const containers = await listContainers(context, all ?? true);
 
     return {
       containers: containers.map((c) => ({
@@ -102,12 +106,13 @@ export function createDockerTools(environment: DockerEnvironment) {
 
     return {
       images: images.map((img) => {
+        // Split on the last colon — repositories may contain a registry port
         const repoTag = img.RepoTags?.[0] || '<none>:<none>';
-        const [repository, tag] = repoTag.split(':');
+        const splitAt = repoTag.lastIndexOf(':');
         return {
           id: img.Id.replace('sha256:', '').substring(0, 12),
-          repository,
-          tag,
+          repository: repoTag.slice(0, splitAt),
+          tag: repoTag.slice(splitAt + 1),
           size: formatSize(img.Size),
           created: new Date(img.Created * 1000).toISOString(),
         };
@@ -115,88 +120,60 @@ export function createDockerTools(environment: DockerEnvironment) {
     };
   });
 
-  const inspectContainerTool = inspectContainerDef.client(async (args: unknown) => {
-    const input = args as InspectContainerInput;
-    try {
-      // Try to find container by name or ID
-      const containers = await listContainers(context, true);
-      const container = containers.find(
-        (c) =>
-          c.Id?.startsWith(input.container) ||
-          formatContainerName(c.Names ?? []).toLowerCase() === input.container.toLowerCase(),
-      );
-
-      if (!container?.Id) {
-        return { error: `Container not found: ${input.container}` };
-      }
-
-      const details = await inspectContainer(context, container.Id);
-
-      return {
-        id: details.Id?.substring(0, 12),
-        name: details.Name?.replace(/^\//, ''),
-        image: details.Config?.Image,
-        state: {
-          status: details.State?.Status,
-          running: details.State?.Running,
-          startedAt: details.State?.StartedAt,
-          finishedAt: details.State?.FinishedAt,
-          exitCode: details.State?.ExitCode,
-        },
-        config: {
-          env: details.Config?.Env,
-          cmd: details.Config?.Cmd,
-          workingDir: details.Config?.WorkingDir,
-          exposedPorts: details.Config?.ExposedPorts
-            ? Object.keys(details.Config.ExposedPorts)
-            : [],
-        },
-        hostConfig: {
-          portBindings: details.HostConfig?.PortBindings,
-          binds: details.HostConfig?.Binds,
-          networkMode: details.HostConfig?.NetworkMode,
-          restartPolicy: details.HostConfig?.RestartPolicy,
-        },
-        networkSettings: {
-          ipAddress: details.NetworkSettings?.IPAddress,
-          networks: details.NetworkSettings?.Networks
-            ? Object.keys(details.NetworkSettings.Networks)
-            : [],
-        },
-        mounts: details.Mounts?.map((m) => ({
-          type: m.Type,
-          source: m.Source,
-          destination: m.Destination,
-          mode: m.Mode,
-        })),
-      };
-    } catch (error) {
-      return { error: `Failed to inspect container: ${error}` };
+  const inspectContainerTool = inspectContainerDef.client(async ({ container }) => {
+    const found = await findContainer(context, container);
+    if (!found?.Id) {
+      return { error: `Container not found: ${container}` };
     }
+
+    const details = await inspectContainer(context, found.Id);
+
+    return {
+      id: details.Id?.substring(0, 12),
+      name: details.Name?.replace(/^\//, ''),
+      image: details.Config?.Image,
+      state: {
+        status: details.State?.Status,
+        running: details.State?.Running,
+        startedAt: details.State?.StartedAt,
+        finishedAt: details.State?.FinishedAt,
+        exitCode: details.State?.ExitCode,
+      },
+      config: {
+        env: details.Config?.Env,
+        cmd: details.Config?.Cmd,
+        workingDir: details.Config?.WorkingDir,
+        exposedPorts: details.Config?.ExposedPorts ? Object.keys(details.Config.ExposedPorts) : [],
+      },
+      hostConfig: {
+        portBindings: details.HostConfig?.PortBindings,
+        binds: details.HostConfig?.Binds,
+        networkMode: details.HostConfig?.NetworkMode,
+        restartPolicy: details.HostConfig?.RestartPolicy,
+      },
+      networkSettings: {
+        ipAddress: details.NetworkSettings?.IPAddress,
+        networks: details.NetworkSettings?.Networks
+          ? Object.keys(details.NetworkSettings.Networks)
+          : [],
+      },
+      mounts: details.Mounts?.map((m) => ({
+        type: m.Type,
+        source: m.Source,
+        destination: m.Destination,
+        mode: m.Mode,
+      })),
+    };
   });
 
-  const getContainerLogsTool = getContainerLogsDef.client(async (args: unknown) => {
-    const input = args as GetContainerLogsInput;
-    try {
-      // Try to find container by name or ID
-      const containers = await listContainers(context, true);
-      const container = containers.find(
-        (c) =>
-          c.Id?.startsWith(input.container) ||
-          formatContainerName(c.Names ?? []).toLowerCase() === input.container.toLowerCase(),
-      );
-
-      if (!container?.Id) {
-        return { error: `Container not found: ${input.container}` };
-      }
-
-      const tail = parseInt(input.tail || '100', 10);
-      const logs = await getContainerLogs(context, container.Id, { tail });
-
-      return { logs: logs || '(no logs available)' };
-    } catch (error) {
-      return { error: `Failed to get logs: ${error}` };
+  const getContainerLogsTool = getContainerLogsDef.client(async ({ container, tail }) => {
+    const found = await findContainer(context, container);
+    if (!found?.Id) {
+      return { error: `Container not found: ${container}` };
     }
+
+    const logs = await getContainerLogs(context, found.Id, { tail: tail ?? 100 });
+    return { logs: logs || '(no logs available)' };
   });
 
   return clientTools(

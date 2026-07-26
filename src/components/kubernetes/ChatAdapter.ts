@@ -45,7 +45,9 @@ const getPodLogsSchema = z.object({
     .optional()
     .describe('The container name (optional, defaults to first container)'),
   tailLines: z
-    .string()
+    .number()
+    .int()
+    .positive()
     .optional()
     .describe('Number of lines to return from the end of the logs (default: 100)'),
 });
@@ -53,7 +55,10 @@ const getPodLogsSchema = z.object({
 const describeResourceSchema = z.object({
   resource: z.string().describe('The type of resource (e.g., pod, deployment, service)'),
   name: z.string().describe('The name of the resource'),
-  namespace: z.string().describe('The namespace of the resource'),
+  namespace: z
+    .string()
+    .optional()
+    .describe('The namespace of the resource (omit for cluster-scoped resources)'),
 });
 
 // Tool definitions with Zod schemas
@@ -81,48 +86,48 @@ const describeResourceDef = toolDefinition({
   inputSchema: describeResourceSchema,
 });
 
-// Get resource config from discovery API
-async function getResourceConfigForName(
-  context: string,
-  resourceName: string,
-): Promise<{ config: V1APIResource; plural: string } | null> {
-  const name = resourceName.toLowerCase();
-  const config = await getResourceConfig(context, name);
-  if (config) {
-    return { config, plural: config.name };
-  }
-  return null;
+// Build the API path for a single resource, honoring namespacing
+function resourcePath(config: V1APIResource, name: string, namespace?: string): string {
+  const apiBase = getApiBase(config);
+  return config.namespaced && namespace
+    ? `${apiBase}/namespaces/${encodeURIComponent(namespace)}/${config.name}/${encodeURIComponent(name)}`
+    : `${apiBase}/${config.name}/${encodeURIComponent(name)}`;
 }
 
-// Type aliases for tool inputs
-type ListResourcesInput = z.infer<typeof listResourcesSchema>;
-type GetResourceInput = z.infer<typeof getResourceSchema>;
-type GetPodLogsInput = z.infer<typeof getPodLogsSchema>;
-type DescribeResourceInput = z.infer<typeof describeResourceSchema>;
+type SlimmableResource = {
+  metadata?: { managedFields?: unknown; annotations?: Record<string, string> };
+  spec?: unknown;
+  status?: unknown;
+};
+
+// managedFields and the last-applied annotation are large and useless to the model
+function slimResource<T extends SlimmableResource>(resource: T): T {
+  if (resource.metadata) {
+    delete resource.metadata.managedFields;
+    delete resource.metadata.annotations?.['kubectl.kubernetes.io/last-applied-configuration'];
+  }
+  return resource;
+}
 
 // Create client tool implementations
 export function createKubernetesTools(environment: KubernetesEnvironment) {
   const context = environment.currentContext;
 
-  const listResources = listResourcesDef.client(async (args: unknown) => {
-    const input = args as ListResourcesInput;
-    const result = await getResourceConfigForName(context, input.resource);
-    if (!result) {
-      return { error: `Unknown resource type: ${input.resource}` };
+  const listResources = listResourcesDef.client(async ({ resource, namespace }) => {
+    const config = await getResourceConfig(context, resource.toLowerCase());
+    if (!config) {
+      return { error: `Unknown resource type: ${resource}` };
     }
-    const { config, plural: resourceName } = result;
 
     const apiBase = getApiBase(config);
-    let path: string;
-    if (config.namespaced && input.namespace && input.namespace !== 'all') {
-      path = `${apiBase}/namespaces/${input.namespace}/${resourceName}`;
-    } else {
-      path = `${apiBase}/${resourceName}`;
-    }
+    const path =
+      config.namespaced && namespace && namespace !== 'all'
+        ? `${apiBase}/namespaces/${encodeURIComponent(namespace)}/${config.name}`
+        : `${apiBase}/${config.name}`;
 
     const response = await fetch(`/contexts/${context}${path}`);
     if (!response.ok) {
-      return { error: `Failed to list ${resourceName}: ${response.status} ${response.statusText}` };
+      return { error: `Failed to list ${config.name}: ${response.status} ${response.statusText}` };
     }
     const data = await response.json();
 
@@ -143,38 +148,27 @@ export function createKubernetesTools(environment: KubernetesEnvironment) {
     };
   });
 
-  const getResource = getResourceDef.client(async (args: unknown) => {
-    const input = args as GetResourceInput;
-    const result = await getResourceConfigForName(context, input.resource);
-    if (!result) {
-      return { error: `Unknown resource type: ${input.resource}` };
-    }
-    const { config, plural: resourceName } = result;
-
-    const apiBase = getApiBase(config);
-    let path: string;
-    if (config.namespaced && input.namespace) {
-      path = `${apiBase}/namespaces/${input.namespace}/${resourceName}/${input.name}`;
-    } else {
-      path = `${apiBase}/${resourceName}/${input.name}`;
+  const getResource = getResourceDef.client(async ({ resource, name, namespace }) => {
+    const config = await getResourceConfig(context, resource.toLowerCase());
+    if (!config) {
+      return { error: `Unknown resource type: ${resource}` };
     }
 
-    const response = await fetch(`/contexts/${context}${path}`);
+    const response = await fetch(`/contexts/${context}${resourcePath(config, name, namespace)}`);
     if (!response.ok) {
       return {
-        error: `Failed to get ${input.resource} ${input.name}: ${response.status} ${response.statusText}`,
+        error: `Failed to get ${resource} ${name}: ${response.status} ${response.statusText}`,
       };
     }
-    return response.json();
+    return slimResource((await response.json()) as SlimmableResource);
   });
 
-  const getPodLogs = getPodLogsDef.client(async (args: unknown) => {
-    const input = args as GetPodLogsInput;
-    const tailLines = input.tailLines || '100';
-    let path = `/api/v1/namespaces/${input.namespace}/pods/${input.name}/log?tailLines=${tailLines}`;
-    if (input.container) {
-      path += `&container=${input.container}`;
+  const getPodLogs = getPodLogsDef.client(async ({ name, namespace, container, tailLines }) => {
+    const params = new URLSearchParams({ tailLines: String(tailLines ?? 100) });
+    if (container) {
+      params.set('container', container);
     }
+    const path = `/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(name)}/log?${params}`;
 
     const response = await fetch(`/contexts/${context}${path}`);
     if (!response.ok) {
@@ -184,31 +178,33 @@ export function createKubernetesTools(environment: KubernetesEnvironment) {
     return { logs: logs || '(no logs available)' };
   });
 
-  const describeResource = describeResourceDef.client(async (args: unknown) => {
-    const input = args as DescribeResourceInput;
-    const result = await getResourceConfigForName(context, input.resource);
-    if (!result) {
-      return { error: `Unknown resource type: ${input.resource}` };
-    }
-    const { config, plural: resourceName } = result;
-
-    const apiBase = getApiBase(config);
-    let path: string;
-    if (config.namespaced && input.namespace) {
-      path = `${apiBase}/namespaces/${input.namespace}/${resourceName}/${input.name}`;
-    } else {
-      path = `${apiBase}/${resourceName}/${input.name}`;
+  const describeResource = describeResourceDef.client(async ({ resource, name, namespace }) => {
+    const config = await getResourceConfig(context, resource.toLowerCase());
+    if (!config) {
+      return { error: `Unknown resource type: ${resource}` };
     }
 
-    const resourceResponse = await fetch(`/contexts/${context}${path}`);
+    const resourceResponse = await fetch(
+      `/contexts/${context}${resourcePath(config, name, namespace)}`,
+    );
     if (!resourceResponse.ok) {
-      return { error: `Failed to get ${input.resource} ${input.name}: ${resourceResponse.status}` };
+      return { error: `Failed to get ${resource} ${name}: ${resourceResponse.status}` };
     }
-    const resource = await resourceResponse.json();
+    const detail = slimResource((await resourceResponse.json()) as SlimmableResource);
 
-    // Get events related to this resource
-    const eventsPath = `/api/v1/namespaces/${input.namespace}/events?fieldSelector=involvedObject.name=${input.name}`;
-    const eventsResponse = await fetch(`/contexts/${context}${eventsPath}`);
+    // Get events related to this resource; the kind filter avoids picking up
+    // events for same-named resources of other kinds
+    const fieldSelector = [
+      `involvedObject.name=${name}`,
+      ...(config.kind ? [`involvedObject.kind=${config.kind}`] : []),
+    ].join(',');
+    const eventsPath =
+      config.namespaced && namespace
+        ? `/api/v1/namespaces/${encodeURIComponent(namespace)}/events`
+        : '/api/v1/events';
+    const eventsResponse = await fetch(
+      `/contexts/${context}${eventsPath}?fieldSelector=${encodeURIComponent(fieldSelector)}`,
+    );
     let events: unknown[] = [];
     if (eventsResponse.ok) {
       const eventsData = await eventsResponse.json();
@@ -224,9 +220,9 @@ export function createKubernetesTools(environment: KubernetesEnvironment) {
     }
 
     return {
-      metadata: resource.metadata,
-      spec: resource.spec,
-      status: resource.status,
+      metadata: detail.metadata,
+      spec: detail.spec,
+      status: detail.status,
       events,
     };
   });

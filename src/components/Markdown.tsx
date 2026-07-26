@@ -1,12 +1,42 @@
 import { memo } from 'react';
-import ReactMarkdown, { type Components } from 'react-markdown';
-import type { PluggableList } from 'unified';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
+import type { InlineNode, MarkdownExtension } from '@tanstack/markdown';
+import { streamingMarkdownExtension } from '@tanstack/markdown/extensions/streaming';
+import { Markdown as TanStackMarkdown, type MarkdownComponents } from '@tanstack/markdown/react';
+import { highlightMarkdownCode } from './highlight';
 
-const components: Partial<Components> = {
-  pre: ({ children }) => {
-    return <>{children}</>;
+const components: MarkdownComponents = {
+  pre: ({ children, className, ...props }) => {
+    const lang = (props as Record<string, unknown>)['data-lang'] as string | undefined;
+
+    return (
+      <div className="my-3">
+        <div className="flex items-center justify-between bg-neutral-700 px-3 py-1 rounded-t text-xs text-neutral-400">
+          <span>{lang || 'text'}</span>
+        </div>
+        <pre {...props} className={`${className || ''} rounded-b text-xs font-mono`}>
+          {children}
+        </pre>
+      </div>
+    );
+  },
+  code: ({ children, className, ...props }) => {
+    // Inline code spans carry no className; fenced blocks get `language-*`.
+    if (!className) {
+      return (
+        <code
+          {...props}
+          className="bg-neutral-700 px-1.5 py-0.5 rounded text-xs font-mono text-sky-300"
+        >
+          {children}
+        </code>
+      );
+    }
+
+    return (
+      <code {...props} className={className}>
+        {children}
+      </code>
+    );
   },
   li: ({ children, ...props }) => {
     return (
@@ -160,40 +190,37 @@ const components: Partial<Components> = {
   hr: ({ ...props }) => {
     return <hr className="my-4 border-neutral-600" {...props} />;
   },
-  code({ children, className, ...rest }) {
-    const match = /language-(\w+)/.exec(className || '');
-    const text = String(children).replace(/\n$/, '');
-    const isMultiLine = text.includes('\n');
+};
 
-    // Inline code (no language specified and single line)
-    if (!match && !isMultiLine) {
-      return (
-        <code
-          {...rest}
-          className={`${className || ''} bg-neutral-700 px-1.5 py-0.5 rounded text-xs font-mono text-sky-300`}
-        >
-          {children}
-        </code>
-      );
+// Render single newlines as hard breaks, matching remark-breaks behavior.
+const softBreaksExtension: MarkdownExtension = {
+  name: 'soft-breaks',
+  transformInline(nodes) {
+    if (!nodes.some((node) => node.type === 'text' && node.value.includes('\n'))) {
+      return nodes;
     }
 
-    const language = match?.[1] || 'text';
+    const result: InlineNode[] = [];
 
-    // Code block
-    return (
-      <div className="my-3">
-        <div className="flex items-center justify-between bg-neutral-700 px-3 py-1 rounded-t text-xs text-neutral-400">
-          <span>{language}</span>
-        </div>
-        <pre className="bg-neutral-800 p-3 rounded-b overflow-x-auto">
-          <code className="text-xs font-mono text-neutral-200">{text}</code>
-        </pre>
-      </div>
-    );
+    for (const node of nodes) {
+      if (node.type !== 'text' || !node.value.includes('\n')) {
+        result.push(node);
+        continue;
+      }
+
+      node.value.split('\n').forEach((part, index) => {
+        if (index > 0) result.push({ type: 'break' });
+        if (part) result.push({ type: 'text', value: part });
+      });
+    }
+
+    return result;
   },
 };
 
-const remarkPlugins: PluggableList = [remarkGfm, remarkBreaks];
+// The streaming extension trims trailing half-parsed blocks while a response
+// is still being generated.
+const extensions = [softBreaksExtension, streamingMarkdownExtension()];
 
 const NonMemoizedMarkdown = ({ children }: { children: string }) => {
   if (!children) return null;
@@ -208,9 +235,13 @@ const NonMemoizedMarkdown = ({ children }: { children: string }) => {
   processedContent = processedContent.replace(/```\n(#{1,6}\s+)/gm, '```\n\n$1');
 
   return (
-    <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
+    <TanStackMarkdown
+      components={components}
+      extensions={extensions}
+      highlighter={highlightMarkdownCode}
+    >
       {processedContent}
-    </ReactMarkdown>
+    </TanStackMarkdown>
   );
 };
 

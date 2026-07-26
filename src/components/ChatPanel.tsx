@@ -60,8 +60,7 @@ export function ChatPanel<T extends ChatEnvironment>({
       const instructions = buildInstructionsRef.current(environmentRef.current as T);
       return chat({
         adapter,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        messages: messages as any,
+        messages,
         tools: toolsRef.current,
         systemPrompts: [instructions],
         agentLoopStrategy: maxIterations(10),
@@ -132,8 +131,7 @@ export function ChatPanel<T extends ChatEnvironment>({
           part.type === 'text' && Boolean(part.content),
       )
       .map((part) => part.content)
-      .join('')
-      .replace(/^undefined/, ''); // Remove "undefined" prefix from library bug
+      .join('');
   };
 
   // Check if message is currently streaming (last assistant message while loading)
