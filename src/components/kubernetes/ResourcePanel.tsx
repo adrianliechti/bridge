@@ -2,7 +2,12 @@ import { X, Loader2, RefreshCw, Check } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { getResource, getResourceEvents, updateResource, type KubernetesResource } from '../../api/kubernetes/kubernetes';
+import {
+  getResource,
+  getResourceEvents,
+  updateResource,
+  type KubernetesResource,
+} from '../../api/kubernetes/kubernetes';
 import { getResourceConfigByKind } from '../../api/kubernetes/kubernetesDiscovery';
 import { ResourceVisualizer } from './ResourceVisualizer';
 import { hasAdapter, getResourceActions } from './index';
@@ -26,26 +31,32 @@ interface ResourcePanelProps {
 }
 
 // Metadata fields to hide from the detail panel
-const HIDDEN_METADATA_FIELDS = new Set([
-  'managedFields',
-]);
+const HIDDEN_METADATA_FIELDS = new Set(['managedFields']);
 
 // Filter hidden fields from metadata for display
 function filterHiddenMetadataFields(obj: KubernetesResource): KubernetesResource {
   const meta = obj.metadata;
   if (!meta) return obj;
-  
+
   const filteredMeta = Object.fromEntries(
-    Object.entries(meta).filter(([key]) => !HIDDEN_METADATA_FIELDS.has(key))
+    Object.entries(meta).filter(([key]) => !HIDDEN_METADATA_FIELDS.has(key)),
   );
-  
+
   return {
     ...obj,
     metadata: filteredMeta,
   };
 }
 
-export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false, resource: resourceId, tab: urlTab, onTabChange }: ResourcePanelProps) {
+export function ResourcePanel({
+  context,
+  isOpen,
+  onClose,
+  otherPanelOpen = false,
+  resource: resourceId,
+  tab: urlTab,
+  onTabChange,
+}: ResourcePanelProps) {
   // Fallback tab state for callers that don't sync the tab to the URL.
   // When onTabChange is provided, the URL (urlTab) is the source of truth.
   const [localTab, setLocalTab] = useState<TabType | undefined>(undefined);
@@ -54,26 +65,28 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   const [confirmAction, setConfirmAction] = useState<ResourceAction | null>(null);
   const [inputAction, setInputAction] = useState<ResourceAction | null>(null);
   const [inputValues, setInputValues] = useState<Record<string, string | number>>({});
-  const resourceConfigRef = useRef<Awaited<ReturnType<typeof getResourceConfigByKind>> | null>(null);
+  const resourceConfigRef = useRef<Awaited<ReturnType<typeof getResourceConfigByKind>> | null>(
+    null,
+  );
   const toolbarRef = useRef<HTMLDivElement>(null);
   const sliderPopoverRef = useRef<HTMLDivElement>(null);
 
   // Close slider popover on click outside
   useEffect(() => {
     if (!inputAction || inputAction.input?.type !== 'slider') return;
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       if (sliderPopoverRef.current && !sliderPopoverRef.current.contains(e.target as Node)) {
         setInputAction(null);
         setInputValues({});
       }
     };
-    
+
     // Delay to avoid immediate close from the click that opened it
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
     }, 0);
-    
+
     return () => {
       clearTimeout(timer);
       document.removeEventListener('mousedown', handleClickOutside);
@@ -81,13 +94,21 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   }, [inputAction]);
 
   // Fetch resource data using React Query with structural sharing
-  const { 
-    data: fullObject, 
-    isLoading: loading, 
+  const {
+    data: fullObject,
+    isLoading: loading,
     error: resourceError,
-    refetch: refetchResource
+    refetch: refetchResource,
   } = useQuery({
-    queryKey: ['kubernetes', 'resource', context, resourceId?.kind, resourceId?.apiVersion, resourceId?.name, resourceId?.namespace],
+    queryKey: [
+      'kubernetes',
+      'resource',
+      context,
+      resourceId?.kind,
+      resourceId?.apiVersion,
+      resourceId?.name,
+      resourceId?.namespace,
+    ],
     queryFn: async () => {
       if (!resourceId || !resourceId.name || !resourceId.kind) return null;
       const config = await getResourceConfigByKind(context, resourceId.kind, resourceId.apiVersion);
@@ -100,10 +121,7 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   });
 
   // Fetch events using React Query
-  const { 
-    data: events = [], 
-    isLoading: eventsLoading 
-  } = useQuery({
+  const { data: events = [], isLoading: eventsLoading } = useQuery({
     queryKey: ['kubernetes', 'events', context, resourceId?.name, resourceId?.namespace],
     queryFn: async () => {
       if (!resourceId?.name) return [];
@@ -113,12 +131,20 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
     placeholderData: keepPreviousData,
   });
 
-  const error = resourceError instanceof Error ? resourceError.message : resourceError ? String(resourceError) : null;
+  const error =
+    resourceError instanceof Error
+      ? resourceError.message
+      : resourceError
+        ? String(resourceError)
+        : null;
 
   // Get actions for the current resource
   const resourceActions = fullObject ? getResourceActions(fullObject) : [];
 
-  const executeAction = async (action: ResourceAction, values?: Record<string, string | number>) => {
+  const executeAction = async (
+    action: ResourceAction,
+    values?: Record<string, string | number>,
+  ) => {
     setActionError(null);
     setLoadingAction(action.id);
     try {
@@ -139,7 +165,9 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
       // Initialize input value with default
       const defaultValue = action.input.defaultValue
         ? action.input.defaultValue(fullObject)
-        : action.input.type === 'text' ? '' : 0;
+        : action.input.type === 'text'
+          ? ''
+          : 0;
       setInputValues({ value: defaultValue });
       setInputAction(action);
     } else if (action.confirm) {
@@ -149,28 +177,34 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
     }
   };
 
-  const handleSaveResource = useCallback(async (updatedResource: KubernetesResource) => {
-    if (!resourceId || !resourceId.name || !resourceConfigRef.current) {
-      throw new Error('Resource configuration not available');
-    }
+  const handleSaveResource = useCallback(
+    async (updatedResource: KubernetesResource) => {
+      if (!resourceId || !resourceId.name || !resourceConfigRef.current) {
+        throw new Error('Resource configuration not available');
+      }
 
-    await updateResource(
-      context,
-      resourceConfigRef.current,
-      resourceId.name,
-      updatedResource,
-      resourceId.namespace
-    );
-    
-    // Refetch to get the updated resource from the server
-    refetchResource();
-  }, [context, resourceId, refetchResource]);
+      await updateResource(
+        context,
+        resourceConfigRef.current,
+        resourceId.name,
+        updatedResource,
+        resourceId.namespace,
+      );
+
+      // Refetch to get the updated resource from the server
+      refetchResource();
+    },
+    [context, resourceId, refetchResource],
+  );
 
   // Wrapper to update both local state and URL
-  const setActiveTab = useCallback((tab: TabType) => {
-    setLocalTab(tab);
-    onTabChange?.(tab);
-  }, [onTabChange]);
+  const setActiveTab = useCallback(
+    (tab: TabType) => {
+      setLocalTab(tab);
+      onTabChange?.(tab);
+    },
+    [onTabChange],
+  );
 
   // Determine which tabs are available for the current resource (static checks)
   const kind = resourceId?.kind || '';
@@ -180,7 +214,11 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   const supportsTerminal = kind === 'Pod' && !!resourceId?.namespace;
 
   // Compute hasMetadata early (needed for tab validation)
-  const hiddenLabels = new Set(['pod-template-hash', 'controller-revision-hash', 'pod-template-generation']);
+  const hiddenLabels = new Set([
+    'pod-template-hash',
+    'controller-revision-hash',
+    'pod-template-generation',
+  ]);
   const hiddenAnnotations = new Set([
     'kubectl.kubernetes.io/last-applied-configuration',
     'deployment.kubernetes.io/revision',
@@ -192,10 +230,10 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   const rawLabels = rawMetadata?.labels as Record<string, string> | undefined;
   const rawAnnotations = rawMetadata?.annotations as Record<string, string> | undefined;
   const filteredLabelsCount = rawLabels
-    ? Object.keys(rawLabels).filter(key => !hiddenLabels.has(key)).length
+    ? Object.keys(rawLabels).filter((key) => !hiddenLabels.has(key)).length
     : 0;
   const filteredAnnotationsCount = rawAnnotations
-    ? Object.keys(rawAnnotations).filter(key => !hiddenAnnotations.has(key)).length
+    ? Object.keys(rawAnnotations).filter((key) => !hiddenAnnotations.has(key)).length
     : 0;
   const hasMetadataNow = filteredLabelsCount > 0 || filteredAnnotationsCount > 0;
   const hasEventsNow = events.length > 0;
@@ -206,7 +244,11 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   // user would be yanked off the tab they are reading. Reset when the resource
   // itself changes, via state adjustment during render (not an effect).
   const resourceIdentity = `${resourceId?.kind ?? ''}/${resourceId?.namespace ?? ''}/${resourceId?.name ?? ''}`;
-  const [caps, setCaps] = useState({ identity: resourceIdentity, sawMetadata: false, sawEvents: false });
+  const [caps, setCaps] = useState({
+    identity: resourceIdentity,
+    sawMetadata: false,
+    sawEvents: false,
+  });
   if (caps.identity !== resourceIdentity) {
     setCaps({ identity: resourceIdentity, sawMetadata: false, sawEvents: false });
     setLocalTab(undefined);
@@ -230,45 +272,61 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
   const requestedTab = onTabChange ? urlTab : localTab;
   const isTabAvailable = (tab: TabType): boolean => {
     switch (tab) {
-      case 'overview': return hasCustomAdapter;
-      case 'metadata': return hasMetadata;
-      case 'yaml': return true;
-      case 'events': return hasEvents;
-      case 'logs': return supportsLogs;
-      case 'terminal': return supportsTerminal;
-      default: return false;
+      case 'overview':
+        return hasCustomAdapter;
+      case 'metadata':
+        return hasMetadata;
+      case 'yaml':
+        return true;
+      case 'events':
+        return hasEvents;
+      case 'logs':
+        return supportsLogs;
+      case 'terminal':
+        return supportsTerminal;
+      default:
+        return false;
     }
   };
   // Data-dependent tabs may still prove available while their query loads.
   const isTabPending = (tab: TabType): boolean =>
     (tab === 'metadata' && loading) || (tab === 'events' && eventsLoading);
   const activeTab: TabType = requestedTab
-    ? (isTabAvailable(requestedTab) || isTabPending(requestedTab) ? requestedTab : defaultTab)
+    ? isTabAvailable(requestedTab) || isTabPending(requestedTab)
+      ? requestedTab
+      : defaultTab
     : defaultTab;
 
   if (!isOpen || !resourceId || !resourceId.name) return null;
 
   const rawObject = fullObject;
-  
+
   // Filter out hidden metadata fields for display
   const displayObject = rawObject ? filterHiddenMetadataFields(rawObject) : null;
   const resourceName = resourceId.name;
 
   return (
-    <aside 
+    <aside
       className="fixed top-0 h-screen bg-white border-l border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 flex flex-col z-20 shadow-xl transition-all duration-300"
       style={{
         right: otherPanelOpen ? '28rem' : '0',
         width: otherPanelOpen ? '28rem' : '40rem',
       }}
-    >      {/* Header */}
+    >
+      {' '}
+      {/* Header */}
       <header className="shrink-0 h-16 flex items-center justify-between pl-5 pr-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 truncate" title={resourceName}>
+            <h3
+              className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 truncate"
+              title={resourceName}
+            >
               {resourceName}
             </h3>
-            <p className="text-xs text-neutral-500 dark:text-neutral-500">{resourceId.namespace || 'cluster-scoped'}</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-500">
+              {resourceId.namespace || 'cluster-scoped'}
+            </p>
           </div>
         </div>
         <button
@@ -279,7 +337,6 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
           <X size={18} />
         </button>
       </header>
-
       {/* Tab Bar */}
       <div className="shrink-0 flex items-center border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50">
         <div className="flex">
@@ -360,12 +417,13 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
           <div ref={toolbarRef} className="flex items-center gap-1" />
           {activeTab === 'overview' && resourceActions.length > 0 && (
             <>
-              {resourceActions.map(action => {
+              {resourceActions.map((action) => {
                 const disabled = action.isDisabled?.(fullObject!);
                 const isDisabled = disabled === true || typeof disabled === 'string';
                 const disabledReason = typeof disabled === 'string' ? disabled : undefined;
                 const isLoading = loadingAction === action.id;
-                const isSliderOpen = inputAction?.id === action.id && action.input?.type === 'slider';
+                const isSliderOpen =
+                  inputAction?.id === action.id && action.input?.type === 'slider';
 
                 return (
                   <div key={action.id} className="relative">
@@ -377,25 +435,22 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                         flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors
                         ${isDisabled || isLoading ? 'opacity-50 cursor-not-allowed' : ''}
                         ${isSliderOpen ? 'bg-neutral-200 dark:bg-neutral-700' : ''}
-                        ${action.variant === 'primary' 
-                          ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800' 
-                          : action.variant === 'warning'
-                          ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
-                          : action.variant === 'danger'
-                          ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
-                          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                        ${
+                          action.variant === 'primary'
+                            ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                            : action.variant === 'warning'
+                              ? 'text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                              : action.variant === 'danger'
+                                ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800'
                         }
                       `}
                     >
-                      {isLoading ? (
-                        <RefreshCw size={12} className="animate-spin" />
-                      ) : (
-                        action.icon
-                      )}
+                      {isLoading ? <RefreshCw size={12} className="animate-spin" /> : action.icon}
                     </button>
                     {/* Inline slider popover */}
                     {isSliderOpen && (
-                      <div 
+                      <div
                         ref={sliderPopoverRef}
                         className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded shadow-lg px-2 py-1.5"
                       >
@@ -404,12 +459,14 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                             type="range"
                             min={action.input?.min ?? 0}
                             max={action.input?.max ?? 10}
-                            value={inputValues.value as number ?? 0}
-                            onChange={(e) => setInputValues({ value: parseInt(e.target.value, 10) })}
+                            value={(inputValues.value as number) ?? 0}
+                            onChange={(e) =>
+                              setInputValues({ value: parseInt(e.target.value, 10) })
+                            }
                             className="w-24 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer accent-blue-500"
                           />
                           <span className="text-xs font-medium text-neutral-900 dark:text-neutral-100 w-4 text-center tabular-nums">
-                            {inputValues.value as number ?? 0}
+                            {(inputValues.value as number) ?? 0}
                           </span>
                           <button
                             onClick={() => executeAction(action, inputValues)}
@@ -420,7 +477,10 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                             <Check size={14} />
                           </button>
                           <button
-                            onClick={() => { setInputAction(null); setInputValues({}); }}
+                            onClick={() => {
+                              setInputAction(null);
+                              setInputValues({});
+                            }}
                             className="p-0.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded transition-colors"
                             title="Close"
                           >
@@ -436,14 +496,12 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
           )}
         </div>
       </div>
-
       {/* Action Error */}
       {actionError && (
         <div className="shrink-0 mx-4 mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-red-600 dark:text-red-400 text-xs">
           {actionError}
         </div>
       )}
-
       {/* Action Confirmation Dialog */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -466,11 +524,12 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                 disabled={loadingAction === confirmAction.id}
                 className={`
                   px-3 py-1.5 text-xs font-medium text-white rounded transition-colors
-                  ${confirmAction.variant === 'danger' 
-                    ? 'bg-red-600 hover:bg-red-700' 
-                    : confirmAction.variant === 'warning'
-                    ? 'bg-amber-600 hover:bg-amber-700'
-                    : 'bg-blue-600 hover:bg-blue-700'
+                  ${
+                    confirmAction.variant === 'danger'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : confirmAction.variant === 'warning'
+                        ? 'bg-amber-600 hover:bg-amber-700'
+                        : 'bg-blue-600 hover:bg-blue-700'
                   }
                   ${loadingAction === confirmAction.id ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
@@ -484,7 +543,6 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
           </div>
         </div>
       )}
-
       {/* Action Input Dialog - only for non-slider types */}
       {inputAction && inputAction.input?.type !== 'slider' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -502,7 +560,8 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                 e.preventDefault();
                 // An empty number field must not coerce to 0 (e.g. silently
                 // scaling a workload to zero) — block submit instead.
-                if (inputAction.input?.type === 'number' && typeof inputValues.value !== 'number') return;
+                if (inputAction.input?.type === 'number' && typeof inputValues.value !== 'number')
+                  return;
                 executeAction(inputAction, inputValues);
               }}
               className="space-y-3"
@@ -545,11 +604,12 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
                   disabled={loadingAction === inputAction.id}
                   className={`
                     px-3 py-1.5 text-xs font-medium text-white rounded transition-colors
-                    ${inputAction.variant === 'danger' 
-                      ? 'bg-red-600 hover:bg-red-700' 
-                      : inputAction.variant === 'warning'
-                      ? 'bg-amber-600 hover:bg-amber-700'
-                      : 'bg-blue-600 hover:bg-blue-700'
+                    ${
+                      inputAction.variant === 'danger'
+                        ? 'bg-red-600 hover:bg-red-700'
+                        : inputAction.variant === 'warning'
+                          ? 'bg-amber-600 hover:bg-amber-700'
+                          : 'bg-blue-600 hover:bg-blue-700'
                     }
                     ${loadingAction === inputAction.id ? 'opacity-50 cursor-not-allowed' : ''}
                   `}
@@ -564,7 +624,6 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
           </div>
         </div>
       )}
-
       {/* Content */}
       {activeTab === 'overview' && hasCustomAdapter && (
         <div className="flex-1 overflow-auto p-4">
@@ -574,16 +633,13 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
               Loading full resource...
             </div>
           )}
-          {error && (
-            <div className="text-xs text-red-600 dark:text-red-400 mb-4">{error}</div>
-          )}
+          {error && <div className="text-xs text-red-600 dark:text-red-400 mb-4">{error}</div>}
 
           {fullObject && !loading && (
             <ResourceVisualizer context={context} resource={fullObject} hideActions />
           )}
         </div>
       )}
-
       {activeTab === 'yaml' && (
         <div className="flex-1 overflow-hidden flex flex-col">
           <ManifestEditor
@@ -595,7 +651,6 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
           />
         </div>
       )}
-
       {activeTab === 'metadata' && (
         <div className="flex-1 overflow-auto p-5">
           {displayObject && (
@@ -603,30 +658,19 @@ export function ResourcePanel({ context, isOpen, onClose, otherPanelOpen = false
           )}
         </div>
       )}
-
       {activeTab === 'events' && (
         <div className="flex-1 overflow-auto p-5">
           <EventsView events={events} loading={eventsLoading} />
         </div>
       )}
-
       {activeTab === 'logs' && supportsLogs && fullObject && (
         <div className="flex-1 overflow-hidden">
-          <KubernetesLogViewer
-            context={context}
-            resource={fullObject}
-            toolbarRef={toolbarRef}
-          />
+          <KubernetesLogViewer context={context} resource={fullObject} toolbarRef={toolbarRef} />
         </div>
       )}
-
       {activeTab === 'terminal' && supportsTerminal && fullObject && (
         <div className="flex-1 overflow-hidden">
-          <TerminalViewer
-            context={context}
-            resource={fullObject}
-            toolbarRef={toolbarRef}
-          />
+          <TerminalViewer context={context} resource={fullObject} toolbarRef={toolbarRef} />
         </div>
       )}
     </aside>

@@ -15,10 +15,10 @@ export interface ChatEnvironment {
 export interface ChatAdapterConfig {
   /** Unique identifier for this adapter */
   id: string;
-  
+
   /** Display name for the chat assistant */
   name: string;
-  
+
   /** Placeholder text for the input field */
   placeholder: string;
 }

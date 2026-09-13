@@ -3,14 +3,7 @@
  * Used by both Nav.tsx and Commands.ts (command palette)
  */
 
-import {
-  Box,
-  Layers,
-  HardDrive,
-  Network,
-  LayoutGrid,
-  type LucideIcon,
-} from 'lucide-react';
+import { Box, Layers, HardDrive, Network, LayoutGrid, type LucideIcon } from 'lucide-react';
 
 export type DockerResourceType = 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
 

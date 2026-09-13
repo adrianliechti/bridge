@@ -2,7 +2,11 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useSearch, useNavigate } from '@tanstack/react-router';
 import { Search, Sparkles } from 'lucide-react';
 import { clusterRoute, type ClusterSearch } from '../../router';
-import { getResourceConfig, getResourceConfigByQualifiedName, getResourceTypeSlug } from '../../api/kubernetes/kubernetesDiscovery';
+import {
+  getResourceConfig,
+  getResourceConfigByQualifiedName,
+  getResourceTypeSlug,
+} from '../../api/kubernetes/kubernetesDiscovery';
 import { usePanels } from '../../hooks/usePanelState';
 import { ChatPanel } from '../ChatPanel';
 import {
@@ -29,7 +33,7 @@ export function ClusterLayout() {
   const search = useSearch({ from: clusterRoute.id }) as ClusterSearch;
   const navigate = useNavigate();
   const config = getConfig();
-  
+
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [resourceConfig, setResourceConfig] = useState<V1APIResource | null>(null);
   const [resourceNotFound, setResourceNotFound] = useState(false);
@@ -39,13 +43,16 @@ export function ClusterLayout() {
   const toggleChatPanel = useCallback(() => togglePanel('ai'), [togglePanel]);
   const closeChatPanel = useCallback(() => closePanel('ai'), [closePanel]);
 
-  const kubernetesContexts = useMemo(() => config.kubernetes?.contexts || [], [config.kubernetes?.contexts]);
+  const kubernetesContexts = useMemo(
+    () => config.kubernetes?.contexts || [],
+    [config.kubernetes?.contexts],
+  );
   const dockerContexts = useMemo(() => config.docker?.contexts || [], [config.docker?.contexts]);
 
   const { data: namespacesData } = useKubernetesQuery(
     ['kubernetes', 'namespaces', context],
-    () => context ? getNamespaces(context) : Promise.resolve({ items: [] }),
-    { enabled: !!context }
+    () => (context ? getNamespaces(context) : Promise.resolve({ items: [] })),
+    { enabled: !!context },
   );
   const namespaces = useMemo(() => namespacesData?.items || [], [namespacesData]);
 
@@ -102,146 +109,173 @@ export function ClusterLayout() {
 
   const currentResourceConfig = resourceType && resourceType !== 'overview' ? resourceConfig : null;
 
-  const chatEnvironment = useMemo((): KubernetesEnvironment => ({
-    currentContext: context || '',
-    currentNamespace: search.namespace || 'all namespaces',
-    selectedResourceKind: currentResourceConfig
-      ? currentResourceConfig.group
-        ? `${currentResourceConfig.kind} (${currentResourceConfig.group}/${currentResourceConfig.version})`
-        : `${currentResourceConfig.kind} (${currentResourceConfig.version})`
-      : undefined,
-    selectedResourceName: name,
-  }), [context, search.namespace, currentResourceConfig, name]);
+  const chatEnvironment = useMemo(
+    (): KubernetesEnvironment => ({
+      currentContext: context || '',
+      currentNamespace: search.namespace || 'all namespaces',
+      selectedResourceKind: currentResourceConfig
+        ? currentResourceConfig.group
+          ? `${currentResourceConfig.kind} (${currentResourceConfig.group}/${currentResourceConfig.version})`
+          : `${currentResourceConfig.kind} (${currentResourceConfig.version})`
+        : undefined,
+      selectedResourceName: name,
+    }),
+    [context, search.namespace, currentResourceConfig, name],
+  );
 
   const chatTools = useMemo(() => createKubernetesTools(chatEnvironment), [chatEnvironment]);
 
-  const setContext = useCallback((newContext: string) => {
-    if (context) {
-      clearDiscoveryCache(context);
-      resetMetricsCache(context);
-    }
+  const setContext = useCallback(
+    (newContext: string) => {
+      if (context) {
+        clearDiscoveryCache(context);
+        resetMetricsCache(context);
+      }
 
-    const navigateTo = (type: string | undefined) => {
-      if (type) {
+      const navigateTo = (type: string | undefined) => {
+        if (type) {
+          navigate({
+            to: '/cluster/$context/$resourceType',
+            params: { context: newContext, resourceType: type },
+            search: { namespace: search.namespace },
+          });
+        } else {
+          navigate({
+            to: '/cluster/$context',
+            params: { context: newContext },
+            search: { namespace: search.namespace },
+          });
+        }
+      };
+
+      if (!resourceType || resourceType === 'overview') {
+        navigateTo(resourceType);
+        return;
+      }
+
+      getResourceConfig(newContext, resourceType)
+        .then((config) => navigateTo(config ? resourceType : undefined))
+        .catch(() => navigateTo(undefined));
+    },
+    [context, resourceType, search.namespace, navigate],
+  );
+
+  const patchSearch = useCallback(
+    (patch: Partial<ClusterSearch>, replace?: boolean) => {
+      const search = (prev: ClusterSearch) => ({ ...prev, ...patch });
+      if (resourceType && name) {
+        navigate({
+          to: '/cluster/$context/$resourceType/$name',
+          params: { context: context!, resourceType, name },
+          search,
+          replace,
+        });
+      } else if (resourceType) {
         navigate({
           to: '/cluster/$context/$resourceType',
-          params: { context: newContext, resourceType: type },
-          search: { namespace: search.namespace },
+          params: { context: context!, resourceType },
+          search,
+          replace,
         });
       } else {
         navigate({
           to: '/cluster/$context',
-          params: { context: newContext },
-          search: { namespace: search.namespace },
+          params: { context: context! },
+          search,
+          replace,
         });
       }
-    };
+    },
+    [context, resourceType, name, navigate],
+  );
 
-    if (!resourceType || resourceType === 'overview') {
-      navigateTo(resourceType);
-      return;
-    }
+  const setNamespace = useCallback(
+    (namespace: string | undefined) => {
+      // A namespace switch changes the visible list; a selected item from the
+      // previous namespace no longer belongs, so drop it (and its tab) from the URL.
+      if (resourceType && name) {
+        navigate({
+          to: '/cluster/$context/$resourceType',
+          params: { context: context!, resourceType },
+          search: (prev) => ({ ...prev, namespace, tab: undefined }),
+        });
+        return;
+      }
+      patchSearch({ namespace });
+    },
+    [context, resourceType, name, navigate, patchSearch],
+  );
 
-    getResourceConfig(newContext, resourceType)
-      .then((config) => navigateTo(config ? resourceType : undefined))
-      .catch(() => navigateTo(undefined));
-  }, [context, resourceType, search.namespace, navigate]);
-
-  const patchSearch = useCallback((patch: Partial<ClusterSearch>, replace?: boolean) => {
-    const search = (prev: ClusterSearch) => ({ ...prev, ...patch });
-    if (resourceType && name) {
-      navigate({
-        to: '/cluster/$context/$resourceType/$name',
-        params: { context: context!, resourceType, name },
-        search,
-        replace,
-      });
-    } else if (resourceType) {
-      navigate({
-        to: '/cluster/$context/$resourceType',
-        params: { context: context!, resourceType },
-        search,
-        replace,
-      });
-    } else {
-      navigate({
-        to: '/cluster/$context',
-        params: { context: context! },
-        search,
-        replace,
-      });
-    }
-  }, [context, resourceType, name, navigate]);
-
-  const setNamespace = useCallback((namespace: string | undefined) => {
-    // A namespace switch changes the visible list; a selected item from the
-    // previous namespace no longer belongs, so drop it (and its tab) from the URL.
-    if (resourceType && name) {
+  const setResource = useCallback(
+    (resource: V1APIResource | null) => {
+      const type = !resource ? 'overview' : getResourceTypeSlug(resource);
       navigate({
         to: '/cluster/$context/$resourceType',
-        params: { context: context!, resourceType },
-        search: (prev) => ({ ...prev, namespace, tab: undefined }),
+        params: { context: context!, resourceType: type },
+        search: (prev) => ({ namespace: prev.namespace }),
       });
-      return;
-    }
-    patchSearch({ namespace });
-  }, [context, resourceType, name, navigate, patchSearch]);
+    },
+    [context, navigate],
+  );
 
-  const setResource = useCallback((resource: V1APIResource | null) => {
-    const type = !resource ? 'overview' : getResourceTypeSlug(resource);
-    navigate({
-      to: '/cluster/$context/$resourceType',
-      params: { context: context!, resourceType: type },
-      search: (prev) => ({ namespace: prev.namespace }),
-    });
-  }, [context, navigate]);
+  const setSelectedItem = useCallback(
+    (itemName: string | undefined) => {
+      if (!resourceType) return;
+      if (itemName) {
+        navigate({
+          to: '/cluster/$context/$resourceType/$name',
+          params: { context: context!, resourceType, name: itemName },
+          search: (prev) => prev,
+        });
+      } else {
+        navigate({
+          to: '/cluster/$context/$resourceType',
+          params: { context: context!, resourceType },
+          search: (prev) => ({ ...prev, tab: undefined }),
+        });
+      }
+    },
+    [context, resourceType, navigate],
+  );
 
-  const setSelectedItem = useCallback((itemName: string | undefined) => {
-    if (!resourceType) return;
-    if (itemName) {
+  const setTab = useCallback(
+    (tab: 'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal' | undefined) => {
+      patchSearch({ tab }, true);
+    },
+    [patchSearch],
+  );
+
+  const setDockerContext = useCallback(
+    (dockerContext: string) => {
       navigate({
-        to: '/cluster/$context/$resourceType/$name',
-        params: { context: context!, resourceType, name: itemName },
-        search: (prev) => prev,
+        to: '/docker/$context',
+        params: { context: dockerContext },
       });
-    } else {
-      navigate({
-        to: '/cluster/$context/$resourceType',
-        params: { context: context!, resourceType },
-        search: (prev) => ({ ...prev, tab: undefined }),
-      });
-    }
-  }, [context, resourceType, navigate]);
-
-  const setTab = useCallback((tab: 'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal' | undefined) => {
-    patchSearch({ tab }, true);
-  }, [patchSearch]);
-
-  const setDockerContext = useCallback((dockerContext: string) => {
-    navigate({
-      to: '/docker/$context',
-      params: { context: dockerContext },
-    });
-  }, [navigate]);
+    },
+    [navigate],
+  );
 
   const closeCommandPalette = useCallback(() => {
     setIsCommandPaletteOpen(false);
   }, []);
 
-  const navigateToResourceItem = useCallback((type: string, itemName: string, itemNamespace?: string) => {
-    navigate({
-      to: '/cluster/$context/$resourceType/$name',
-      params: { context: context!, resourceType: type, name: itemName },
-      search: (prev) => ({ ...prev, namespace: itemNamespace ?? prev.namespace }),
-    });
-  }, [context, navigate]);
+  const navigateToResourceItem = useCallback(
+    (type: string, itemName: string, itemNamespace?: string) => {
+      navigate({
+        to: '/cluster/$context/$resourceType/$name',
+        params: { context: context!, resourceType: type, name: itemName },
+        search: (prev) => ({ ...prev, namespace: itemNamespace ?? prev.namespace }),
+      });
+    },
+    [context, navigate],
+  );
 
   const commandPaletteAdapter = useMemo(() => {
     return createKubernetesAdapter({
       context: context || '',
       namespace: search.namespace,
       namespaces,
-      contexts: kubernetesContexts.map(name => ({ name })),
+      contexts: kubernetesContexts.map((name) => ({ name })),
       currentContext: context || '',
       setNamespace,
       setContext,
@@ -249,13 +283,23 @@ export function ClusterLayout() {
       setSelectedItem: navigateToResourceItem,
       onClose: closeCommandPalette,
     });
-  }, [context, search.namespace, namespaces, kubernetesContexts, setNamespace, setContext, setResource, navigateToResourceItem, closeCommandPalette]);
+  }, [
+    context,
+    search.namespace,
+    namespaces,
+    kubernetesContexts,
+    setNamespace,
+    setContext,
+    setResource,
+    navigateToResourceItem,
+    closeCommandPalette,
+  ]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
+        setIsCommandPaletteOpen((prev) => !prev);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -299,7 +343,11 @@ export function ClusterLayout() {
             <img src="/logo.png" alt="Logo" className="w-48 h-48 mx-auto dark:hidden" />
             <img src="/logo_dark.png" alt="Logo" className="w-48 h-48 mx-auto hidden dark:block" />
             <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
-              Select a resource from the sidebar or press <kbd className="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-xs">⌘K</kbd> to search
+              Select a resource from the sidebar or press{' '}
+              <kbd className="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-xs">
+                ⌘K
+              </kbd>{' '}
+              to search
             </p>
           </div>
         </main>
@@ -307,7 +355,9 @@ export function ClusterLayout() {
         <main className="flex-1 flex flex-col h-full min-w-0">
           <header className="shrink-0 h-14 flex items-center justify-between px-5 mt-2">
             <div className="flex items-center gap-4">
-              <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-100">Overview</h2>
+              <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-100">
+                Overview
+              </h2>
             </div>
             <div className="flex items-center gap-2">
               <button

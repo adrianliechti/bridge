@@ -47,7 +47,14 @@ export interface SearchResult {
 /**
  * Search modes supported by the command palette
  */
-export type SearchMode = 'default' | 'resources' | 'namespaces' | 'contexts' | 'search' | 'searchAll' | 'filter';
+export type SearchMode =
+  | 'default'
+  | 'resources'
+  | 'namespaces'
+  | 'contexts'
+  | 'search'
+  | 'searchAll'
+  | 'filter';
 
 /**
  * Parsed query from command palette input
@@ -79,83 +86,87 @@ export interface SearchModeConfig {
 export interface CommandPaletteAdapter {
   /** Unique identifier for this adapter */
   id: string;
-  
+
   /** Available resource types for this platform */
   resourceTypes: ResourceTypeItem[];
-  
+
   /** Search mode prefix configurations */
   searchModePrefixes: SearchModeConfig[];
-  
+
   /** Whether this platform supports namespaces */
   supportsNamespaces: boolean;
-  
+
   /** Whether this platform supports contexts */
   supportsContexts?: boolean;
-  
+
   /**
    * Initialize the adapter (e.g., load resource configs)
    */
   initialize(): Promise<void>;
-  
+
   /**
    * Get available resource types (may filter based on availability)
    */
   getAvailableResourceTypes(): ResourceTypeItem[];
-  
+
   /**
    * Get namespaces/scopes (if supported)
    */
   getNamespaces(): NamespaceItem[];
-  
+
   /**
    * Get contexts/clusters (if supported)
    */
   getContexts?(): ContextItem[];
-  
+
   /**
    * Convert a resource type to a search result
    */
   resourceTypeToSearchResult(item: ResourceTypeItem): SearchResult;
-  
+
   /**
    * Convert a namespace to a search result
    */
   namespaceToSearchResult?(item: NamespaceItem): SearchResult;
-  
+
   /**
    * Convert a context to a search result
    */
   contextToSearchResult?(item: ContextItem): SearchResult;
-  
+
   /**
    * Search for resources matching the query
    * @param query Search term
    * @param allScopes Whether to search all namespaces/scopes
    * @param resourceKind Optional resource kind to filter by
    */
-  searchResources(query: string, allScopes: boolean, resourceKind?: string): Promise<SearchResult[]>;
-  
+  searchResources(
+    query: string,
+    allScopes: boolean,
+    resourceKind?: string,
+  ): Promise<SearchResult[]>;
+
   /**
    * Handle selection of a search result
    * @param result The selected result
    */
   handleSelect(result: SearchResult): void;
-  
+
   /**
    * Get placeholder text based on current search mode
    */
   getPlaceholder(searchMode: SearchMode, currentScope?: string): string;
-  
+
   /**
    * Get help text items for the empty state
    */
   getHelpItems(): { prefix: string; label: string }[];
-  
+
   /**
    * Get current scope label for footer (if applicable)
    */
   getCurrentScopeLabel?(): string | null;
-  
+
   /**
    * Find a resource type by name, kind, or alias
    */

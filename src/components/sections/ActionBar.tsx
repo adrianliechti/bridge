@@ -18,7 +18,10 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
 
   if (actions.length === 0) return null;
 
-  const executeAction = async (action: ResourceAction<T>, values?: Record<string, string | number>) => {
+  const executeAction = async (
+    action: ResourceAction<T>,
+    values?: Record<string, string | number>,
+  ) => {
     setError(null);
     setLoadingAction(action.id);
     try {
@@ -39,7 +42,9 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
       // Initialize input value with default
       const defaultValue = action.input.defaultValue
         ? action.input.defaultValue(resource)
-        : action.input.type === 'number' ? 0 : '';
+        : action.input.type === 'number'
+          ? 0
+          : '';
       setInputValues({ value: defaultValue });
       setInputAction(action);
     } else if (action.confirm) {
@@ -65,7 +70,7 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
   return (
     <>
       <div className="flex flex-wrap gap-2 mb-4">
-        {actions.map(action => {
+        {actions.map((action) => {
           const disabled = action.isDisabled?.(resource);
           const isDisabled = disabled === true || typeof disabled === 'string';
           const disabledReason = typeof disabled === 'string' ? disabled : undefined;
@@ -85,11 +90,7 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
                 ${isLoading ? 'opacity-75' : ''}
               `}
             >
-              {isLoading ? (
-                <RefreshCw size={14} className="animate-spin" />
-              ) : (
-                action.icon
-              )}
+              {isLoading ? <RefreshCw size={14} className="animate-spin" /> : action.icon}
               {action.label}
             </button>
           );
@@ -109,9 +110,7 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
             <h3 className="text-sm font-semibold text-neutral-200 mb-2">
               {confirmAction.confirm?.title}
             </h3>
-            <p className="text-xs text-neutral-400 mb-4">
-              {confirmAction.confirm?.message}
-            </p>
+            <p className="text-xs text-neutral-400 mb-4">{confirmAction.confirm?.message}</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmAction(null)}
@@ -146,9 +145,7 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
               {inputAction.input?.title}
             </h3>
             {inputAction.input?.description && (
-              <p className="text-xs text-neutral-400 mb-4">
-                {inputAction.input.description}
-              </p>
+              <p className="text-xs text-neutral-400 mb-4">{inputAction.input.description}</p>
             )}
             {(() => {
               const inputType = inputAction.input?.type;
@@ -159,81 +156,85 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
               // an empty value would silently coerce to 0 (e.g. scale to 0).
               const isValueValid = !isNumeric || Number.isFinite(numericValue);
               return (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!isValueValid) return;
-                executeAction(inputAction, inputValues);
-              }}
-              className="space-y-3"
-            >
-              <div>
-                <label className="block text-xs text-neutral-400 mb-1">
-                  {inputAction.input?.label}
-                </label>
-                {inputType === 'slider' ? (
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={inputAction.input?.min ?? 0}
-                      max={inputAction.input?.max ?? 10}
-                      value={Number.isFinite(numericValue) ? numericValue : (inputAction.input?.min ?? 0)}
-                      onChange={(e) => setInputValues({ value: parseInt(e.target.value, 10) })}
-                      className="flex-1 h-1 bg-neutral-700 rounded-full appearance-none cursor-pointer accent-blue-500"
-                      autoFocus
-                    />
-                    <span className="text-sm font-medium text-neutral-200 w-8 text-center tabular-nums">
-                      {Number.isFinite(numericValue) ? numericValue : '–'}
-                    </span>
-                  </div>
-                ) : (
-                  <input
-                    type={inputType}
-                    value={inputValues.value ?? ''}
-                    onChange={(e) => {
-                      if (inputType === 'number') {
-                        const parsed = parseInt(e.target.value, 10);
-                        setInputValues({ value: Number.isNaN(parsed) ? '' : parsed });
-                      } else {
-                        setInputValues({ value: e.target.value });
-                      }
-                    }}
-                    min={inputAction.input?.min}
-                    max={inputAction.input?.max}
-                    placeholder={inputAction.input?.placeholder}
-                    className="w-full px-3 py-2 text-sm bg-neutral-900 border border-neutral-600 rounded text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
-                    autoFocus
-                  />
-                )}
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInputAction(null);
-                    setInputValues({});
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!isValueValid) return;
+                    executeAction(inputAction, inputValues);
                   }}
-                  className="px-3 py-1.5 text-xs font-medium rounded border border-neutral-600 bg-neutral-700 hover:bg-neutral-600 text-neutral-200"
+                  className="space-y-3"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loadingAction === inputAction.id || !isValueValid}
-                  className={`
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">
+                      {inputAction.input?.label}
+                    </label>
+                    {inputType === 'slider' ? (
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={inputAction.input?.min ?? 0}
+                          max={inputAction.input?.max ?? 10}
+                          value={
+                            Number.isFinite(numericValue)
+                              ? numericValue
+                              : (inputAction.input?.min ?? 0)
+                          }
+                          onChange={(e) => setInputValues({ value: parseInt(e.target.value, 10) })}
+                          className="flex-1 h-1 bg-neutral-700 rounded-full appearance-none cursor-pointer accent-blue-500"
+                          autoFocus
+                        />
+                        <span className="text-sm font-medium text-neutral-200 w-8 text-center tabular-nums">
+                          {Number.isFinite(numericValue) ? numericValue : '–'}
+                        </span>
+                      </div>
+                    ) : (
+                      <input
+                        type={inputType}
+                        value={inputValues.value ?? ''}
+                        onChange={(e) => {
+                          if (inputType === 'number') {
+                            const parsed = parseInt(e.target.value, 10);
+                            setInputValues({ value: Number.isNaN(parsed) ? '' : parsed });
+                          } else {
+                            setInputValues({ value: e.target.value });
+                          }
+                        }}
+                        min={inputAction.input?.min}
+                        max={inputAction.input?.max}
+                        placeholder={inputAction.input?.placeholder}
+                        className="w-full px-3 py-2 text-sm bg-neutral-900 border border-neutral-600 rounded text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                        autoFocus
+                      />
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInputAction(null);
+                        setInputValues({});
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium rounded border border-neutral-600 bg-neutral-700 hover:bg-neutral-600 text-neutral-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loadingAction === inputAction.id || !isValueValid}
+                      className={`
                     flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border
                     ${getVariantClasses(inputAction.variant)}
                     ${loadingAction === inputAction.id ? 'opacity-75' : ''}
                     ${!isValueValid ? 'opacity-50 cursor-not-allowed' : ''}
                   `}
-                >
-                  {loadingAction === inputAction.id && (
-                    <RefreshCw size={14} className="animate-spin" />
-                  )}
-                  {inputAction.input?.submitLabel || 'Submit'}
-                </button>
-              </div>
-            </form>
+                    >
+                      {loadingAction === inputAction.id && (
+                        <RefreshCw size={14} className="animate-spin" />
+                      )}
+                      {inputAction.input?.submitLabel || 'Submit'}
+                    </button>
+                  </div>
+                </form>
               );
             })()}
           </div>

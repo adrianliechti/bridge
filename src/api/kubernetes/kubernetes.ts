@@ -49,10 +49,12 @@ export async function getNamespaces(context: string): Promise<V1NamespaceList> {
 }
 
 // Fetch all CustomResourceDefinitions from the cluster
-export async function getCustomResourceDefinitions(context: string): Promise<V1CustomResourceDefinition[]> {
+export async function getCustomResourceDefinitions(
+  context: string,
+): Promise<V1CustomResourceDefinition[]> {
   const response = await fetchApi<V1CustomResourceDefinitionList>(
     '/apis/apiextensions.k8s.io/v1/customresourcedefinitions',
-    context
+    context,
   );
   return response.items;
 }
@@ -68,7 +70,7 @@ export async function getResource(
   context: string,
   config: V1APIResource,
   resourceName: string,
-  namespace?: string
+  namespace?: string,
 ): Promise<KubernetesResource> {
   const apiBase = getApiBase(config);
   const url =
@@ -85,7 +87,7 @@ export async function updateResource(
   config: V1APIResource,
   resourceName: string,
   resource: KubernetesResource,
-  namespace?: string
+  namespace?: string,
 ): Promise<KubernetesResource> {
   const apiBase = getApiBase(config);
   const path =
@@ -124,7 +126,7 @@ export async function updateResource(
 export async function getResourceList(
   context: string,
   config: V1APIResource,
-  namespace?: string
+  namespace?: string,
 ): Promise<KubernetesResource[]> {
   const apiBase = getApiBase(config);
   const url =
@@ -140,7 +142,7 @@ export async function getResourceList(
 export async function getResourceEvents(
   context: string,
   resourceName: string,
-  namespace?: string
+  namespace?: string,
 ): Promise<CoreV1Event[]> {
   const fieldSelector = namespace
     ? `involvedObject.name=${resourceName},involvedObject.namespace=${namespace}`
@@ -166,7 +168,7 @@ export async function deleteResource(
   context: string,
   config: V1APIResource,
   resourceName: string,
-  namespace?: string
+  namespace?: string,
 ): Promise<void> {
   const apiBase = getApiBase(config);
   const path =
@@ -204,7 +206,7 @@ export async function scaleResource(
   config: V1APIResource,
   resourceName: string,
   replicas: number,
-  namespace?: string
+  namespace?: string,
 ): Promise<void> {
   const apiBase = getApiBase(config);
   const path =
@@ -254,7 +256,7 @@ export async function restartWorkload(
   context: string,
   config: V1APIResource,
   resourceName: string,
-  namespace?: string
+  namespace?: string,
 ): Promise<void> {
   const apiBase = getApiBase(config);
   const path =

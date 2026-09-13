@@ -31,12 +31,13 @@ export type {
 export async function getResourceTable(
   context: string,
   config: V1APIResource,
-  namespace?: string
+  namespace?: string,
 ): Promise<KubernetesTableResponse> {
   const apiBase = getApiBase(config);
-  const url = config.namespaced && namespace
-    ? `${apiBase}/namespaces/${namespace}/${config.name}`
-    : `${apiBase}/${config.name}`;
+  const url =
+    config.namespaced && namespace
+      ? `${apiBase}/namespaces/${namespace}/${config.name}`
+      : `${apiBase}/${config.name}`;
 
   return fetchTable(url, context);
 }

@@ -67,26 +67,148 @@ const kindIcons: Record<string, LucideIcon> = {
 };
 
 // Resource kind to color mapping (Tailwind colors for light/dark theme support)
-const kindColors: Record<string, { bg: string; bgDark: string; border: string; borderDark: string; text: string; textDark: string }> = {
-  Pod: { bg: '#dcfce7', bgDark: '#14532d', border: '#22c55e', borderDark: '#4ade80', text: '#166534', textDark: '#86efac' },
-  Deployment: { bg: '#dbeafe', bgDark: '#1e3a8a', border: '#3b82f6', borderDark: '#60a5fa', text: '#1e40af', textDark: '#93c5fd' },
-  DaemonSet: { bg: '#f3e8ff', bgDark: '#581c87', border: '#a855f7', borderDark: '#c084fc', text: '#6b21a8', textDark: '#d8b4fe' },
-  StatefulSet: { bg: '#ede9fe', bgDark: '#5b21b6', border: '#8b5cf6', borderDark: '#a78bfa', text: '#5b21b6', textDark: '#c4b5fd' },
-  Job: { bg: '#fef3c7', bgDark: '#78350f', border: '#f59e0b', borderDark: '#fbbf24', text: '#92400e', textDark: '#fcd34d' },
-  CronJob: { bg: '#ffedd5', bgDark: '#7c2d12', border: '#f97316', borderDark: '#fb923c', text: '#9a3412', textDark: '#fdba74' },
-  Service: { bg: '#cffafe', bgDark: '#164e63', border: '#06b6d4', borderDark: '#22d3ee', text: '#155e75', textDark: '#67e8f9' },
-  Ingress: { bg: '#ccfbf1', bgDark: '#134e4a', border: '#14b8a6', borderDark: '#2dd4bf', text: '#115e59', textDark: '#5eead4' },
-  Gateway: { bg: '#d1fae5', bgDark: '#065f46', border: '#10b981', borderDark: '#34d399', text: '#065f46', textDark: '#6ee7b7' },
-  HTTPRoute: { bg: '#a7f3d0', bgDark: '#047857', border: '#34d399', borderDark: '#6ee7b7', text: '#047857', textDark: '#a7f3d0' },
-  GRPCRoute: { bg: '#a7f3d0', bgDark: '#047857', border: '#34d399', borderDark: '#6ee7b7', text: '#047857', textDark: '#a7f3d0' },
-  NetworkPolicy: { bg: '#fef3c7', bgDark: '#78350f', border: '#f59e0b', borderDark: '#fbbf24', text: '#92400e', textDark: '#fcd34d' },
-  PersistentVolume: { bg: '#f1f5f9', bgDark: '#334155', border: '#64748b', borderDark: '#94a3b8', text: '#334155', textDark: '#cbd5e1' },
-  PersistentVolumeClaim: { bg: '#f8fafc', bgDark: '#475569', border: '#94a3b8', borderDark: '#cbd5e1', text: '#475569', textDark: '#e2e8f0' },
-  ConfigMap: { bg: '#fef9c3', bgDark: '#713f12', border: '#eab308', borderDark: '#facc15', text: '#854d0e', textDark: '#fde047' },
-  Secret: { bg: '#fee2e2', bgDark: '#7f1d1d', border: '#ef4444', borderDark: '#f87171', text: '#991b1b', textDark: '#fca5a5' },
+const kindColors: Record<
+  string,
+  { bg: string; bgDark: string; border: string; borderDark: string; text: string; textDark: string }
+> = {
+  Pod: {
+    bg: '#dcfce7',
+    bgDark: '#14532d',
+    border: '#22c55e',
+    borderDark: '#4ade80',
+    text: '#166534',
+    textDark: '#86efac',
+  },
+  Deployment: {
+    bg: '#dbeafe',
+    bgDark: '#1e3a8a',
+    border: '#3b82f6',
+    borderDark: '#60a5fa',
+    text: '#1e40af',
+    textDark: '#93c5fd',
+  },
+  DaemonSet: {
+    bg: '#f3e8ff',
+    bgDark: '#581c87',
+    border: '#a855f7',
+    borderDark: '#c084fc',
+    text: '#6b21a8',
+    textDark: '#d8b4fe',
+  },
+  StatefulSet: {
+    bg: '#ede9fe',
+    bgDark: '#5b21b6',
+    border: '#8b5cf6',
+    borderDark: '#a78bfa',
+    text: '#5b21b6',
+    textDark: '#c4b5fd',
+  },
+  Job: {
+    bg: '#fef3c7',
+    bgDark: '#78350f',
+    border: '#f59e0b',
+    borderDark: '#fbbf24',
+    text: '#92400e',
+    textDark: '#fcd34d',
+  },
+  CronJob: {
+    bg: '#ffedd5',
+    bgDark: '#7c2d12',
+    border: '#f97316',
+    borderDark: '#fb923c',
+    text: '#9a3412',
+    textDark: '#fdba74',
+  },
+  Service: {
+    bg: '#cffafe',
+    bgDark: '#164e63',
+    border: '#06b6d4',
+    borderDark: '#22d3ee',
+    text: '#155e75',
+    textDark: '#67e8f9',
+  },
+  Ingress: {
+    bg: '#ccfbf1',
+    bgDark: '#134e4a',
+    border: '#14b8a6',
+    borderDark: '#2dd4bf',
+    text: '#115e59',
+    textDark: '#5eead4',
+  },
+  Gateway: {
+    bg: '#d1fae5',
+    bgDark: '#065f46',
+    border: '#10b981',
+    borderDark: '#34d399',
+    text: '#065f46',
+    textDark: '#6ee7b7',
+  },
+  HTTPRoute: {
+    bg: '#a7f3d0',
+    bgDark: '#047857',
+    border: '#34d399',
+    borderDark: '#6ee7b7',
+    text: '#047857',
+    textDark: '#a7f3d0',
+  },
+  GRPCRoute: {
+    bg: '#a7f3d0',
+    bgDark: '#047857',
+    border: '#34d399',
+    borderDark: '#6ee7b7',
+    text: '#047857',
+    textDark: '#a7f3d0',
+  },
+  NetworkPolicy: {
+    bg: '#fef3c7',
+    bgDark: '#78350f',
+    border: '#f59e0b',
+    borderDark: '#fbbf24',
+    text: '#92400e',
+    textDark: '#fcd34d',
+  },
+  PersistentVolume: {
+    bg: '#f1f5f9',
+    bgDark: '#334155',
+    border: '#64748b',
+    borderDark: '#94a3b8',
+    text: '#334155',
+    textDark: '#cbd5e1',
+  },
+  PersistentVolumeClaim: {
+    bg: '#f8fafc',
+    bgDark: '#475569',
+    border: '#94a3b8',
+    borderDark: '#cbd5e1',
+    text: '#475569',
+    textDark: '#e2e8f0',
+  },
+  ConfigMap: {
+    bg: '#fef9c3',
+    bgDark: '#713f12',
+    border: '#eab308',
+    borderDark: '#facc15',
+    text: '#854d0e',
+    textDark: '#fde047',
+  },
+  Secret: {
+    bg: '#fee2e2',
+    bgDark: '#7f1d1d',
+    border: '#ef4444',
+    borderDark: '#f87171',
+    text: '#991b1b',
+    textDark: '#fca5a5',
+  },
 };
 
-const defaultColors = { bg: '#f3f4f6', bgDark: '#374151', border: '#9ca3af', borderDark: '#6b7280', text: '#374151', textDark: '#d1d5db' };
+const defaultColors = {
+  bg: '#f3f4f6',
+  bgDark: '#374151',
+  border: '#9ca3af',
+  borderDark: '#6b7280',
+  text: '#374151',
+  textDark: '#d1d5db',
+};
 
 // Helper function to get the appropriate color based on dark mode
 function getThemedColors(kind: string, isDark: boolean) {
@@ -106,23 +228,42 @@ function getStatus(r: K8sResource): { status: string; color: string; colorDark: 
   if (r.kind === 'Pod') {
     const phase = (r.status as { phase?: string })?.phase || 'Unknown';
     status = phase;
-    if (phase === 'Running') { color = '#22c55e'; colorDark = '#4ade80'; }
-    else if (phase === 'Pending') { color = '#eab308'; colorDark = '#facc15'; }
-    else if (phase === 'Failed') { color = '#ef4444'; colorDark = '#f87171'; }
-    else if (phase === 'Succeeded') { color = '#22c55e'; colorDark = '#4ade80'; }
+    if (phase === 'Running') {
+      color = '#22c55e';
+      colorDark = '#4ade80';
+    } else if (phase === 'Pending') {
+      color = '#eab308';
+      colorDark = '#facc15';
+    } else if (phase === 'Failed') {
+      color = '#ef4444';
+      colorDark = '#f87171';
+    } else if (phase === 'Succeeded') {
+      color = '#22c55e';
+      colorDark = '#4ade80';
+    }
   } else if (r.kind === 'DaemonSet') {
     // DaemonSets use different status fields than Deployments/StatefulSets
     const desired = (r.status as { desiredNumberScheduled?: number })?.desiredNumberScheduled || 0;
     const ready = (r.status as { numberReady?: number })?.numberReady || 0;
     status = `${ready}/${desired}`;
-    if (ready === desired && desired > 0) { color = '#22c55e'; colorDark = '#4ade80'; }
-    else { color = '#eab308'; colorDark = '#facc15'; }
+    if (ready === desired && desired > 0) {
+      color = '#22c55e';
+      colorDark = '#4ade80';
+    } else {
+      color = '#eab308';
+      colorDark = '#facc15';
+    }
   } else if (['Deployment', 'StatefulSet'].includes(r.kind)) {
     const replicas = (r.status as { replicas?: number })?.replicas || 0;
     const ready = (r.status as { readyReplicas?: number })?.readyReplicas || 0;
     status = `${ready}/${replicas}`;
-    if (ready === replicas && replicas > 0) { color = '#22c55e'; colorDark = '#4ade80'; }
-    else { color = '#eab308'; colorDark = '#facc15'; }
+    if (ready === replicas && replicas > 0) {
+      color = '#22c55e';
+      colorDark = '#4ade80';
+    } else {
+      color = '#eab308';
+      colorDark = '#facc15';
+    }
   } else if (r.kind === 'Service') {
     status = 'Active';
     color = '#22c55e';
@@ -130,13 +271,28 @@ function getStatus(r: K8sResource): { status: string; color: string; colorDark: 
   } else if (r.kind === 'Job') {
     const succeeded = (r.status as { succeeded?: number })?.succeeded || 0;
     const failed = (r.status as { failed?: number })?.failed || 0;
-    if (succeeded > 0) { status = 'Succeeded'; color = '#22c55e'; colorDark = '#4ade80'; }
-    else if (failed > 0) { status = 'Failed'; color = '#ef4444'; colorDark = '#f87171'; }
-    else { status = 'Running'; color = '#eab308'; colorDark = '#facc15'; }
+    if (succeeded > 0) {
+      status = 'Succeeded';
+      color = '#22c55e';
+      colorDark = '#4ade80';
+    } else if (failed > 0) {
+      status = 'Failed';
+      color = '#ef4444';
+      colorDark = '#f87171';
+    } else {
+      status = 'Running';
+      color = '#eab308';
+      colorDark = '#facc15';
+    }
   } else if (r.kind === 'PersistentVolumeClaim') {
     status = (r.status as { phase?: string })?.phase || 'Unknown';
-    if (status === 'Bound') { color = '#22c55e'; colorDark = '#4ade80'; }
-    else { color = '#eab308'; colorDark = '#facc15'; }
+    if (status === 'Bound') {
+      color = '#22c55e';
+      colorDark = '#4ade80';
+    } else {
+      color = '#eab308';
+      colorDark = '#facc15';
+    }
   } else if (['ConfigMap', 'Secret', 'Ingress', 'CronJob'].includes(r.kind)) {
     status = 'Active';
     color = '#22c55e';
@@ -154,7 +310,7 @@ interface LayoutNode {
   y: number;
   width: number;
   height: number;
-  childPods?: LayoutNode[];  // For controllers that contain pods
+  childPods?: LayoutNode[]; // For controllers that contain pods
 }
 
 interface LayoutEdge {
@@ -178,7 +334,7 @@ interface Application {
 // Node dimensions
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 60;
-const COMPACT_NODE_SIZE = 48;  // For services and gateways
+const COMPACT_NODE_SIZE = 48; // For services and gateways
 const POD_WIDTH = 120;
 const POD_HEIGHT = 32;
 const POD_GAP = 6;
@@ -200,14 +356,17 @@ interface ResourceOverviewProps {
 
 // Fetch every resource kind shown on the overview map. Kinds that fail
 // (e.g. Gateway API not installed) are simply skipped.
-async function fetchOverviewResources(context: string, namespace: string | undefined): Promise<K8sResource[]> {
+async function fetchOverviewResources(
+  context: string,
+  namespace: string | undefined,
+): Promise<K8sResource[]> {
   // If no namespace is selected, fetch from all namespaces
   const namespacePath = namespace ? `/namespaces/${namespace}` : '';
 
   const resourceTypes = [
     { path: `/api/v1${namespacePath}/pods`, kind: 'Pod' },
     { path: `/apis/apps/v1${namespacePath}/deployments`, kind: 'Deployment' },
-    { path: `/apis/apps/v1${namespacePath}/replicasets`, kind: 'ReplicaSet' },  // For owner chain traversal
+    { path: `/apis/apps/v1${namespacePath}/replicasets`, kind: 'ReplicaSet' }, // For owner chain traversal
     { path: `/apis/apps/v1${namespacePath}/statefulsets`, kind: 'StatefulSet' },
     { path: `/apis/apps/v1${namespacePath}/daemonsets`, kind: 'DaemonSet' },
     { path: `/api/v1${namespacePath}/services`, kind: 'Service' },
@@ -229,11 +388,11 @@ async function fetchOverviewResources(context: string, namespace: string | undef
       try {
         const data = await fetchApi<K8sResourceList>(path, context);
         // Set kind on each item since Kubernetes list API doesn't include it
-        return (data.items || []).map(item => ({ ...item, kind }));
+        return (data.items || []).map((item) => ({ ...item, kind }));
       } catch {
         return [];
       }
-    })
+    }),
   );
 
   const allResources: K8sResource[] = [];
@@ -245,7 +404,10 @@ async function fetchOverviewResources(context: string, namespace: string | undef
   return allResources;
 }
 
-export function ResourceOverview({ context: contextProp, namespace: namespaceProp }: ResourceOverviewProps) {
+export function ResourceOverview({
+  context: contextProp,
+  namespace: namespaceProp,
+}: ResourceOverviewProps) {
   // Use props directly - they come from the router now
   const context = contextProp || '';
   const namespace = namespaceProp;
@@ -264,7 +426,7 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
   } = useKubernetesQuery(
     ['kubernetes', 'overview', context, namespace],
     () => fetchOverviewResources(context, namespace),
-    { refetchInterval: 0 } // manual refresh only, as before
+    { refetchInterval: 0 }, // manual refresh only, as before
   );
   const allResources = useMemo(() => allResourcesData ?? [], [allResourcesData]);
   const applications = useMemo(() => buildLayout(allResources), [allResources]);
@@ -287,21 +449,21 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
       setIsDarkMode(hasClass || mediaQuery.matches);
     };
-    
+
     checkDarkMode();
-    
+
     // Watch for changes to the dark mode class
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class'],
     });
-    
+
     // Watch for media query changes
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const mediaListener = () => checkDarkMode();
     mediaQuery.addEventListener('change', mediaListener);
-    
+
     return () => {
       observer.disconnect();
       mediaQuery.removeEventListener('change', mediaListener);
@@ -309,41 +471,50 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
   }, []);
 
   // Pan handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 0) {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
-    }
-  }, [transform.x, transform.y]);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button === 0) {
+        setIsPanning(true);
+        setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+      }
+    },
+    [transform.x, transform.y],
+  );
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isPanning) {
-      setTransform((t) => ({
-        ...t,
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
-      }));
-    }
-  }, [isPanning, panStart]);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (isPanning) {
+        setTransform((t) => ({
+          ...t,
+          x: e.clientX - panStart.x,
+          y: e.clientY - panStart.y,
+        }));
+      }
+    },
+    [isPanning, panStart],
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
   }, []);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(Math.max(transform.scale * delta, 0.1), 3);
-    
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (rect) {
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const newX = mouseX - (mouseX - transform.x) * (newScale / transform.scale);
-      const newY = mouseY - (mouseY - transform.y) * (newScale / transform.scale);
-      setTransform({ x: newX, y: newY, scale: newScale });
-    }
-  }, [transform]);
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = Math.min(Math.max(transform.scale * delta, 0.1), 3);
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const newX = mouseX - (mouseX - transform.x) * (newScale / transform.scale);
+        const newY = mouseY - (mouseY - transform.y) * (newScale / transform.scale);
+        setTransform({ x: newX, y: newY, scale: newScale });
+      }
+    },
+    [transform],
+  );
 
   const zoomIn = () => setTransform((t) => ({ ...t, scale: Math.min(t.scale * 1.2, 3) }));
   const zoomOut = () => setTransform((t) => ({ ...t, scale: Math.max(t.scale / 1.2, 0.1) }));
@@ -365,7 +536,7 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
     const maxY = Math.max(...applications.map((a) => a.y + a.height));
     return { width: maxX + 100, height: maxY + 100 };
   }, [applications]);
-  
+
   // Auto fit view when applications change
   useEffect(() => {
     if (applications.length > 0 && containerRef.current) {
@@ -383,28 +554,36 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
   }, []);
 
   // Handle config icon click (ConfigMap, Secret, PVC)
-  const handleConfigClick = useCallback((kind: string, name: string, ns?: string) => {
-    const resource = allResources.find(
-      r => r.kind === kind && r.metadata.name === name && r.metadata.namespace === ns
-    );
-    if (resource) {
-      // Create a fake LayoutNode for the config resource
-      setSelectedNode({
-        uid: resource.metadata.uid,
-        resource,
-        x: 0, y: 0, width: 0, height: 0,
-      });
-    }
-  }, [allResources]);
+  const handleConfigClick = useCallback(
+    (kind: string, name: string, ns?: string) => {
+      const resource = allResources.find(
+        (r) => r.kind === kind && r.metadata.name === name && r.metadata.namespace === ns,
+      );
+      if (resource) {
+        // Create a fake LayoutNode for the config resource
+        setSelectedNode({
+          uid: resource.metadata.uid,
+          resource,
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+        });
+      }
+    },
+    [allResources],
+  );
 
   // Convert selected node to V1ObjectReference for DetailPanel
-  const selectedResource: V1ObjectReference | null = selectedNode ? {
-    name: selectedNode.resource.metadata.name,
-    namespace: selectedNode.resource.metadata.namespace,
-    uid: selectedNode.resource.metadata.uid,
-    kind: selectedNode.resource.kind,
-    apiVersion: selectedNode.resource.apiVersion,
-  } : null;
+  const selectedResource: V1ObjectReference | null = selectedNode
+    ? {
+        name: selectedNode.resource.metadata.name,
+        namespace: selectedNode.resource.metadata.namespace,
+        uid: selectedNode.resource.metadata.uid,
+        kind: selectedNode.resource.kind,
+        apiVersion: selectedNode.resource.apiVersion,
+      }
+    : null;
 
   const isDetailPanelOpen = selectedNode !== null;
 
@@ -436,135 +615,314 @@ export function ResourceOverview({ context: contextProp, namespace: namespacePro
 
   return (
     <>
-    <div className={`h-full w-full relative bg-neutral-100 dark:bg-neutral-900 overflow-hidden transition-all duration-300 ${isDetailPanelOpen ? 'mr-120' : ''}`}>
-      {/* Zoom controls */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
-        <button onClick={() => refetch()} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-l-lg" title="Refresh">
-          <RefreshCw size={16} className="text-neutral-600 dark:text-neutral-400" />
-        </button>
-        <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700" />
-        <button onClick={zoomIn} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" title="Zoom In">
-          <ZoomIn size={16} className="text-neutral-600 dark:text-neutral-400" />
-        </button>
-        <button onClick={zoomOut} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" title="Zoom Out">
-          <ZoomOut size={16} className="text-neutral-600 dark:text-neutral-400" />
-        </button>
-        <button onClick={fitView} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700" title="Fit View">
-          <Maximize2 size={16} className="text-neutral-600 dark:text-neutral-400" />
-        </button>
-        <div className="px-2 text-xs text-neutral-500 border-l border-neutral-200 dark:border-neutral-700 rounded-r-lg">
-          {Math.round(transform.scale * 100)}%
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="absolute bottom-4 right-4 z-10 px-3 py-2 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
-        <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">Connections</div>
-        <div className="flex flex-col gap-1 text-xs">
-          <div className="flex items-center gap-2">
-            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#64748b" strokeWidth="2" /></svg>
-            <span className="text-neutral-500 dark:text-neutral-400">Owner</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4,2" /></svg>
-            <span className="text-neutral-500 dark:text-neutral-400">Selector</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#06b6d4" strokeWidth="2" strokeDasharray="4,2" /></svg>
-            <span className="text-neutral-500 dark:text-neutral-400">Service</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#14b8a6" strokeWidth="2" strokeDasharray="4,2" /></svg>
-            <span className="text-neutral-500 dark:text-neutral-400">Ingress</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#10b981" strokeWidth="2" strokeDasharray="4,2" /></svg>
-            <span className="text-neutral-500 dark:text-neutral-400">Gateway</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="2,2" /></svg>
-            <span className="text-neutral-500 dark:text-neutral-400">NetworkPolicy</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Canvas */}
       <div
-        ref={containerRef}
-        className="w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
+        className={`h-full w-full relative bg-neutral-100 dark:bg-neutral-900 overflow-hidden transition-all duration-300 ${isDetailPanelOpen ? 'mr-120' : ''}`}
       >
-        <svg
-          width={contentBounds.width}
-          height={contentBounds.height}
-          style={{ 
-            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, 
-            transformOrigin: '0 0' 
-          }}
+        {/* Zoom controls */}
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
+          <button
+            onClick={() => refetch()}
+            className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-l-lg"
+            title="Refresh"
+          >
+            <RefreshCw size={16} className="text-neutral-600 dark:text-neutral-400" />
+          </button>
+          <div className="w-px h-5 bg-neutral-200 dark:bg-neutral-700" />
+          <button
+            onClick={zoomIn}
+            className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            title="Zoom In"
+          >
+            <ZoomIn size={16} className="text-neutral-600 dark:text-neutral-400" />
+          </button>
+          <button
+            onClick={zoomOut}
+            className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            title="Zoom Out"
+          >
+            <ZoomOut size={16} className="text-neutral-600 dark:text-neutral-400" />
+          </button>
+          <button
+            onClick={fitView}
+            className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            title="Fit View"
+          >
+            <Maximize2 size={16} className="text-neutral-600 dark:text-neutral-400" />
+          </button>
+          <div className="px-2 text-xs text-neutral-500 border-l border-neutral-200 dark:border-neutral-700 rounded-r-lg">
+            {Math.round(transform.scale * 100)}%
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="absolute bottom-4 right-4 z-10 px-3 py-2 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
+          <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+            Connections
+          </div>
+          <div className="flex flex-col gap-1 text-xs">
+            <div className="flex items-center gap-2">
+              <svg width="24" height="8">
+                <line x1="0" y1="4" x2="24" y2="4" stroke="#64748b" strokeWidth="2" />
+              </svg>
+              <span className="text-neutral-500 dark:text-neutral-400">Owner</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="8">
+                <line
+                  x1="0"
+                  y1="4"
+                  x2="24"
+                  y2="4"
+                  stroke="#8b5cf6"
+                  strokeWidth="2"
+                  strokeDasharray="4,2"
+                />
+              </svg>
+              <span className="text-neutral-500 dark:text-neutral-400">Selector</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="8">
+                <line
+                  x1="0"
+                  y1="4"
+                  x2="24"
+                  y2="4"
+                  stroke="#06b6d4"
+                  strokeWidth="2"
+                  strokeDasharray="4,2"
+                />
+              </svg>
+              <span className="text-neutral-500 dark:text-neutral-400">Service</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="8">
+                <line
+                  x1="0"
+                  y1="4"
+                  x2="24"
+                  y2="4"
+                  stroke="#14b8a6"
+                  strokeWidth="2"
+                  strokeDasharray="4,2"
+                />
+              </svg>
+              <span className="text-neutral-500 dark:text-neutral-400">Ingress</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="8">
+                <line
+                  x1="0"
+                  y1="4"
+                  x2="24"
+                  y2="4"
+                  stroke="#10b981"
+                  strokeWidth="2"
+                  strokeDasharray="4,2"
+                />
+              </svg>
+              <span className="text-neutral-500 dark:text-neutral-400">Gateway</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="8">
+                <line
+                  x1="0"
+                  y1="4"
+                  x2="24"
+                  y2="4"
+                  stroke="#f59e0b"
+                  strokeWidth="1.5"
+                  strokeDasharray="2,2"
+                />
+              </svg>
+              <span className="text-neutral-500 dark:text-neutral-400">NetworkPolicy</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Canvas */}
+        <div
+          ref={containerRef}
+          className="w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
         >
-          <defs>
-            {/* Light mode markers */}
-            <marker id="arrow-owner" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
-            </marker>
-            <marker id="arrow-selector" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b5cf6" />
-            </marker>
-            <marker id="arrow-service" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4" />
-            </marker>
-            <marker id="arrow-ingress" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#14b8a6" />
-            </marker>
-            <marker id="arrow-gateway" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
-            </marker>
-            <marker id="arrow-network-policy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
-            </marker>
-            {/* Dark mode markers */}
-            <marker id="arrow-owner-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
-            </marker>
-            <marker id="arrow-selector-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#c084fc" />
-            </marker>
-            <marker id="arrow-service-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee" />
-            </marker>
-            <marker id="arrow-ingress-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4bf" />
-            </marker>
-            <marker id="arrow-gateway-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399" />
-            </marker>
-            <marker id="arrow-network-policy-dark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24" />
-            </marker>
-          </defs>
-          {applications.map((app) => (
-            <ApplicationGroup key={app.id} application={app} onNodeClick={handleNodeClick} onConfigClick={handleConfigClick} isDarkMode={isDarkMode} />
-          ))}
-        </svg>
+          <svg
+            width={contentBounds.width}
+            height={contentBounds.height}
+            style={{
+              transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+              transformOrigin: '0 0',
+            }}
+          >
+            <defs>
+              {/* Light mode markers */}
+              <marker
+                id="arrow-owner"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+              </marker>
+              <marker
+                id="arrow-selector"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b5cf6" />
+              </marker>
+              <marker
+                id="arrow-service"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4" />
+              </marker>
+              <marker
+                id="arrow-ingress"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#14b8a6" />
+              </marker>
+              <marker
+                id="arrow-gateway"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+              </marker>
+              <marker
+                id="arrow-network-policy"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="5"
+                markerHeight="5"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" />
+              </marker>
+              {/* Dark mode markers */}
+              <marker
+                id="arrow-owner-dark"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+              </marker>
+              <marker
+                id="arrow-selector-dark"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#c084fc" />
+              </marker>
+              <marker
+                id="arrow-service-dark"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee" />
+              </marker>
+              <marker
+                id="arrow-ingress-dark"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#2dd4bf" />
+              </marker>
+              <marker
+                id="arrow-gateway-dark"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399" />
+              </marker>
+              <marker
+                id="arrow-network-policy-dark"
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="5"
+                markerHeight="5"
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24" />
+              </marker>
+            </defs>
+            {applications.map((app) => (
+              <ApplicationGroup
+                key={app.id}
+                application={app}
+                onNodeClick={handleNodeClick}
+                onConfigClick={handleConfigClick}
+                isDarkMode={isDarkMode}
+              />
+            ))}
+          </svg>
+        </div>
       </div>
-    </div>
-    <ResourcePanel
-      context={context}
-      isOpen={isDetailPanelOpen}
-      onClose={() => setSelectedNode(null)}
-      resource={selectedResource}
-    />
+      <ResourcePanel
+        context={context}
+        isOpen={isDetailPanelOpen}
+        onClose={() => setSelectedNode(null)}
+        resource={selectedResource}
+      />
     </>
   );
 }
 
 // Application component
-function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode }: { 
-  application: Application; 
+function ApplicationGroup({
+  application,
+  onNodeClick,
+  onConfigClick,
+  isDarkMode,
+}: {
+  application: Application;
   onNodeClick: (node: LayoutNode) => void;
   onConfigClick: (kind: string, name: string, ns?: string) => void;
   isDarkMode: boolean;
@@ -578,7 +936,7 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode 
         n.childPods.forEach((pod) => {
           map.set(pod.uid, {
             ...pod,
-            x: n.x + pod.x,  // Convert to absolute position
+            x: n.x + pod.x, // Convert to absolute position
             y: n.y + pod.y,
           });
         });
@@ -588,12 +946,18 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode 
   }, [application.nodes]);
 
   // Get non-pod nodes (pods are rendered inside controllers)
-  const standaloneNodes = useMemo(() => 
-    application.nodes.filter(n => !n.resource.kind.match(/^Pod$/) || !application.nodes.some(
-      parent => ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'].includes(parent.resource.kind) && 
-        parent.childPods?.some(p => p.uid === n.uid)
-    )),
-    [application.nodes]
+  const standaloneNodes = useMemo(
+    () =>
+      application.nodes.filter(
+        (n) =>
+          !n.resource.kind.match(/^Pod$/) ||
+          !application.nodes.some(
+            (parent) =>
+              ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'].includes(parent.resource.kind) &&
+              parent.childPods?.some((p) => p.uid === n.uid),
+          ),
+      ),
+    [application.nodes],
   );
 
   // Determine if we should show the title
@@ -612,7 +976,7 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode 
         stroke={isDarkMode ? '#404040' : '#e5e7eb'}
         strokeWidth={1}
       />
-      
+
       {/* Application title */}
       {showTitle && (
         <g>
@@ -625,8 +989,8 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode 
             fill={isDarkMode ? '#e5e5e5' : '#374151'}
             dominantBaseline="hanging"
           >
-            {application.name.length > Math.floor((application.width - 20) / 7) 
-              ? application.name.slice(0, Math.floor((application.width - 20) / 7) - 1) + '…' 
+            {application.name.length > Math.floor((application.width - 20) / 7)
+              ? application.name.slice(0, Math.floor((application.width - 20) / 7) - 1) + '…'
               : application.name}
           </text>
           {/* Namespace on second line */}
@@ -638,14 +1002,14 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode 
               fill={isDarkMode ? '#a3a3a3' : '#6b7280'}
               dominantBaseline="hanging"
             >
-              {application.namespace.length > Math.floor((application.width - 20) / 6) 
-                ? application.namespace.slice(0, Math.floor((application.width - 20) / 6) - 1) + '…' 
+              {application.namespace.length > Math.floor((application.width - 20) / 6)
+                ? application.namespace.slice(0, Math.floor((application.width - 20) / 6) - 1) + '…'
                 : application.namespace}
             </text>
           )}
         </g>
       )}
-      
+
       {/* Edges - only for non-nested relationships */}
       {application.edges.map((edge, i) => {
         const from = nodeMap.get(edge.from);
@@ -653,7 +1017,9 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode 
         if (!from || !to) return null;
         // Skip owner edges between controller and its contained pods (but keep service edges)
         if (edge.type === 'owner') {
-          const isInternalEdge = from.childPods?.some(p => p.uid === to.uid) || to.childPods?.some(p => p.uid === from.uid);
+          const isInternalEdge =
+            from.childPods?.some((p) => p.uid === to.uid) ||
+            to.childPods?.some((p) => p.uid === from.uid);
           if (isInternalEdge) return null;
         }
         return <EdgeLine key={i} from={from} to={to} type={edge.type} isDarkMode={isDarkMode} />;
@@ -661,22 +1027,39 @@ function ApplicationGroup({ application, onNodeClick, onConfigClick, isDarkMode 
 
       {/* Nodes */}
       {standaloneNodes.map((node) => (
-        <ResourceNodeSVG key={node.uid} node={node} onClick={() => onNodeClick(node)} onPodClick={onNodeClick} onConfigClick={onConfigClick} isDarkMode={isDarkMode} />
+        <ResourceNodeSVG
+          key={node.uid}
+          node={node}
+          onClick={() => onNodeClick(node)}
+          onPodClick={onNodeClick}
+          onConfigClick={onConfigClick}
+          isDarkMode={isDarkMode}
+        />
       ))}
     </g>
   );
 }
 
 // Edge component
-function EdgeLine({ from, to, type, isDarkMode }: { from: LayoutNode; to: LayoutNode; type: LayoutEdge['type']; isDarkMode: boolean }) {
+function EdgeLine({
+  from,
+  to,
+  type,
+  isDarkMode,
+}: {
+  from: LayoutNode;
+  to: LayoutNode;
+  type: LayoutEdge['type'];
+  isDarkMode: boolean;
+}) {
   const startX = from.x + from.width;
   const startY = from.y + from.height / 2;
   const endX = to.x;
   const endY = to.y + to.height / 2;
-  
+
   const midX = (startX + endX) / 2;
   const path = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
-  
+
   const colors: Record<string, string> = {
     owner: isDarkMode ? '#94a3b8' : '#64748b',
     selector: isDarkMode ? '#c084fc' : '#8b5cf6',
@@ -685,7 +1068,7 @@ function EdgeLine({ from, to, type, isDarkMode }: { from: LayoutNode; to: Layout
     gateway: isDarkMode ? '#34d399' : '#10b981',
     'network-policy': isDarkMode ? '#fbbf24' : '#f59e0b',
   };
-  
+
   const dashArrays: Record<string, string | undefined> = {
     owner: undefined,
     selector: '6,3',
@@ -708,15 +1091,21 @@ function EdgeLine({ from, to, type, isDarkMode }: { from: LayoutNode; to: Layout
 }
 
 // Resource node component (SVG)
-function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMode }: { 
-  node: LayoutNode; 
-  onClick: () => void; 
+function ResourceNodeSVG({
+  node,
+  onClick,
+  onPodClick,
+  onConfigClick,
+  isDarkMode,
+}: {
+  node: LayoutNode;
+  onClick: () => void;
   onPodClick?: (node: LayoutNode) => void;
   onConfigClick?: (kind: string, name: string, ns?: string) => void;
   isDarkMode: boolean;
 }) {
   const { resource, x, y, width, height } = node;
-  
+
   // Route to specialized renderers
   if (resource.kind === 'NetworkPolicy') {
     return <NetworkPolicyNodeSVG node={node} onClick={onClick} isDarkMode={isDarkMode} />;
@@ -730,27 +1119,43 @@ function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMode 
   if (resource.kind === 'Ingress') {
     return <IngressNodeSVG node={node} onClick={onClick} isDarkMode={isDarkMode} />;
   }
-  
+
   // Controllers with pods
-  if (['Deployment', 'StatefulSet', 'DaemonSet', 'Job'].includes(resource.kind) && node.childPods && node.childPods.length > 0) {
-    return <ControllerNodeSVG node={node} onClick={onClick} onPodClick={onPodClick} onConfigClick={onConfigClick} isDarkMode={isDarkMode} />;
+  if (
+    ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'].includes(resource.kind) &&
+    node.childPods &&
+    node.childPods.length > 0
+  ) {
+    return (
+      <ControllerNodeSVG
+        node={node}
+        onClick={onClick}
+        onPodClick={onPodClick}
+        onConfigClick={onConfigClick}
+        isDarkMode={isDarkMode}
+      />
+    );
   }
-  
+
   const colors = getThemedColors(resource.kind, isDarkMode);
   const Icon = kindIcons[resource.kind] || Hexagon;
   const statusInfo = getStatus(resource);
   const statusColor = isDarkMode ? statusInfo.colorDark : statusInfo.color;
-  
+
   // Truncate name based on width
   const maxNameChars = Math.floor((width - 20) / 6.5);
-  const displayName = resource.metadata.name.length > maxNameChars 
-    ? resource.metadata.name.slice(0, maxNameChars - 2) + '…' 
-    : resource.metadata.name;
+  const displayName =
+    resource.metadata.name.length > maxNameChars
+      ? resource.metadata.name.slice(0, maxNameChars - 2) + '…'
+      : resource.metadata.name;
 
   return (
-    <g 
-      transform={`translate(${x}, ${y})`} 
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+    <g
+      transform={`translate(${x}, ${y})`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       style={{ cursor: 'pointer' }}
       className="hover:opacity-80 transition-opacity"
     >
@@ -763,20 +1168,22 @@ function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMode 
         stroke={colors.border}
         strokeWidth={2}
       />
-      
+
       {/* Kind icon and label */}
       <g transform="translate(10, 10)">
         <foreignObject width={18} height={18}>
-          <div style={{ color: colors.text }}><Icon size={16} /></div>
+          <div style={{ color: colors.text }}>
+            <Icon size={16} />
+          </div>
         </foreignObject>
         <text x={22} y={13} fontSize={11} fill={colors.text} fontWeight={600}>
           {resource.kind}
         </text>
       </g>
-      
+
       {/* Status indicator */}
       <circle cx={width - 12} cy={14} r={5} fill={statusColor} />
-      
+
       {/* Resource name */}
       <text
         x={10}
@@ -792,15 +1199,26 @@ function ResourceNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMode 
 }
 
 // Compact node for services and gateways (square with icon only)
-function CompactNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onClick: () => void; isDarkMode: boolean }) {
+function CompactNodeSVG({
+  node,
+  onClick,
+  isDarkMode,
+}: {
+  node: LayoutNode;
+  onClick: () => void;
+  isDarkMode: boolean;
+}) {
   const { resource, x, y, width, height } = node;
   const colors = getThemedColors(resource.kind, isDarkMode);
   const Icon = kindIcons[resource.kind] || Hexagon;
 
   return (
-    <g 
-      transform={`translate(${x}, ${y})`} 
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+    <g
+      transform={`translate(${x}, ${y})`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       style={{ cursor: 'pointer' }}
       className="hover:opacity-80 transition-opacity"
     >
@@ -812,11 +1230,13 @@ function CompactNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onCli
         stroke={colors.border}
         strokeWidth={2}
       />
-      
+
       {/* Centered icon */}
       <g transform={`translate(${width / 2 - 12}, ${height / 2 - 12})`}>
         <foreignObject width={24} height={24}>
-          <div style={{ color: colors.text }}><Icon size={22} /></div>
+          <div style={{ color: colors.text }}>
+            <Icon size={22} />
+          </div>
         </foreignObject>
       </g>
     </g>
@@ -824,9 +1244,15 @@ function CompactNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onCli
 }
 
 // Controller node that contains pods
-function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMode }: { 
-  node: LayoutNode; 
-  onClick: () => void; 
+function ControllerNodeSVG({
+  node,
+  onClick,
+  onPodClick,
+  onConfigClick,
+  isDarkMode,
+}: {
+  node: LayoutNode;
+  onClick: () => void;
   onPodClick?: (node: LayoutNode) => void;
   onConfigClick?: (kind: string, name: string, ns?: string) => void;
   isDarkMode: boolean;
@@ -834,14 +1260,17 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMod
   const { resource, x, y, width, height, childPods = [] } = node;
   const colors = getThemedColors(resource.kind, isDarkMode);
   const Icon = kindIcons[resource.kind] || Hexagon;
-  
+
   const maxNameChars = Math.floor((width - 60) / 6);
-  const displayName = resource.metadata.name.length > maxNameChars 
-    ? resource.metadata.name.slice(0, maxNameChars - 2) + '…' 
-    : resource.metadata.name;
-  
+  const displayName =
+    resource.metadata.name.length > maxNameChars
+      ? resource.metadata.name.slice(0, maxNameChars - 2) + '…'
+      : resource.metadata.name;
+
   // Get config resources attached to this controller (stored in metadata)
-  const configIcons = (node as LayoutNode & { configIcons?: Array<{ kind: string; name: string }> }).configIcons || [];
+  const configIcons =
+    (node as LayoutNode & { configIcons?: Array<{ kind: string; name: string }> }).configIcons ||
+    [];
 
   return (
     <g transform={`translate(${x}, ${y})`}>
@@ -853,26 +1282,34 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMod
         fill={colors.bg}
         stroke={colors.border}
         strokeWidth={2}
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
         style={{ cursor: 'pointer' }}
         className="hover:opacity-90"
       />
-      
+
       {/* Controller header */}
-      <g 
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
+      <g
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
         style={{ cursor: 'pointer' }}
       >
         <g transform="translate(8, 8)">
           <foreignObject width={18} height={18}>
-            <div style={{ color: colors.text }}><Icon size={16} /></div>
+            <div style={{ color: colors.text }}>
+              <Icon size={16} />
+            </div>
           </foreignObject>
           <text x={22} y={13} fontSize={11} fill={colors.text} fontWeight={600}>
             {displayName}
           </text>
         </g>
       </g>
-      
+
       {/* Nested pods */}
       {childPods.map((pod, i) => {
         const podColors = getThemedColors('Pod', isDarkMode);
@@ -881,15 +1318,19 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMod
         const podX = CONTROLLER_PADDING;
         const podY = CONTROLLER_HEADER + i * (POD_HEIGHT + POD_GAP);
         const podNameChars = Math.floor((POD_WIDTH - 30) / 5.5);
-        const podName = pod.resource.metadata.name.length > podNameChars
-          ? pod.resource.metadata.name.slice(0, podNameChars - 2) + '…'
-          : pod.resource.metadata.name;
-        
+        const podName =
+          pod.resource.metadata.name.length > podNameChars
+            ? pod.resource.metadata.name.slice(0, podNameChars - 2) + '…'
+            : pod.resource.metadata.name;
+
         return (
           <g
             key={pod.uid}
             transform={`translate(${podX}, ${podY})`}
-            onClick={(e) => { e.stopPropagation(); onPodClick?.(pod); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPodClick?.(pod);
+            }}
             style={{ cursor: 'pointer' }}
             className="hover:opacity-80"
           >
@@ -902,16 +1343,24 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMod
               strokeWidth={1.5}
             />
             <circle cx={12} cy={POD_HEIGHT / 2} r={4} fill={statusColor} />
-            <text x={22} y={POD_HEIGHT / 2 + 4} fontSize={10} fill={isDarkMode ? '#e5e7eb' : '#1f2937'} fontWeight={500}>
+            <text
+              x={22}
+              y={POD_HEIGHT / 2 + 4}
+              fontSize={10}
+              fill={isDarkMode ? '#e5e7eb' : '#1f2937'}
+              fontWeight={500}
+            >
               {podName}
             </text>
           </g>
         );
       })}
-      
+
       {/* Config icons at bottom (ConfigMaps, Secrets, PVCs) - wrapped to multiple rows */}
       {configIcons.length > 0 && (
-        <g transform={`translate(${CONTROLLER_PADDING}, ${height - Math.ceil(configIcons.length / CONFIG_ICONS_PER_ROW) * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) - CONFIG_ICON_GAP})`}>
+        <g
+          transform={`translate(${CONTROLLER_PADDING}, ${height - Math.ceil(configIcons.length / CONFIG_ICONS_PER_ROW) * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) - CONFIG_ICON_GAP})`}
+        >
           {configIcons.map((config, i) => {
             const ConfigIcon = kindIcons[config.kind];
             const configColors = getThemedColors(config.kind, isDarkMode);
@@ -919,13 +1368,13 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMod
             const col = i % CONFIG_ICONS_PER_ROW;
             const xOffset = col * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP);
             const yOffset = row * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP);
-            
+
             return (
-              <g 
-                key={`${config.kind}-${config.name}-${i}`} 
+              <g
+                key={`${config.kind}-${config.name}-${i}`}
                 transform={`translate(${xOffset}, ${yOffset})`}
-                onClick={(e) => { 
-                  e.stopPropagation(); 
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (onConfigClick) {
                     onConfigClick(config.kind, config.name, resource.metadata.namespace);
                   }
@@ -942,9 +1391,13 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMod
                   stroke={configColors.border}
                   strokeWidth={1}
                 />
-                <g transform={`translate(${CONFIG_ICON_SIZE / 2 - 6}, ${CONFIG_ICON_SIZE / 2 - 6})`}>
+                <g
+                  transform={`translate(${CONFIG_ICON_SIZE / 2 - 6}, ${CONFIG_ICON_SIZE / 2 - 6})`}
+                >
                   <foreignObject width={12} height={12}>
-                    <div style={{ color: configColors.text }}><ConfigIcon size={12} /></div>
+                    <div style={{ color: configColors.text }}>
+                      <ConfigIcon size={12} />
+                    </div>
                   </foreignObject>
                 </g>
               </g>
@@ -957,45 +1410,80 @@ function ControllerNodeSVG({ node, onClick, onPodClick, onConfigClick, isDarkMod
 }
 
 // Ingress node with hosts
-function IngressNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onClick: () => void; isDarkMode: boolean }) {
+function IngressNodeSVG({
+  node,
+  onClick,
+  isDarkMode,
+}: {
+  node: LayoutNode;
+  onClick: () => void;
+  isDarkMode: boolean;
+}) {
   const { resource, x, y, width, height } = node;
   const colors = getThemedColors('Ingress', isDarkMode);
   const Icon = kindIcons['Ingress'];
-  
+
   const spec = resource.spec as { rules?: Array<{ host?: string }> };
-  const hosts = spec.rules?.map(r => r.host).filter(Boolean) || [];
-  
+  const hosts = spec.rules?.map((r) => r.host).filter(Boolean) || [];
+
   const maxNameChars = Math.floor((width - 20) / 6.5);
-  const displayName = resource.metadata.name.length > maxNameChars 
-    ? resource.metadata.name.slice(0, maxNameChars - 2) + '…' 
-    : resource.metadata.name;
+  const displayName =
+    resource.metadata.name.length > maxNameChars
+      ? resource.metadata.name.slice(0, maxNameChars - 2) + '…'
+      : resource.metadata.name;
 
   return (
-    <g 
-      transform={`translate(${x}, ${y})`} 
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+    <g
+      transform={`translate(${x}, ${y})`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       style={{ cursor: 'pointer' }}
       className="hover:opacity-80 transition-opacity"
     >
-      <rect width={width} height={height} rx={8} fill={colors.bg} stroke={colors.border} strokeWidth={2} />
-      
+      <rect
+        width={width}
+        height={height}
+        rx={8}
+        fill={colors.bg}
+        stroke={colors.border}
+        strokeWidth={2}
+      />
+
       {/* Kind icon and label */}
       <g transform="translate(10, 10)">
         <foreignObject width={18} height={18}>
-          <div style={{ color: colors.text }}><Icon size={16} /></div>
+          <div style={{ color: colors.text }}>
+            <Icon size={16} />
+          </div>
         </foreignObject>
-        <text x={22} y={13} fontSize={11} fill={colors.text} fontWeight={600}>Ingress</text>
+        <text x={22} y={13} fontSize={11} fill={colors.text} fontWeight={600}>
+          Ingress
+        </text>
       </g>
-      
+
       {/* Host badge */}
       {hosts.length > 0 && hosts[0] && (
-        <text x={width - 10} y={18} fontSize={9} fill={isDarkMode ? '#5eead4' : '#115e59'} textAnchor="end">
+        <text
+          x={width - 10}
+          y={18}
+          fontSize={9}
+          fill={isDarkMode ? '#5eead4' : '#115e59'}
+          textAnchor="end"
+        >
           {hosts[0].length > 18 ? hosts[0].slice(0, 16) + '…' : hosts[0]}
         </text>
       )}
-      
+
       {/* Resource name */}
-      <text x={10} y={height - 12} fontSize={12} fontWeight={600} fill={isDarkMode ? '#e5e7eb' : '#1f2937'}>
+      <text
+        x={10}
+        y={height - 12}
+        fontSize={12}
+        fontWeight={600}
+        fill={isDarkMode ? '#e5e7eb' : '#1f2937'}
+      >
         {displayName}
       </text>
     </g>
@@ -1003,11 +1491,19 @@ function IngressNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onCli
 }
 
 // NetworkPolicy node with rules summary
-function NetworkPolicyNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode; onClick: () => void; isDarkMode: boolean }) {
+function NetworkPolicyNodeSVG({
+  node,
+  onClick,
+  isDarkMode,
+}: {
+  node: LayoutNode;
+  onClick: () => void;
+  isDarkMode: boolean;
+}) {
   const { resource, x, y, width, height } = node;
   const colors = getThemedColors('NetworkPolicy', isDarkMode);
   const Icon = kindIcons['NetworkPolicy'];
-  
+
   const spec = resource.spec as {
     podSelector?: { matchLabels?: Record<string, string> };
     policyTypes?: string[];
@@ -1028,22 +1524,23 @@ function NetworkPolicyNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode;
       ports?: Array<{ port?: number; protocol?: string }>;
     }>;
   };
-  
+
   const policyTypes = spec.policyTypes || [];
   const hasIngress = policyTypes.includes('Ingress') || spec.ingress;
   const hasEgress = policyTypes.includes('Egress') || spec.egress;
   const ingressRules = spec.ingress || [];
   const egressRules = spec.egress || [];
-  
+
   // Determine policy effect
   const ingressDeny = hasIngress && ingressRules.length === 0;
   const egressDeny = hasEgress && egressRules.length === 0;
   const isDenyAll = ingressDeny && egressDeny;
-  
+
   const maxNameChars = Math.floor((width - 20) / 6.5);
-  const displayName = resource.metadata.name.length > maxNameChars 
-    ? resource.metadata.name.slice(0, maxNameChars - 2) + '…' 
-    : resource.metadata.name;
+  const displayName =
+    resource.metadata.name.length > maxNameChars
+      ? resource.metadata.name.slice(0, maxNameChars - 2) + '…'
+      : resource.metadata.name;
 
   // Build rule summary
   const getSummary = () => {
@@ -1057,38 +1554,62 @@ function NetworkPolicyNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode;
   };
 
   return (
-    <g 
-      transform={`translate(${x}, ${y})`} 
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+    <g
+      transform={`translate(${x}, ${y})`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       style={{ cursor: 'pointer' }}
       className="hover:opacity-80 transition-opacity"
     >
-      <rect 
-        width={width} 
-        height={height} 
-        rx={8} 
-        fill={isDenyAll ? (isDarkMode ? '#7f1d1d' : '#fef2f2') : colors.bg} 
-        stroke={isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.border} 
-        strokeWidth={2} 
+      <rect
+        width={width}
+        height={height}
+        rx={8}
+        fill={isDenyAll ? (isDarkMode ? '#7f1d1d' : '#fef2f2') : colors.bg}
+        stroke={isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.border}
+        strokeWidth={2}
       />
-      
+
       {/* Kind icon and label */}
       <g transform="translate(10, 10)">
         <foreignObject width={18} height={18}>
-          <div style={{ color: isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.text }}><Icon size={16} /></div>
+          <div style={{ color: isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.text }}>
+            <Icon size={16} />
+          </div>
         </foreignObject>
-        <text x={22} y={13} fontSize={10} fill={isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.text} fontWeight={600}>
+        <text
+          x={22}
+          y={13}
+          fontSize={10}
+          fill={isDenyAll ? (isDarkMode ? '#f87171' : '#ef4444') : colors.text}
+          fontWeight={600}
+        >
           NetworkPolicy
         </text>
       </g>
-      
+
       {/* Rule summary badge */}
-      <text x={width - 10} y={18} fontSize={9} fill={isDenyAll ? (isDarkMode ? '#fca5a5' : '#dc2626') : (isDarkMode ? '#fcd34d' : '#92400e')} textAnchor="end" fontWeight={500}>
+      <text
+        x={width - 10}
+        y={18}
+        fontSize={9}
+        fill={isDenyAll ? (isDarkMode ? '#fca5a5' : '#dc2626') : isDarkMode ? '#fcd34d' : '#92400e'}
+        textAnchor="end"
+        fontWeight={500}
+      >
         {getSummary()}
       </text>
-      
+
       {/* Resource name */}
-      <text x={10} y={height - 12} fontSize={12} fontWeight={600} fill={isDarkMode ? '#e5e7eb' : '#1f2937'}>
+      <text
+        x={10}
+        y={height - 12}
+        fontSize={12}
+        fontWeight={600}
+        fill={isDarkMode ? '#e5e7eb' : '#1f2937'}
+      >
         {displayName}
       </text>
     </g>
@@ -1100,7 +1621,8 @@ function NetworkPolicyNodeSVG({ node, onClick, isDarkMode }: { node: LayoutNode;
 function extractAppName(resource: K8sResource): string | undefined {
   const labels = resource.metadata.labels || {};
   // Prioritize instance/release labels (often more specific)
-  return labels['app.kubernetes.io/instance'] ||
+  return (
+    labels['app.kubernetes.io/instance'] ||
     labels['release'] ||
     // Then app labels
     labels['app'] ||
@@ -1109,17 +1631,18 @@ function extractAppName(resource: K8sResource): string | undefined {
     labels['name'] ||
     // Finally, other Kubernetes labels
     labels['app.kubernetes.io/component'] ||
-    labels['app.kubernetes.io/part-of'];
+    labels['app.kubernetes.io/part-of']
+  );
 }
 
 // Priority order for determining application anchor (controller)
 const ANCHOR_PRIORITY: Record<string, number> = {
-  'Deployment': 1,
-  'StatefulSet': 2,
-  'DaemonSet': 3,
-  'CronJob': 4,
-  'Job': 5,
-  'Pod': 6,  // Standalone pods as last resort
+  Deployment: 1,
+  StatefulSet: 2,
+  DaemonSet: 3,
+  CronJob: 4,
+  Job: 5,
+  Pod: 6, // Standalone pods as last resort
 };
 
 function buildLayout(resources: K8sResource[]): Application[] {
@@ -1131,14 +1654,14 @@ function buildLayout(resources: K8sResource[]): Application[] {
   // Build connections graph
   const connections = new Map<string, Set<string>>();
   const edges: Map<string, LayoutEdge[]> = new Map();
-  
+
   const addConnection = (uid1: string, uid2: string) => {
     if (!connections.has(uid1)) connections.set(uid1, new Set());
     if (!connections.has(uid2)) connections.set(uid2, new Set());
     connections.get(uid1)!.add(uid2);
     connections.get(uid2)!.add(uid1);
   };
-  
+
   const addEdge = (from: string, to: string, type: LayoutEdge['type']) => {
     const key = `${from}-${to}`;
     if (!edges.has(key)) {
@@ -1150,7 +1673,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
   // Owner references
   const childrenMap = new Map<string, string[]>();
   const parentMap = new Map<string, string>();
-  
+
   resources.forEach((r) => {
     const owners = (r.metadata.ownerReferences || []).filter((o) => uidToResource.has(o.uid));
     if (owners.length > 0) {
@@ -1169,83 +1692,91 @@ function buildLayout(resources: K8sResource[]): Application[] {
   const controllerKinds = ['Deployment', 'StatefulSet', 'DaemonSet', 'Job'];
   resources.forEach((r) => {
     if (!controllerKinds.includes(r.kind)) return;
-    const matchLabels = (r.spec as { selector?: { matchLabels?: Record<string, string> } })?.selector?.matchLabels;
+    const matchLabels = (r.spec as { selector?: { matchLabels?: Record<string, string> } })
+      ?.selector?.matchLabels;
     if (!matchLabels || Object.keys(matchLabels).length === 0) return;
-    
-    resources.filter((p) => p.kind === 'Pod' && p.metadata.namespace === r.metadata.namespace).forEach((pod) => {
-      const labels = pod.metadata.labels || {};
-      if (Object.entries(matchLabels).every(([k, v]) => labels[k] === v)) {
-        addConnection(r.metadata.uid, pod.metadata.uid);
-        // Don't add edge here - pods will be nested inside controller
-      }
-    });
+
+    resources
+      .filter((p) => p.kind === 'Pod' && p.metadata.namespace === r.metadata.namespace)
+      .forEach((pod) => {
+        const labels = pod.metadata.labels || {};
+        if (Object.entries(matchLabels).every(([k, v]) => labels[k] === v)) {
+          addConnection(r.metadata.uid, pod.metadata.uid);
+          // Don't add edge here - pods will be nested inside controller
+        }
+      });
   });
-  
+
   // Build controller -> pods mapping (pods that will be nested)
   // A pod belongs to a controller if it's owned by that controller OR owned by a ReplicaSet owned by that controller
   const controllerToPods = new Map<string, K8sResource[]>();
   const podToController = new Map<string, string>();
-  
+
   // Track static pods (owned by Node) to filter them out
   const staticPodUids = new Set<string>();
-  
-  resources.filter(r => r.kind === 'Pod').forEach((pod) => {
-    // Check direct owner
-    const ownerRef = pod.metadata.ownerReferences?.[0];
-    if (!ownerRef) return;
-    
-    // Static pods are owned by Node - mark them for filtering
-    if (ownerRef.kind === 'Node') {
-      staticPodUids.add(pod.metadata.uid);
-      return;
-    }
-    
-    const owner = uidToResource.get(ownerRef.uid);
-    if (!owner) return;
-    
-    // If owner is a controller (Deployment/StatefulSet/DaemonSet/Job), use it directly
-    if (controllerKinds.includes(owner.kind)) {
-      if (!controllerToPods.has(owner.metadata.uid)) controllerToPods.set(owner.metadata.uid, []);
-      controllerToPods.get(owner.metadata.uid)!.push(pod);
-      podToController.set(pod.metadata.uid, owner.metadata.uid);
-      return;
-    }
-    
-    // If owner is ReplicaSet, look for its Deployment owner
-    if (owner.kind === 'ReplicaSet') {
-      const rsOwnerRef = owner.metadata.ownerReferences?.[0];
-      if (rsOwnerRef) {
-        const deployment = uidToResource.get(rsOwnerRef.uid);
-        if (deployment && deployment.kind === 'Deployment') {
-          if (!controllerToPods.has(deployment.metadata.uid)) controllerToPods.set(deployment.metadata.uid, []);
-          controllerToPods.get(deployment.metadata.uid)!.push(pod);
-          podToController.set(pod.metadata.uid, deployment.metadata.uid);
+
+  resources
+    .filter((r) => r.kind === 'Pod')
+    .forEach((pod) => {
+      // Check direct owner
+      const ownerRef = pod.metadata.ownerReferences?.[0];
+      if (!ownerRef) return;
+
+      // Static pods are owned by Node - mark them for filtering
+      if (ownerRef.kind === 'Node') {
+        staticPodUids.add(pod.metadata.uid);
+        return;
+      }
+
+      const owner = uidToResource.get(ownerRef.uid);
+      if (!owner) return;
+
+      // If owner is a controller (Deployment/StatefulSet/DaemonSet/Job), use it directly
+      if (controllerKinds.includes(owner.kind)) {
+        if (!controllerToPods.has(owner.metadata.uid)) controllerToPods.set(owner.metadata.uid, []);
+        controllerToPods.get(owner.metadata.uid)!.push(pod);
+        podToController.set(pod.metadata.uid, owner.metadata.uid);
+        return;
+      }
+
+      // If owner is ReplicaSet, look for its Deployment owner
+      if (owner.kind === 'ReplicaSet') {
+        const rsOwnerRef = owner.metadata.ownerReferences?.[0];
+        if (rsOwnerRef) {
+          const deployment = uidToResource.get(rsOwnerRef.uid);
+          if (deployment && deployment.kind === 'Deployment') {
+            if (!controllerToPods.has(deployment.metadata.uid))
+              controllerToPods.set(deployment.metadata.uid, []);
+            controllerToPods.get(deployment.metadata.uid)!.push(pod);
+            podToController.set(pod.metadata.uid, deployment.metadata.uid);
+          }
         }
       }
-    }
-  });
-  
+    });
+
   // Sort pods within each controller by name
   controllerToPods.forEach((pods) => {
     pods.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
   });
-  
+
   // Service -> Pod edges (point from service to individual pods)
   resources.forEach((r) => {
     if (r.kind !== 'Service') return;
     const selector = (r.spec as { selector?: Record<string, string> })?.selector;
     if (!selector || Object.keys(selector).length === 0) return;
-    
-    resources.filter((p) => p.kind === 'Pod' && p.metadata.namespace === r.metadata.namespace).forEach((pod) => {
-      const labels = pod.metadata.labels || {};
-      if (Object.entries(selector).every(([k, v]) => labels[k] === v)) {
-        // Service connects to individual pod
-        addConnection(r.metadata.uid, pod.metadata.uid);
-        addEdge(r.metadata.uid, pod.metadata.uid, 'service');
-      }
-    });
+
+    resources
+      .filter((p) => p.kind === 'Pod' && p.metadata.namespace === r.metadata.namespace)
+      .forEach((pod) => {
+        const labels = pod.metadata.labels || {};
+        if (Object.entries(selector).every(([k, v]) => labels[k] === v)) {
+          // Service connects to individual pod
+          addConnection(r.metadata.uid, pod.metadata.uid);
+          addEdge(r.metadata.uid, pod.metadata.uid, 'service');
+        }
+      });
   });
-  
+
   // Update NetworkPolicy -> Pod edges to point to controller instead when pods are nested
   resources.forEach((r) => {
     if (r.kind !== 'NetworkPolicy') return;
@@ -1255,19 +1786,22 @@ function buildLayout(resources: K8sResource[]): Application[] {
     const ns = r.metadata.namespace || '';
     const matchLabels = spec.podSelector?.matchLabels || {};
     const matchesAllPods = Object.keys(matchLabels).length === 0;
-    
-    resources.filter((p) => p.kind === 'Pod' && p.metadata.namespace === ns).forEach((pod) => {
-      const labels = pod.metadata.labels || {};
-      const matches = matchesAllPods || Object.entries(matchLabels).every(([k, v]) => labels[k] === v);
-      if (matches) {
-        const controllerId = podToController.get(pod.metadata.uid);
-        if (controllerId) {
-          addEdge(controllerId, r.metadata.uid, 'network-policy');
-        } else {
-          addEdge(pod.metadata.uid, r.metadata.uid, 'network-policy');
+
+    resources
+      .filter((p) => p.kind === 'Pod' && p.metadata.namespace === ns)
+      .forEach((pod) => {
+        const labels = pod.metadata.labels || {};
+        const matches =
+          matchesAllPods || Object.entries(matchLabels).every(([k, v]) => labels[k] === v);
+        if (matches) {
+          const controllerId = podToController.get(pod.metadata.uid);
+          if (controllerId) {
+            addEdge(controllerId, r.metadata.uid, 'network-policy');
+          } else {
+            addEdge(pod.metadata.uid, r.metadata.uid, 'network-policy');
+          }
         }
-      }
-    });
+      });
   });
 
   // Build lookup map for Services by namespace/name
@@ -1293,7 +1827,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
       }>;
     };
     const ns = r.metadata.namespace || '';
-    
+
     // Check default backend
     if (spec.defaultBackend?.service?.name) {
       const svc = servicesByKey.get(`${ns}/${spec.defaultBackend.service.name}`);
@@ -1302,7 +1836,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
         addEdge(r.metadata.uid, svc.metadata.uid, 'ingress');
       }
     }
-    
+
     // Check rules
     spec.rules?.forEach((rule) => {
       rule.http?.paths?.forEach((path) => {
@@ -1327,12 +1861,13 @@ function buildLayout(resources: K8sResource[]): Application[] {
       }>;
     };
     const ns = r.metadata.namespace || '';
-    
+
     // Connect to parent Gateways
     spec.parentRefs?.forEach((ref) => {
       if (!ref.kind || ref.kind === 'Gateway') {
         const gateway = resources.find(
-          (g) => g.kind === 'Gateway' && g.metadata.name === ref.name && g.metadata.namespace === ns
+          (g) =>
+            g.kind === 'Gateway' && g.metadata.name === ref.name && g.metadata.namespace === ns,
         );
         if (gateway) {
           addConnection(gateway.metadata.uid, r.metadata.uid);
@@ -1340,7 +1875,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
         }
       }
     });
-    
+
     // Connect to backend Services
     spec.rules?.forEach((rule) => {
       rule.backendRefs?.forEach((ref) => {
@@ -1362,7 +1897,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
   const configMapsByKey = new Map<string, K8sResource>();
   const secretsByKey = new Map<string, K8sResource>();
   const pvcsByKey = new Map<string, K8sResource>();
-  
+
   resources.forEach((r) => {
     const key = `${r.metadata.namespace || ''}/${r.metadata.name}`;
     if (r.kind === 'ConfigMap') configMapsByKey.set(key, r);
@@ -1402,7 +1937,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
   const extractContainerRefs = (
     containers: ContainerSpec[] | undefined,
     referencedConfigMaps: Set<string>,
-    referencedSecrets: Set<string>
+    referencedSecrets: Set<string>,
   ) => {
     containers?.forEach((container) => {
       container.env?.forEach((env) => {
@@ -1425,52 +1960,56 @@ function buildLayout(resources: K8sResource[]): Application[] {
   };
 
   // Build controller -> config resources mapping (after extractContainerRefs is defined)
-  const controllerToConfigs = new Map<string, Map<string, Set<string>>>();  // controllerId -> kind -> set of resource names
-  
-  resources.filter(r => r.kind === 'Pod').forEach((pod) => {
-    const controllerId = podToController.get(pod.metadata.uid);
-    if (!controllerId) return;
-    
-    const spec = pod.spec as {
-      containers?: ContainerSpec[];
-      initContainers?: ContainerSpec[];
-      volumes?: VolumeSpec[];
-    };
+  const controllerToConfigs = new Map<string, Map<string, Set<string>>>(); // controllerId -> kind -> set of resource names
 
-    const referencedConfigMaps = new Set<string>();
-    const referencedSecrets = new Set<string>();
-    const referencedPVCs = new Set<string>();
+  resources
+    .filter((r) => r.kind === 'Pod')
+    .forEach((pod) => {
+      const controllerId = podToController.get(pod.metadata.uid);
+      if (!controllerId) return;
 
-    spec.volumes?.forEach((vol) => {
-      if (vol.configMap?.name) referencedConfigMaps.add(vol.configMap.name);
-      if (vol.secret?.secretName) referencedSecrets.add(vol.secret.secretName);
-      if (vol.persistentVolumeClaim?.claimName) referencedPVCs.add(vol.persistentVolumeClaim.claimName);
-      vol.projected?.sources?.forEach((source) => {
-        if (source.configMap?.name) referencedConfigMaps.add(source.configMap.name);
-        if (source.secret?.name) referencedSecrets.add(source.secret.name);
+      const spec = pod.spec as {
+        containers?: ContainerSpec[];
+        initContainers?: ContainerSpec[];
+        volumes?: VolumeSpec[];
+      };
+
+      const referencedConfigMaps = new Set<string>();
+      const referencedSecrets = new Set<string>();
+      const referencedPVCs = new Set<string>();
+
+      spec.volumes?.forEach((vol) => {
+        if (vol.configMap?.name) referencedConfigMaps.add(vol.configMap.name);
+        if (vol.secret?.secretName) referencedSecrets.add(vol.secret.secretName);
+        if (vol.persistentVolumeClaim?.claimName)
+          referencedPVCs.add(vol.persistentVolumeClaim.claimName);
+        vol.projected?.sources?.forEach((source) => {
+          if (source.configMap?.name) referencedConfigMaps.add(source.configMap.name);
+          if (source.secret?.name) referencedSecrets.add(source.secret.name);
+        });
       });
+      extractContainerRefs(spec.containers, referencedConfigMaps, referencedSecrets);
+      extractContainerRefs(spec.initContainers, referencedConfigMaps, referencedSecrets);
+
+      if (!controllerToConfigs.has(controllerId)) {
+        controllerToConfigs.set(controllerId, new Map());
+      }
+      const configMap = controllerToConfigs.get(controllerId)!;
+
+      if (referencedConfigMaps.size > 0) {
+        if (!configMap.has('ConfigMap')) configMap.set('ConfigMap', new Set());
+        referencedConfigMaps.forEach((name) => configMap.get('ConfigMap')!.add(name));
+      }
+      if (referencedSecrets.size > 0) {
+        if (!configMap.has('Secret')) configMap.set('Secret', new Set());
+        referencedSecrets.forEach((name) => configMap.get('Secret')!.add(name));
+      }
+      if (referencedPVCs.size > 0) {
+        if (!configMap.has('PersistentVolumeClaim'))
+          configMap.set('PersistentVolumeClaim', new Set());
+        referencedPVCs.forEach((name) => configMap.get('PersistentVolumeClaim')!.add(name));
+      }
     });
-    extractContainerRefs(spec.containers, referencedConfigMaps, referencedSecrets);
-    extractContainerRefs(spec.initContainers, referencedConfigMaps, referencedSecrets);
-    
-    if (!controllerToConfigs.has(controllerId)) {
-      controllerToConfigs.set(controllerId, new Map());
-    }
-    const configMap = controllerToConfigs.get(controllerId)!;
-    
-    if (referencedConfigMaps.size > 0) {
-      if (!configMap.has('ConfigMap')) configMap.set('ConfigMap', new Set());
-      referencedConfigMaps.forEach(name => configMap.get('ConfigMap')!.add(name));
-    }
-    if (referencedSecrets.size > 0) {
-      if (!configMap.has('Secret')) configMap.set('Secret', new Set());
-      referencedSecrets.forEach(name => configMap.get('Secret')!.add(name));
-    }
-    if (referencedPVCs.size > 0) {
-      if (!configMap.has('PersistentVolumeClaim')) configMap.set('PersistentVolumeClaim', new Set());
-      referencedPVCs.forEach(name => configMap.get('PersistentVolumeClaim')!.add(name));
-    }
-  });
 
   // Helper to find the root owner of a resource (for grouping detection)
   const findRootOwner = (uid: string): string => {
@@ -1502,7 +2041,8 @@ function buildLayout(resources: K8sResource[]): Application[] {
     spec.volumes?.forEach((vol) => {
       if (vol.configMap?.name) referencedConfigMaps.add(vol.configMap.name);
       if (vol.secret?.secretName) referencedSecrets.add(vol.secret.secretName);
-      if (vol.persistentVolumeClaim?.claimName) referencedPVCs.add(vol.persistentVolumeClaim.claimName);
+      if (vol.persistentVolumeClaim?.claimName)
+        referencedPVCs.add(vol.persistentVolumeClaim.claimName);
       vol.projected?.sources?.forEach((source) => {
         if (source.configMap?.name) referencedConfigMaps.add(source.configMap.name);
         if (source.secret?.name) referencedSecrets.add(source.secret.name);
@@ -1567,7 +2107,8 @@ function buildLayout(resources: K8sResource[]): Application[] {
     spec.volumes?.forEach((vol) => {
       if (vol.configMap?.name) referencedConfigMaps.add(vol.configMap.name);
       if (vol.secret?.secretName) referencedSecrets.add(vol.secret.secretName);
-      if (vol.persistentVolumeClaim?.claimName) referencedPVCs.add(vol.persistentVolumeClaim.claimName);
+      if (vol.persistentVolumeClaim?.claimName)
+        referencedPVCs.add(vol.persistentVolumeClaim.claimName);
       vol.projected?.sources?.forEach((source) => {
         if (source.configMap?.name) referencedConfigMaps.add(source.configMap.name);
         if (source.secret?.name) referencedSecrets.add(source.secret.name);
@@ -1607,7 +2148,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
   // Find connected components (excluding static pods)
   const visited = new Set<string>();
   const components: string[][] = [];
-  
+
   function dfs(uid: string, component: string[]) {
     if (visited.has(uid)) return;
     // Skip static pods
@@ -1616,7 +2157,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
     component.push(uid);
     (connections.get(uid) || new Set()).forEach((n) => dfs(n, component));
   }
-  
+
   resources.forEach((r) => {
     // Skip static pods
     if (staticPodUids.has(r.metadata.uid)) return;
@@ -1632,7 +2173,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
 
   // Build applications with swim-lane layout
   const applications: Application[] = [];
-  
+
   // Define swim lanes (left to right flow)
   // Lane 0: Ingress/Gateway (traffic entry points)
   // Lane 1: HTTPRoute/GRPCRoute (routing)
@@ -1641,29 +2182,29 @@ function buildLayout(resources: K8sResource[]): Application[] {
   // Lane 4: Config (ConfigMap/Secret/PVC)
   // Lane 5: NetworkPolicy (security)
   const kindToLane: Record<string, number> = {
-    'Gateway': 0,
-    'Ingress': 0,
-    'HTTPRoute': 1,
-    'GRPCRoute': 1,
-    'Service': 2,
-    'Deployment': 3,
-    'StatefulSet': 3,
-    'DaemonSet': 3,
-    'Job': 3,
-    'CronJob': 3,
-    'Pod': 3,  // Standalone pods go in controller lane
-    'ConfigMap': 4,
-    'Secret': 4,
-    'PersistentVolumeClaim': 4,
-    'NetworkPolicy': 5,
+    Gateway: 0,
+    Ingress: 0,
+    HTTPRoute: 1,
+    GRPCRoute: 1,
+    Service: 2,
+    Deployment: 3,
+    StatefulSet: 3,
+    DaemonSet: 3,
+    Job: 3,
+    CronJob: 3,
+    Pod: 3, // Standalone pods go in controller lane
+    ConfigMap: 4,
+    Secret: 4,
+    PersistentVolumeClaim: 4,
+    NetworkPolicy: 5,
   };
 
   components.forEach((component, idx) => {
     const componentResources = component.map((uid) => uidToResource.get(uid)!).filter(Boolean);
     if (componentResources.length === 0) return;
-    
+
     // Filter out pods that are nested in controllers, ReplicaSets, and config resources
-    const standaloneResources = componentResources.filter(r => {
+    const standaloneResources = componentResources.filter((r) => {
       // Skip ReplicaSets entirely
       if (r.kind === 'ReplicaSet') return false;
       // Skip pods that are nested in a controller
@@ -1672,9 +2213,9 @@ function buildLayout(resources: K8sResource[]): Application[] {
       if (['ConfigMap', 'Secret', 'PersistentVolumeClaim'].includes(r.kind)) return false;
       return true;
     });
-    
+
     if (standaloneResources.length === 0) return;
-    
+
     // Group resources by lane
     const lanes = new Map<number, string[]>();
     standaloneResources.forEach((r) => {
@@ -1682,7 +2223,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
       if (!lanes.has(lane)) lanes.set(lane, []);
       lanes.get(lane)!.push(r.metadata.uid);
     });
-    
+
     // Sort within each lane by name for consistency
     lanes.forEach((uids) => {
       uids.sort((a, b) => {
@@ -1691,7 +2232,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
         return ra.metadata.name.localeCompare(rb.metadata.name);
       });
     });
-    
+
     // Calculate node sizes - controllers with pods need larger sizes, services/gateways are compact
     const nodeSizes = new Map<string, { width: number; height: number }>();
     standaloneResources.forEach((r) => {
@@ -1700,7 +2241,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
         nodeSizes.set(r.metadata.uid, { width: COMPACT_NODE_SIZE, height: COMPACT_NODE_SIZE });
         return;
       }
-      
+
       const pods = controllerToPods.get(r.metadata.uid);
       if (pods && pods.length > 0) {
         // Controller with nested pods
@@ -1708,45 +2249,60 @@ function buildLayout(resources: K8sResource[]): Application[] {
         // Count total individual config resources
         let numConfigs = 0;
         if (configsByKind) {
-          configsByKind.forEach(names => numConfigs += names.size);
+          configsByKind.forEach((names) => (numConfigs += names.size));
         }
         const minWidth = POD_WIDTH + CONTROLLER_PADDING * 2;
         // Calculate config icons with wrapping
         const iconsPerRow = Math.min(numConfigs, CONFIG_ICONS_PER_ROW);
-        const configIconsWidth = iconsPerRow > 0 ? iconsPerRow * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) - CONFIG_ICON_GAP + CONTROLLER_PADDING * 2 : 0;
+        const configIconsWidth =
+          iconsPerRow > 0
+            ? iconsPerRow * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) -
+              CONFIG_ICON_GAP +
+              CONTROLLER_PADDING * 2
+            : 0;
         const width = Math.max(minWidth, configIconsWidth);
         const numConfigRows = numConfigs > 0 ? Math.ceil(numConfigs / CONFIG_ICONS_PER_ROW) : 0;
-        const configIconsHeight = numConfigRows > 0 ? numConfigRows * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) + CONFIG_ICON_GAP : 0;
-        const height = CONTROLLER_HEADER + pods.length * (POD_HEIGHT + POD_GAP) - POD_GAP + CONTROLLER_PADDING + configIconsHeight;
+        const configIconsHeight =
+          numConfigRows > 0
+            ? numConfigRows * (CONFIG_ICON_SIZE + CONFIG_ICON_GAP) + CONFIG_ICON_GAP
+            : 0;
+        const height =
+          CONTROLLER_HEADER +
+          pods.length * (POD_HEIGHT + POD_GAP) -
+          POD_GAP +
+          CONTROLLER_PADDING +
+          configIconsHeight;
         nodeSizes.set(r.metadata.uid, { width, height });
       } else {
         nodeSizes.set(r.metadata.uid, { width: NODE_WIDTH, height: NODE_HEIGHT });
       }
     });
-    
+
     // Position nodes in lanes
     const nodePositions = new Map<string, { x: number; y: number }>();
     let maxX = 0;
     // Leave space for the title bar
     let maxY = APP_PADDING + APP_TITLE_HEIGHT;
-    
+
     // Get sorted lane numbers that exist in this component
     const activeLanes = Array.from(lanes.keys()).sort((a, b) => a - b);
-    
+
     // Calculate max width per lane (for alignment)
     const laneMaxWidth = new Map<number, number>();
     activeLanes.forEach((lane) => {
-      const maxWidth = Math.max(...(lanes.get(lane) || []).map(uid => nodeSizes.get(uid)?.width || NODE_WIDTH));
+      const maxWidth = Math.max(
+        ...(lanes.get(lane) || []).map((uid) => nodeSizes.get(uid)?.width || NODE_WIDTH),
+      );
       laneMaxWidth.set(lane, maxWidth);
     });
-    
+
     // Calculate positions - each lane is a column
     let currentX = APP_PADDING;
     activeLanes.forEach((lane) => {
       const laneWidth = laneMaxWidth.get(lane) || NODE_WIDTH;
       // Start below the title bar
       let y = APP_PADDING + APP_TITLE_HEIGHT;
-      
+
       lanes.get(lane)!.forEach((uid) => {
         const size = nodeSizes.get(uid) || { width: NODE_WIDTH, height: NODE_HEIGHT };
         // Center smaller nodes within the lane
@@ -1755,7 +2311,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
         maxY = Math.max(maxY, y + size.height);
         y += size.height + NODE_GAP_Y;
       });
-      
+
       maxX = Math.max(maxX, currentX + laneWidth);
       currentX += laneWidth + NODE_GAP_X;
     });
@@ -1767,7 +2323,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
       const pos = nodePositions.get(r.metadata.uid)!;
       const size = nodeSizes.get(r.metadata.uid) || { width: NODE_WIDTH, height: NODE_HEIGHT };
       const pods = controllerToPods.get(r.metadata.uid);
-      
+
       // Create child pod nodes
       const childPods: LayoutNode[] | undefined = pods?.map((pod, i) => ({
         uid: pod.metadata.uid,
@@ -1777,16 +2333,16 @@ function buildLayout(resources: K8sResource[]): Application[] {
         width: POD_WIDTH,
         height: POD_HEIGHT,
       }));
-      
+
       // Get config icons for this controller - one icon per distinct resource
       const configsByKind = controllerToConfigs.get(r.metadata.uid);
       const configIcons: Array<{ kind: string; name: string }> = [];
       if (configsByKind) {
         configsByKind.forEach((names, kind) => {
-          names.forEach(name => configIcons.push({ kind, name }));
+          names.forEach((name) => configIcons.push({ kind, name }));
         });
       }
-      
+
       return {
         uid: r.metadata.uid,
         resource: r,
@@ -1795,30 +2351,34 @@ function buildLayout(resources: K8sResource[]): Application[] {
         width: size.width,
         height: size.height,
         childPods,
-        configIcons,  // Add config metadata
+        configIcons, // Add config metadata
       } as LayoutNode & { configIcons?: Array<{ kind: string; name: string }> };
     });
 
     const appEdges: LayoutEdge[] = [];
     const processedEdges = new Set<string>();
-    
+
     // Build set of nested pod UIDs for this component
     const nestedPodUids = new Set<string>();
-    standaloneResources.forEach(r => {
+    standaloneResources.forEach((r) => {
       const pods = controllerToPods.get(r.metadata.uid);
-      if (pods) pods.forEach(p => nestedPodUids.add(p.metadata.uid));
+      if (pods) pods.forEach((p) => nestedPodUids.add(p.metadata.uid));
     });
-    
+
     edges.forEach((edgeList) => {
       edgeList.forEach((edge) => {
         // Check if both ends are relevant to this component
-        const fromStandalone = standaloneResources.some(r => r.metadata.uid === edge.from);
-        const toStandalone = standaloneResources.some(r => r.metadata.uid === edge.to);
+        const fromStandalone = standaloneResources.some((r) => r.metadata.uid === edge.from);
+        const toStandalone = standaloneResources.some((r) => r.metadata.uid === edge.to);
         const toNestedPod = nestedPodUids.has(edge.to);
         const fromNestedPod = nestedPodUids.has(edge.from);
-        
+
         // Include edge if: both standalone, or one is standalone and other is nested pod
-        if ((fromStandalone && toStandalone) || (fromStandalone && toNestedPod) || (toStandalone && fromNestedPod)) {
+        if (
+          (fromStandalone && toStandalone) ||
+          (fromStandalone && toNestedPod) ||
+          (toStandalone && fromNestedPod)
+        ) {
           const edgeKey = `${edge.from}-${edge.to}-${edge.type}`;
           if (!processedEdges.has(edgeKey)) {
             processedEdges.add(edgeKey);
@@ -1832,7 +2392,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
     // Priority: Deployment > StatefulSet > DaemonSet > CronJob > Job > Pod
     let anchorResource: K8sResource | undefined;
     let anchorPriority = Infinity;
-    
+
     standaloneResources.forEach((r) => {
       const priority = ANCHOR_PRIORITY[r.kind];
       if (priority !== undefined && priority < anchorPriority) {
@@ -1840,9 +2400,11 @@ function buildLayout(resources: K8sResource[]): Application[] {
         anchorResource = r;
       }
     });
-    
+
     // Extract application name from anchor's labels
-    const appName = anchorResource ? (extractAppName(anchorResource) || anchorResource.metadata.name) : undefined;
+    const appName = anchorResource
+      ? extractAppName(anchorResource) || anchorResource.metadata.name
+      : undefined;
     const appNamespace = anchorResource?.metadata.namespace;
 
     applications.push({
@@ -1870,7 +2432,7 @@ function buildLayout(resources: K8sResource[]): Application[] {
 
   // Merge applications with the same app name in the same namespace
   const mergedApplications: Application[] = [];
-  
+
   appsByKey.forEach((groupApps, key) => {
     if (groupApps.length === 1) {
       // Single app in group, use as-is
@@ -1883,13 +2445,13 @@ function buildLayout(resources: K8sResource[]): Application[] {
         const bFirstNode = b.nodes[0]?.resource.metadata.name || '';
         return aFirstNode.localeCompare(bFirstNode);
       });
-      
+
       // Layout apps horizontally within the merged group
       const mergedNodes: LayoutNode[] = [];
       const mergedEdges: LayoutEdge[] = [];
       let offsetX = APP_PADDING;
       let maxHeight = 0;
-      
+
       groupApps.forEach((app) => {
         // Offset all nodes by current position
         app.nodes.forEach((node) => {
@@ -1900,14 +2462,14 @@ function buildLayout(resources: K8sResource[]): Application[] {
           });
         });
         mergedEdges.push(...app.edges);
-        
+
         offsetX += app.width + APP_GAP;
         maxHeight = Math.max(maxHeight, app.height);
       });
-      
+
       // Extract namespace and name from key
       const [ns, name] = key.split('/');
-      
+
       // Create merged application
       mergedApplications.push({
         id: `app-${key}`,
@@ -1926,13 +2488,13 @@ function buildLayout(resources: K8sResource[]): Application[] {
   // Arrange applications using row-based layout
   // Sort by height (tallest first) for better packing
   mergedApplications.sort((a, b) => b.height - a.height);
-  
+
   const MAX_ROW_WIDTH = 1800;
   let currentX = 0;
   let rowApps: { app: Application; tempX: number }[] = [];
-  
+
   const rows: { app: Application; tempX: number }[][] = [];
-  
+
   mergedApplications.forEach((app) => {
     // Check if app fits in current row
     if (currentX + app.width > MAX_ROW_WIDTH && rowApps.length > 0) {
@@ -1941,16 +2503,16 @@ function buildLayout(resources: K8sResource[]): Application[] {
       currentX = 0;
       rowApps = [];
     }
-    
+
     rowApps.push({ app, tempX: currentX });
     currentX += app.width + APP_GAP;
   });
-  
+
   // Don't forget the last row
   if (rowApps.length > 0) {
     rows.push(rowApps);
   }
-  
+
   // Position applications and offset all node positions
   let y = 0;
   rows.forEach((row) => {
@@ -1958,13 +2520,13 @@ function buildLayout(resources: K8sResource[]): Application[] {
     row.forEach(({ app, tempX }) => {
       const finalX = tempX;
       const finalY = y + (maxHeight - app.height) / 2;
-      
+
       // Offset all nodes by application position
       app.nodes.forEach((node) => {
         node.x += finalX;
         node.y += finalY;
       });
-      
+
       app.x = finalX;
       app.y = finalY;
     });

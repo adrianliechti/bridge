@@ -12,8 +12,16 @@ import {
   type OnChangeFn,
   type VisibilityState,
 } from '@tanstack/react-table';
-import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } from '../types/table';
-import { getObjectId as getIdHelper, getObjectNamespace as getNamespaceHelper } from '../types/table';
+import type {
+  TableColumnDefinition,
+  TableRow,
+  TableResponse,
+  ResourceConfig,
+} from '../types/table';
+import {
+  getObjectId as getIdHelper,
+  getObjectNamespace as getNamespaceHelper,
+} from '../types/table';
 import { ColumnFilter } from './ColumnFilter';
 import { ToolbarPortal } from './ToolbarPortal';
 
@@ -23,7 +31,12 @@ const columnHelper = createColumnHelper<TableRow<any>>();
 // Check if column likely contains status information
 function isStatusColumn(name: string): boolean {
   const lowerName = name.toLowerCase();
-  return lowerName === 'status' || lowerName === 'phase' || lowerName === 'ready' || lowerName === 'condition';
+  return (
+    lowerName === 'status' ||
+    lowerName === 'phase' ||
+    lowerName === 'ready' ||
+    lowerName === 'condition'
+  );
 }
 
 // Get status color classes based on value
@@ -132,7 +145,9 @@ export function ResourceTable<T = any>({
             if (isStatus) {
               const { text, dot } = getStatusClasses(formatted);
               return (
-                <span className={`inline-flex items-center gap-1.5 text-xs font-medium capitalize ${text}`}>
+                <span
+                  className={`inline-flex items-center gap-1.5 text-xs font-medium capitalize ${text}`}
+                >
                   <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
                   {formatted}
                 </span>
@@ -141,13 +156,21 @@ export function ResourceTable<T = any>({
 
             // Name column styling
             if (isName) {
-              return <span className="text-neutral-900 dark:text-neutral-300" title={formatted}>{formatted}</span>;
+              return (
+                <span className="text-neutral-900 dark:text-neutral-300" title={formatted}>
+                  {formatted}
+                </span>
+              );
             }
 
-            return <span className="text-neutral-500 dark:text-neutral-500" title={formatted}>{formatted}</span>;
+            return (
+              <span className="text-neutral-500 dark:text-neutral-500" title={formatted}>
+                {formatted}
+              </span>
+            );
           },
           meta: { description: colDef.description, format: colDef.format },
-        }) as ColumnDef<TableRow<T>, unknown>
+        }) as ColumnDef<TableRow<T>, unknown>,
       );
 
       // Insert synthetic Namespace column after Name
@@ -160,10 +183,14 @@ export function ResourceTable<T = any>({
             sortUndefined: 'last',
             cell: (info) => {
               const value = info.getValue() ?? '<none>';
-              return <span className="text-neutral-500 dark:text-neutral-500" title={value}>{value}</span>;
+              return (
+                <span className="text-neutral-500 dark:text-neutral-500" title={value}>
+                  {value}
+                </span>
+              );
             },
             meta: { description: 'Namespace of the resource', format: '' },
-          }) as ColumnDef<TableRow<T>, unknown>
+          }) as ColumnDef<TableRow<T>, unknown>,
         );
       }
     });
@@ -191,7 +218,7 @@ export function ResourceTable<T = any>({
         onSelectItem?.(row ?? null);
       }
     },
-    [data?.rows, onSelectItem, rowSelection]
+    [data?.rows, onSelectItem, rowSelection],
   );
 
   // Sorting state
@@ -241,8 +268,8 @@ export function ResourceTable<T = any>({
         <div className="flex items-center gap-3 text-red-500 dark:text-red-400">
           <AlertTriangle size={18} />
           <span className="text-sm">{error.message}</span>
-          <button 
-            onClick={refetch} 
+          <button
+            onClick={refetch}
             className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2"
           >
             Retry
@@ -256,8 +283,18 @@ export function ResourceTable<T = any>({
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center text-neutral-400 dark:text-neutral-500">
-          <svg className="w-8 h-8 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          <svg
+            className="w-8 h-8 mb-2 opacity-50"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+            />
           </svg>
           <span className="text-sm">No resources found</span>
         </div>
@@ -294,7 +331,9 @@ export function ResourceTable<T = any>({
                     >
                       <div className="flex items-center gap-1">
                         {flexRender(header.column.columnDef.header, header.getContext())}
-                        <span className={`transition-opacity ${isSorted ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}>
+                        <span
+                          className={`transition-opacity ${isSorted ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}
+                        >
                           {isSorted === 'asc' ? (
                             <ChevronUp size={12} />
                           ) : isSorted === 'desc' ? (

@@ -129,6 +129,144 @@ export async function startContainer(context: string, id: string): Promise<void>
   return postDockerApi(`/containers/${id}/start`, context);
 }
 
+// ============================================
+// RUN CONTAINER (create + start)
+// ============================================
+
+export interface RunContainerOptions {
+  /** Image reference, e.g. nginx:latest */
+  image: string;
+  name?: string;
+  /** Command override */
+  command?: string[];
+  /** Port specs: [host-ip:]host-port:container-port[/protocol] */
+  ports?: string[];
+  /** Environment variables: KEY=VALUE */
+  env?: string[];
+  /** Volume specs: host-path-or-volume:container-path */
+  volumes?: string[];
+}
+
+// Error carrying the Docker API response status
+export class DockerApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+// Ensure an image reference has a tag (bare pulls would fetch all tags)
+function normalizeImageRef(image: string): string {
+  const name = image.substring(image.lastIndexOf('/') + 1);
+  return name.includes(':') || name.includes('@') ? image : `${image}:latest`;
+}
+
+// Pull an image (waits for completion)
+export async function pullImage(context: string, image: string): Promise<void> {
+  const ref = normalizeImageRef(image);
+  const response = await fetch(
+    `/contexts/${context}/images/create?fromImage=${encodeURIComponent(ref)}`,
+    { method: 'POST' },
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Failed to pull image: ${response.status} ${response.statusText}`);
+  }
+  // Docker streams pull progress; wait for the stream to finish
+  await response.text();
+}
+
+// Create a container, returns its id
+export async function createContainer(
+  context: string,
+  options: RunContainerOptions,
+): Promise<string> {
+  const exposedPorts: Record<string, object> = {};
+  const portBindings: Record<string, { HostIp?: string; HostPort: string }[]> = {};
+
+  for (const spec of options.ports ?? []) {
+    const [main, proto = 'tcp'] = spec.split('/');
+    const parts = main.split(':');
+    const containerPort = parts.pop() ?? '';
+    const hostPort = parts.pop() ?? '';
+    const hostIp = parts.join(':');
+    if (!containerPort) continue;
+
+    const key = `${containerPort}/${proto}`;
+    exposedPorts[key] = {};
+    if (hostPort) {
+      (portBindings[key] ??= []).push({
+        ...(hostIp ? { HostIp: hostIp } : {}),
+        HostPort: hostPort,
+      });
+    }
+  }
+
+  const body = {
+    Image: normalizeImageRef(options.image),
+    ...(options.command?.length ? { Cmd: options.command } : {}),
+    ...(options.env?.length ? { Env: options.env } : {}),
+    ...(Object.keys(exposedPorts).length ? { ExposedPorts: exposedPorts } : {}),
+    HostConfig: {
+      ...(Object.keys(portBindings).length ? { PortBindings: portBindings } : {}),
+      ...(options.volumes?.length ? { Binds: options.volumes } : {}),
+    },
+  };
+
+  const params = options.name ? `?name=${encodeURIComponent(options.name)}` : '';
+  const response = await fetch(`/contexts/${context}/containers/create${params}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text;
+    try {
+      message = (JSON.parse(text) as { message?: string }).message || text;
+    } catch {
+      // Not JSON — use the raw text
+    }
+    throw new DockerApiError(
+      message || `Failed to create container: ${response.status} ${response.statusText}`,
+      response.status,
+    );
+  }
+
+  const result = (await response.json()) as { Id?: string };
+  if (!result.Id) throw new Error('Container created but no id returned');
+  return result.Id;
+}
+
+export type RunContainerPhase = 'creating' | 'pulling' | 'starting';
+
+// Create and start a container. The docker daemon reports a missing local
+// image as 404 — pull and retry only then; other errors (name conflicts,
+// bad options) are final. Apple container pulls within create itself.
+export async function runContainer(
+  context: string,
+  options: RunContainerOptions,
+  onPhase?: (phase: RunContainerPhase) => void,
+): Promise<string> {
+  onPhase?.('creating');
+  let id: string;
+  try {
+    id = await createContainer(context, options);
+  } catch (err) {
+    if (!(err instanceof DockerApiError) || err.status !== 404) throw err;
+    onPhase?.('pulling');
+    await pullImage(context, options.image);
+    onPhase?.('creating');
+    id = await createContainer(context, options);
+  }
+  onPhase?.('starting');
+  await startContainer(context, id);
+  return id;
+}
+
 // Stop a container
 export async function stopContainer(context: string, id: string): Promise<void> {
   return postDockerApi(`/containers/${id}/stop`, context);
@@ -165,12 +303,16 @@ export interface ContainerLogsOptions {
   until?: number;
 }
 
-export function getContainerLogsUrl(context: string, containerId: string, options: ContainerLogsOptions = {}): string {
+export function getContainerLogsUrl(
+  context: string,
+  containerId: string,
+  options: ContainerLogsOptions = {},
+): string {
   const params = new URLSearchParams();
   params.set('stdout', String(options.stdout ?? true));
   params.set('stderr', String(options.stderr ?? true));
   params.set('timestamps', String(options.timestamps ?? true));
-  
+
   if (options.follow) {
     params.set('follow', 'true');
   }
@@ -188,7 +330,11 @@ export function getContainerLogsUrl(context: string, containerId: string, option
 }
 
 // Fetch container logs (non-streaming)
-export async function getContainerLogs(context: string, containerId: string, options: ContainerLogsOptions = {}): Promise<string> {
+export async function getContainerLogs(
+  context: string,
+  containerId: string,
+  options: ContainerLogsOptions = {},
+): Promise<string> {
   const url = getContainerLogsUrl(context, containerId, { ...options, follow: false });
   const response = await fetch(url);
   if (!response.ok) {
@@ -205,10 +351,10 @@ export async function streamContainerLogs(
   containerId: string,
   options: ContainerLogsOptions,
   onLine: (line: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   const url = getContainerLogsUrl(context, containerId, { ...options, follow: true });
-  
+
   const response = await fetch(url, { signal });
   if (!response.ok) {
     throw new Error(`Failed to stream logs: ${response.status} ${response.statusText}`);
@@ -342,7 +488,7 @@ export function parseImageRef(ref: string): { repository: string; tag: string } 
   const lastSlash = ref.lastIndexOf('/');
   const afterSlash = lastSlash >= 0 ? ref.substring(lastSlash + 1) : ref;
   const colonInName = afterSlash.lastIndexOf(':');
-  
+
   if (colonInName >= 0) {
     // There's a tag
     const tagStart = lastSlash >= 0 ? lastSlash + 1 + colonInName : colonInName;
@@ -351,7 +497,7 @@ export function parseImageRef(ref: string): { repository: string; tag: string } 
       tag: ref.substring(tagStart + 1),
     };
   }
-  
+
   // No tag, just repository
   return { repository: ref, tag: 'latest' };
 }
@@ -395,10 +541,11 @@ import type { TableResponse, TableColumnDefinition } from '../../types/table';
 // Helper to format ports for table display
 function formatPortsForTable(ports: DockerPort[]): string {
   if (!ports || ports.length === 0) return '-';
-  return ports
-    .filter(p => p.PublicPort)
-    .map(p => `${p.PublicPort}:${p.PrivatePort}/${p.Type}`)
-    .join(', ') || '-';
+  // Dedupe — docker reports one entry per bound address (IPv4 + IPv6)
+  const specs = new Set(
+    ports.filter((p) => p.PublicPort).map((p) => `${p.PublicPort}:${p.PrivatePort}/${p.Type}`),
+  );
+  return [...specs].join(', ') || '-';
 }
 
 // Helper to format created timestamp as age
@@ -419,7 +566,9 @@ function formatAgeFromUnix(timestamp: number): string {
 }
 
 // Convert Docker containers to table format
-export function dockerContainersToTable(containers: DockerContainer[]): TableResponse<DockerContainer> {
+export function dockerContainersToTable(
+  containers: DockerContainer[],
+): TableResponse<DockerContainer> {
   const columnDefinitions: TableColumnDefinition[] = [
     { name: 'Name', type: 'string', format: '', description: 'Container name', priority: 0 },
     { name: 'Image', type: 'string', format: '', description: 'Container image', priority: 0 },
@@ -429,7 +578,7 @@ export function dockerContainersToTable(containers: DockerContainer[]): TableRes
     { name: 'Age', type: 'string', format: '', description: 'Time since created', priority: 1 },
   ];
 
-  const rows = containers.map(container => ({
+  const rows = containers.map((container) => ({
     cells: [
       formatContainerName(container.Names ?? []),
       container.Image ?? '',
@@ -447,14 +596,20 @@ export function dockerContainersToTable(containers: DockerContainer[]): TableRes
 // Convert Docker images to table format
 export function dockerImagesToTable(images: DockerImage[]): TableResponse<DockerImage> {
   const columnDefinitions: TableColumnDefinition[] = [
-    { name: 'Repository', type: 'string', format: '', description: 'Image repository', priority: 0 },
+    {
+      name: 'Repository',
+      type: 'string',
+      format: '',
+      description: 'Image repository',
+      priority: 0,
+    },
     { name: 'Tag', type: 'string', format: '', description: 'Image tag', priority: 0 },
     { name: 'Image ID', type: 'string', format: '', description: 'Image identifier', priority: 0 },
     { name: 'Size', type: 'string', format: '', description: 'Image size', priority: 1 },
     { name: 'Age', type: 'string', format: '', description: 'Time since created', priority: 1 },
   ];
 
-  const rows = images.map(image => {
+  const rows = images.map((image) => {
     const repoTag = image.RepoTags?.[0] || '<none>:<none>';
     const { repository, tag } = parseImageRef(repoTag);
 
@@ -482,7 +637,7 @@ export function dockerVolumesToTable(volumes: DockerVolume[]): TableResponse<Doc
     { name: 'Mountpoint', type: 'string', format: '', description: 'Mount location', priority: 2 },
   ];
 
-  const rows = volumes.map(volume => ({
+  const rows = volumes.map((volume) => ({
     cells: [
       volume.Name ?? '',
       volume.Driver ?? 'local',
@@ -504,7 +659,7 @@ export function dockerNetworksToTable(networks: DockerNetwork[]): TableResponse<
     { name: 'ID', type: 'string', format: '', description: 'Network identifier', priority: 2 },
   ];
 
-  const rows = networks.map(network => ({
+  const rows = networks.map((network) => ({
     cells: [
       network.Name ?? '',
       network.Driver ?? 'bridge',
@@ -567,19 +722,22 @@ export async function listApplications(context: string): Promise<ComposeApplicat
   ]);
 
   // Filter compose containers and group by project
-  const composeContainers = containers.filter(c => c.Labels?.[COMPOSE_PROJECT_LABEL]);
-  
+  const composeContainers = containers.filter((c) => c.Labels?.[COMPOSE_PROJECT_LABEL]);
+
   // Inspect all compose containers in parallel to get full data including env vars
   const inspectedContainers = await Promise.all(
-    composeContainers.map(c => inspectContainer(context, c.Id!))
+    composeContainers.map((c) => inspectContainer(context, c.Id!)),
   );
 
   // Group inspected containers by compose project
-  const projectMap = new Map<string, {
-    services: Map<string, ContainerInspect[]>;
-    configFiles?: string;
-    workingDir?: string;
-  }>();
+  const projectMap = new Map<
+    string,
+    {
+      services: Map<string, ContainerInspect[]>;
+      configFiles?: string;
+      workingDir?: string;
+    }
+  >();
 
   for (const container of inspectedContainers) {
     const labels = container.Config?.Labels;
@@ -587,7 +745,7 @@ export async function listApplications(context: string): Promise<ComposeApplicat
     if (!projectName) continue;
 
     const serviceName = labels?.[COMPOSE_SERVICE_LABEL] ?? 'unknown';
-    
+
     if (!projectMap.has(projectName)) {
       projectMap.set(projectName, {
         services: new Map(),
@@ -627,14 +785,14 @@ export async function listApplications(context: string): Promise<ComposeApplicat
 
   // Build application objects
   const applications: ComposeApplication[] = [];
-  
+
   for (const [projectName, project] of projectMap) {
     const services: ComposeService[] = [];
     let runningContainers = 0;
     let totalContainers = 0;
 
     for (const [serviceName, serviceContainers] of project.services) {
-      const running = serviceContainers.filter(c => c.State?.Running).length;
+      const running = serviceContainers.filter((c) => c.State?.Running).length;
       runningContainers += running;
       totalContainers += serviceContainers.length;
 
@@ -672,16 +830,30 @@ export async function listApplications(context: string): Promise<ComposeApplicat
 }
 
 /** Convert Docker Compose applications to table format */
-export function dockerApplicationsToTable(applications: ComposeApplication[]): TableResponse<ComposeApplication> {
+export function dockerApplicationsToTable(
+  applications: ComposeApplication[],
+): TableResponse<ComposeApplication> {
   const columnDefinitions: TableColumnDefinition[] = [
     { name: 'Name', type: 'string', format: '', description: 'Application name', priority: 0 },
-    { name: 'Services', type: 'number', format: '', description: 'Number of services', priority: 0 },
+    {
+      name: 'Services',
+      type: 'number',
+      format: '',
+      description: 'Number of services',
+      priority: 0,
+    },
     { name: 'Status', type: 'string', format: '', description: 'Running containers', priority: 0 },
-    { name: 'Networks', type: 'number', format: '', description: 'Number of networks', priority: 1 },
+    {
+      name: 'Networks',
+      type: 'number',
+      format: '',
+      description: 'Number of networks',
+      priority: 1,
+    },
     { name: 'Volumes', type: 'number', format: '', description: 'Number of volumes', priority: 1 },
   ];
 
-  const rows = applications.map(app => ({
+  const rows = applications.map((app) => ({
     // Numeric columns carry real numbers so table sorting is numeric,
     // not lexicographic ("10" < "9").
     cells: [
@@ -696,4 +868,3 @@ export function dockerApplicationsToTable(applications: ComposeApplication[]): T
 
   return { columnDefinitions, rows };
 }
-

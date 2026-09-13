@@ -1,11 +1,20 @@
 // CertificateRequest Adapter (cert-manager.io/v1)
 // Extracts display data from cert-manager CertificateRequest resources
 
-import { FileCheck, Key, User, Clock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link as LinkIcon } from 'lucide-react';
+import {
+  FileCheck,
+  Key,
+  User,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  XCircle,
+  Link as LinkIcon,
+} from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
 import { CertificateView, CsrView } from '../../sections/CertificateView';
-
 
 // cert-manager CertificateRequest types
 interface IssuerRef {
@@ -75,10 +84,10 @@ function getRequestState(conditions?: CertificateRequestCondition[]): {
   reason?: string;
   message?: string;
 } {
-  const approvedCondition = conditions?.find(c => c.type === 'Approved');
-  const deniedCondition = conditions?.find(c => c.type === 'Denied');
-  const readyCondition = conditions?.find(c => c.type === 'Ready');
-  const invalidRequestCondition = conditions?.find(c => c.type === 'InvalidRequest');
+  const approvedCondition = conditions?.find((c) => c.type === 'Approved');
+  const deniedCondition = conditions?.find((c) => c.type === 'Denied');
+  const readyCondition = conditions?.find((c) => c.type === 'Ready');
+  const invalidRequestCondition = conditions?.find((c) => c.type === 'InvalidRequest');
 
   const approved = approvedCondition?.status === 'True';
   const denied = deniedCondition?.status === 'True';
@@ -210,28 +219,42 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
               status: overallStatus.level,
               icon: getStatusIcon(state),
             },
-            ...(state.approved ? [{
-              label: 'Approved',
-              value: 'Yes',
-              status: 'success' as const,
-              icon: <CheckCircle2 size={14} className="text-emerald-400" />,
-            }] : []),
-            ...(spec.isCA ? [{
-              label: 'Type',
-              value: 'CA Certificate',
-              status: 'neutral' as const,
-              icon: <FileCheck size={14} className="text-purple-400" />,
-            }] : [{
-              label: 'Type',
-              value: 'TLS Certificate',
-              status: 'neutral' as const,
-              icon: <FileCheck size={14} className="text-blue-400" />,
-            }]),
-            ...(revision ? [{
-              label: 'Revision',
-              value: revision,
-              status: 'neutral' as const,
-            }] : []),
+            ...(state.approved
+              ? [
+                  {
+                    label: 'Approved',
+                    value: 'Yes',
+                    status: 'success' as const,
+                    icon: <CheckCircle2 size={14} className="text-emerald-400" />,
+                  },
+                ]
+              : []),
+            ...(spec.isCA
+              ? [
+                  {
+                    label: 'Type',
+                    value: 'CA Certificate',
+                    status: 'neutral' as const,
+                    icon: <FileCheck size={14} className="text-purple-400" />,
+                  },
+                ]
+              : [
+                  {
+                    label: 'Type',
+                    value: 'TLS Certificate',
+                    status: 'neutral' as const,
+                    icon: <FileCheck size={14} className="text-blue-400" />,
+                  },
+                ]),
+            ...(revision
+              ? [
+                  {
+                    label: 'Revision',
+                    value: revision,
+                    status: 'neutral' as const,
+                  },
+                ]
+              : []),
           ],
         },
       },
@@ -246,9 +269,11 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
           type: 'custom',
           render: () => {
             const content = (
-              <div className={`bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 ${
-                namespace ? 'hover:bg-blue-500/15 transition-colors cursor-pointer' : ''
-              }`}>
+              <div
+                className={`bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 ${
+                  namespace ? 'hover:bg-blue-500/15 transition-colors cursor-pointer' : ''
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <LinkIcon size={14} className="text-blue-400" />
                   <span className="text-sm text-blue-300">{certificateName}</span>
@@ -259,16 +284,18 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
             return namespace ? (
               <Link
                 to="/cluster/$context/$resourceType/$name"
-                params={{ 
-                  context, 
-                  resourceType: 'certificates.cert-manager.io', 
-                  name: certificateName 
+                params={{
+                  context,
+                  resourceType: 'certificates.cert-manager.io',
+                  name: certificateName,
                 }}
                 search={(prev) => ({ ...prev, namespace })}
               >
                 {content}
               </Link>
-            ) : content;
+            ) : (
+              content
+            );
           },
         },
       });
@@ -283,8 +310,12 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
         columns: 2,
         items: [
           { label: 'Duration', value: formatDuration(spec.duration) },
-          ...(metadata?.creationTimestamp ? [{ label: 'Created', value: formatDate(metadata.creationTimestamp) }] : []),
-          ...(spec.username ? [{ label: 'Requested By', value: spec.username.split(':').pop() || spec.username }] : []),
+          ...(metadata?.creationTimestamp
+            ? [{ label: 'Created', value: formatDate(metadata.creationTimestamp) }]
+            : []),
+          ...(spec.username
+            ? [{ label: 'Requested By', value: spec.username.split(':').pop() || spec.username }]
+            : []),
         ],
       },
     });
@@ -303,7 +334,9 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
                 {spec.issuerRef.kind ?? 'Issuer'}
               </span>
             </div>
-            <div className="text-sm text-neutral-700 dark:text-neutral-300">{spec.issuerRef.name}</div>
+            <div className="text-sm text-neutral-700 dark:text-neutral-300">
+              {spec.issuerRef.name}
+            </div>
             {spec.issuerRef.group && (
               <div className="text-xs text-neutral-500 mt-1">{spec.issuerRef.group}</div>
             )}
@@ -323,12 +356,16 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
             <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <User size={14} className="text-neutral-600 dark:text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Identity</span>
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Identity
+                </span>
               </div>
               {spec.username && (
                 <div className="text-xs text-neutral-700 dark:text-neutral-400 mb-1">
                   <span className="text-neutral-600 dark:text-neutral-500">User:</span>{' '}
-                  <span className="text-cyan-600 dark:text-cyan-400 font-mono">{spec.username}</span>
+                  <span className="text-cyan-600 dark:text-cyan-400 font-mono">
+                    {spec.username}
+                  </span>
                 </div>
               )}
               {spec.groups && spec.groups.length > 0 && (
@@ -384,12 +421,8 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
           type: 'custom',
           render: () => (
             <div className="space-y-3">
-              {decodedCert && (
-                <CertificateView name="Issued Certificate" pem={decodedCert} />
-              )}
-              {decodedCA && (
-                <CertificateView name="CA Certificate" pem={decodedCA} />
-              )}
+              {decodedCert && <CertificateView name="Issued Certificate" pem={decodedCert} />}
+              {decodedCA && <CertificateView name="CA Certificate" pem={decodedCA} />}
             </div>
           ),
         },
@@ -405,9 +438,7 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
           title: 'Certificate Signing Request',
           data: {
             type: 'custom',
-            render: () => (
-              <CsrView name="Certificate Request" pem={decodedCSR} />
-            ),
+            render: () => <CsrView name="Certificate Request" pem={decodedCSR} />,
           },
         });
       }
@@ -428,9 +459,7 @@ export const CertificateRequestAdapter: ResourceAdapter<CertificateRequest> = {
               <div className="text-xs text-neutral-500 mt-1">
                 Failure time: {formatDate(status.failureTime)}
               </div>
-              {state.message && (
-                <div className="text-xs text-red-400/70 mt-1">{state.message}</div>
-              )}
+              {state.message && <div className="text-xs text-red-400/70 mt-1">{state.message}</div>}
             </div>
           ),
         },

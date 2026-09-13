@@ -1,15 +1,15 @@
-import 'reflect-metadata'
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { RouterProvider } from '@tanstack/react-router'
-import './index.css'
-import { loadConfig } from './config.ts'
-import { router } from './router.tsx'
+import 'reflect-metadata';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { RouterProvider } from '@tanstack/react-router';
+import './index.css';
+import { loadConfig } from './config.ts';
+import { router } from './router.tsx';
 
-const rootElement = document.getElementById('root')
+const rootElement = document.getElementById('root');
 
 if (!rootElement) {
-  throw new Error('Root element not found')
+  throw new Error('Root element not found');
 }
 
 loadConfig().then(() => {
@@ -17,5 +17,5 @@ loadConfig().then(() => {
     <StrictMode>
       <RouterProvider router={router} />
     </StrictMode>,
-  )
-})
+  );
+});

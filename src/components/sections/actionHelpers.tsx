@@ -14,7 +14,7 @@ export function createDeleteAction<T>(
     message?: string;
     isDisabled?: (resource: T) => string | false;
     isVisible?: (resource: T) => boolean;
-  }
+  },
 ): ResourceAction<T> {
   return {
     id: 'delete',
@@ -23,7 +23,9 @@ export function createDeleteAction<T>(
     variant: 'danger',
     confirm: {
       title: 'Delete Resource',
-      message: options?.message || 'Are you sure you want to delete this resource? This action cannot be undone.',
+      message:
+        options?.message ||
+        'Are you sure you want to delete this resource? This action cannot be undone.',
       confirmLabel: 'Delete',
     },
     execute,
@@ -43,7 +45,7 @@ export function createScaleAction<T>(
     description?: string;
     max?: number;
     isDisabled?: (resource: T) => string | false;
-  }
+  },
 ): ResourceAction<T> {
   return {
     id: 'scale',
@@ -79,7 +81,7 @@ export function createRestartAction<T>(
   execute: (context: string, resource: T) => Promise<void>,
   options?: {
     isDisabled?: (resource: T) => string | false;
-  }
+  },
 ): ResourceAction<T> {
   return {
     id: 'restart',

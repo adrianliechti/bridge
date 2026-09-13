@@ -23,10 +23,11 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
         await scaleResource(context, config, name, replicas, namespace);
       },
       (resource) => (resource.spec as V1ReplicaSet['spec'])?.replicas ?? 1,
-      { 
+      {
         title: 'Scale ReplicaSet',
-        description: 'Set the desired number of replicas. Note: If this ReplicaSet is managed by a Deployment, the Deployment may override this change.',
-      }
+        description:
+          'Set the desired number of replicas. Note: If this ReplicaSet is managed by a Deployment, the Deployment may override this change.',
+      },
     ),
   ],
 
@@ -58,10 +59,10 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
     // Map owner kind to resource type
     const getResourceType = (kind: string) => {
       const kindMap: Record<string, string> = {
-        'Deployment': 'deployments',
-        'StatefulSet': 'statefulsets',
-        'DaemonSet': 'daemonsets',
-        'Job': 'jobs',
+        Deployment: 'deployments',
+        StatefulSet: 'statefulsets',
+        DaemonSet: 'daemonsets',
+        Job: 'jobs',
       };
       return kindMap[kind] || kind.toLowerCase() + 's';
     };
@@ -69,41 +70,49 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
     return {
       sections: [
         // Owner reference
-        ...(ownerRef ? [{
-          id: 'owner',
-          data: {
-            type: 'custom' as const,
-            render: () => {
-              const content = (
-                <div className={`bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 ${
-                  namespace ? 'hover:bg-blue-500/15 transition-colors cursor-pointer' : ''
-                }`}>
-                  <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
-                    <LinkIcon size={10} /> Owned By
-                  </div>
-                  <div className="text-sm flex items-center gap-2">
-                    <span className="text-neutral-500">{ownerRef.kind}:</span>
-                    <span className="text-cyan-400">{ownerRef.name}</span>
-                  </div>
-                </div>
-              );
+        ...(ownerRef
+          ? [
+              {
+                id: 'owner',
+                data: {
+                  type: 'custom' as const,
+                  render: () => {
+                    const content = (
+                      <div
+                        className={`bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 ${
+                          namespace ? 'hover:bg-blue-500/15 transition-colors cursor-pointer' : ''
+                        }`}
+                      >
+                        <div className="text-xs text-neutral-500 mb-1 flex items-center gap-1">
+                          <LinkIcon size={10} /> Owned By
+                        </div>
+                        <div className="text-sm flex items-center gap-2">
+                          <span className="text-neutral-500">{ownerRef.kind}:</span>
+                          <span className="text-cyan-400">{ownerRef.name}</span>
+                        </div>
+                      </div>
+                    );
 
-              return namespace ? (
-                <Link
-                  to="/cluster/$context/$resourceType/$name"
-                  params={{ 
-                    context, 
-                    resourceType: getResourceType(ownerRef.kind), 
-                    name: ownerRef.name 
-                  }}
-                  search={(prev) => ({ ...prev, namespace })}
-                >
-                  {content}
-                </Link>
-              ) : content;
-            },
-          },
-        }] : []),
+                    return namespace ? (
+                      <Link
+                        to="/cluster/$context/$resourceType/$name"
+                        params={{
+                          context,
+                          resourceType: getResourceType(ownerRef.kind),
+                          name: ownerRef.name,
+                        }}
+                        search={(prev) => ({ ...prev, namespace })}
+                      >
+                        {content}
+                      </Link>
+                    ) : (
+                      content
+                    );
+                  },
+                },
+              },
+            ]
+          : []),
 
         // Replica gauges with pod grid
         {
@@ -130,14 +139,18 @@ export const ReplicaSetAdapter: ResourceAdapter<V1ReplicaSet> = {
         ...(quotaSection ? [quotaSection] : []),
 
         // Selector
-        ...(spec.selector?.matchLabels ? [{
-          id: 'selector',
-          data: {
-            type: 'labels' as const,
-            labels: spec.selector.matchLabels,
-            title: 'Selector',
-          },
-        }] : []),
+        ...(spec.selector?.matchLabels
+          ? [
+              {
+                id: 'selector',
+                data: {
+                  type: 'labels' as const,
+                  labels: spec.selector.matchLabels,
+                  title: 'Selector',
+                },
+              },
+            ]
+          : []),
 
         // Containers
         ...getContainerSections(

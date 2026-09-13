@@ -55,7 +55,7 @@ export function getConfig(): AppConfig {
  * Examples: *-system, openshift-*, *monitoring*
  */
 export function matchesNamespacePattern(name: string, patterns: string[]): boolean {
-  return patterns.some(pattern => {
+  return patterns.some((pattern) => {
     if (!pattern.includes('*')) return pattern === name;
     const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`);
     return regex.test(name);

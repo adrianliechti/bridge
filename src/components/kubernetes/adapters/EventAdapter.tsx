@@ -31,11 +31,11 @@ function formatTimestamp(timestamp?: string | Date): string {
 function formatRelativeTime(timestamp?: string | Date): string {
   const ts = getTimestampString(timestamp);
   if (!ts) return 'N/A';
-  
+
   const date = new Date(ts);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  
+
   const seconds = Math.floor(diffMs / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -72,21 +72,27 @@ export const EventAdapter: ResourceAdapter<CoreV1Event> = {
               label: 'Type',
               value: resource.type || 'Normal',
               status: isWarning ? 'warning' : 'success',
-              icon: isWarning 
-                ? <AlertTriangle size={14} className="text-amber-400" />
-                : <Info size={14} className="text-emerald-400" />,
+              icon: isWarning ? (
+                <AlertTriangle size={14} className="text-amber-400" />
+              ) : (
+                <Info size={14} className="text-emerald-400" />
+              ),
             },
             {
               label: 'Reason',
               value: resource.reason || 'Unknown',
               status: 'neutral',
             },
-            ...(count > 1 ? [{
-              label: 'Count',
-              value: count,
-              status: 'neutral' as const,
-              icon: <Hash size={14} className="text-blue-400" />,
-            }] : []),
+            ...(count > 1
+              ? [
+                  {
+                    label: 'Count',
+                    value: count,
+                    status: 'neutral' as const,
+                    icon: <Hash size={14} className="text-blue-400" />,
+                  },
+                ]
+              : []),
           ],
         },
       },
@@ -100,12 +106,16 @@ export const EventAdapter: ResourceAdapter<CoreV1Event> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className={`p-3 rounded-lg border ${
-              isWarning 
-                ? 'bg-amber-500/10 border-amber-500/30' 
-                : 'bg-neutral-100 dark:bg-neutral-900/50 border-neutral-200 dark:border-neutral-700'
-            }`}>
-              <p className="text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">{resource.message}</p>
+            <div
+              className={`p-3 rounded-lg border ${
+                isWarning
+                  ? 'bg-amber-500/10 border-amber-500/30'
+                  : 'bg-neutral-100 dark:bg-neutral-900/50 border-neutral-200 dark:border-neutral-700'
+              }`}
+            >
+              <p className="text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap">
+                {resource.message}
+              </p>
             </div>
           ),
         },
@@ -197,7 +207,9 @@ export const EventAdapter: ResourceAdapter<CoreV1Event> = {
             <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Server size={14} className="text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Event Source</span>
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Event Source
+                </span>
               </div>
               <div className="space-y-1 text-xs">
                 {source.component && (
@@ -228,8 +240,12 @@ export const EventAdapter: ResourceAdapter<CoreV1Event> = {
           type: 'info-grid',
           columns: 2,
           items: [
-            ...(resource.reportingComponent ? [{ label: 'Component', value: resource.reportingComponent }] : []),
-            ...(resource.reportingInstance ? [{ label: 'Instance', value: resource.reportingInstance }] : []),
+            ...(resource.reportingComponent
+              ? [{ label: 'Component', value: resource.reportingComponent }]
+              : []),
+            ...(resource.reportingInstance
+              ? [{ label: 'Instance', value: resource.reportingInstance }]
+              : []),
             ...(resource.action ? [{ label: 'Action', value: resource.action }] : []),
           ],
         },
@@ -237,7 +253,11 @@ export const EventAdapter: ResourceAdapter<CoreV1Event> = {
     }
 
     // Related object (if different from involved object)
-    if (resource.related && resource.related.name && resource.related.name !== involvedObject?.name) {
+    if (
+      resource.related &&
+      resource.related.name &&
+      resource.related.name !== involvedObject?.name
+    ) {
       sections.push({
         id: 'related',
         title: 'Related Object',
@@ -247,7 +267,9 @@ export const EventAdapter: ResourceAdapter<CoreV1Event> = {
           items: [
             { label: 'Kind', value: resource.related.kind || 'Unknown' },
             { label: 'Name', value: resource.related.name },
-            ...(resource.related.namespace ? [{ label: 'Namespace', value: resource.related.namespace }] : []),
+            ...(resource.related.namespace
+              ? [{ label: 'Namespace', value: resource.related.namespace }]
+              : []),
           ],
         },
       });

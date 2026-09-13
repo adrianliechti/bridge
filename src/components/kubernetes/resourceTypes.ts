@@ -36,7 +36,14 @@ import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
 /**
  * Category types for resource grouping
  */
-export type ResourceCategory = 'workloads' | 'config' | 'network' | 'storage' | 'access' | 'cluster' | 'crd';
+export type ResourceCategory =
+  | 'workloads'
+  | 'config'
+  | 'network'
+  | 'storage'
+  | 'access'
+  | 'cluster'
+  | 'crd';
 
 /**
  * Built-in resource type definition with icon and category
@@ -84,7 +91,12 @@ export const builtInResourceTypes: ResourceTypeConfig[] = [
   { kind: 'applications', label: 'Applications', icon: AppWindow, category: 'config' },
   { kind: 'applicationsets', label: 'ApplicationSets', icon: LayoutGrid, category: 'config' },
   { kind: 'certificates', label: 'Certificates', icon: ShieldCheck, category: 'config' },
-  { kind: 'certificaterequests', label: 'CertificateRequests', icon: FileCheck, category: 'config' },
+  {
+    kind: 'certificaterequests',
+    label: 'CertificateRequests',
+    icon: FileCheck,
+    category: 'config',
+  },
   // Network
   { kind: 'services', label: 'Services', icon: Plug, category: 'network' },
   { kind: 'ingresses', label: 'Ingresses', icon: Globe, category: 'network' },
@@ -96,13 +108,23 @@ export const builtInResourceTypes: ResourceTypeConfig[] = [
   { kind: 'tlsroutes', label: 'TLSRoutes', icon: Network, category: 'network' },
   // Storage
   { kind: 'persistentvolumes', label: 'PersistentVolumes', icon: HardDrive, category: 'storage' },
-  { kind: 'persistentvolumeclaims', label: 'PersistentVolumeClaims', icon: Disc, category: 'storage' },
+  {
+    kind: 'persistentvolumeclaims',
+    label: 'PersistentVolumeClaims',
+    icon: Disc,
+    category: 'storage',
+  },
   // Access Control (RBAC)
   { kind: 'serviceaccounts', label: 'ServiceAccounts', icon: UserCircle, category: 'access' },
   { kind: 'roles', label: 'Roles', icon: Shield, category: 'access' },
   { kind: 'rolebindings', label: 'RoleBindings', icon: ShieldCheck, category: 'access' },
   { kind: 'clusterroles', label: 'ClusterRoles', icon: Shield, category: 'access' },
-  { kind: 'clusterrolebindings', label: 'ClusterRoleBindings', icon: ShieldCheck, category: 'access' },
+  {
+    kind: 'clusterrolebindings',
+    label: 'ClusterRoleBindings',
+    icon: ShieldCheck,
+    category: 'access',
+  },
   // Cluster
   { kind: 'namespaces', label: 'Namespaces', icon: FolderOpen, category: 'cluster' },
   { kind: 'nodes', label: 'Nodes', icon: Server, category: 'cluster' },
@@ -181,20 +203,20 @@ export function getResourceAliases(config: V1APIResource | undefined): string[] 
 export function matchesResourceType(
   query: string,
   resourceType: ResourceTypeConfig,
-  apiResource?: V1APIResource
+  apiResource?: V1APIResource,
 ): boolean {
   const q = query.toLowerCase();
-  
+
   // Match by kind (plural name)
   if (resourceType.kind.toLowerCase() === q) return true;
   // Match by label
   if (resourceType.label.toLowerCase() === q) return true;
-  
+
   // Match by discovery API aliases (singularName, shortNames)
   if (apiResource) {
     if (apiResource.singularName?.toLowerCase() === q) return true;
-    if (apiResource.shortNames?.some(sn => sn.toLowerCase() === q)) return true;
+    if (apiResource.shortNames?.some((sn) => sn.toLowerCase() === q)) return true;
   }
-  
+
   return false;
 }

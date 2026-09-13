@@ -1,6 +1,11 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { Search } from 'lucide-react';
-import type { TableColumnDefinition, TableRow, TableResponse, ResourceConfig } from '../types/table';
+import type {
+  TableColumnDefinition,
+  TableRow,
+  TableResponse,
+  ResourceConfig,
+} from '../types/table';
 import { getObjectId } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { ResourceTable } from './ResourceTable';
@@ -19,8 +24,12 @@ interface ResourcePageProps<T = any> {
   isRefetching?: boolean;
   // Optional detail panel props
   showDetailPanel?: boolean;
-  renderDetailPanel?: (item: TableRow<T>, onClose: () => void, otherPanelOpen: boolean) => React.ReactNode;
-  // Optional header actions (e.g., AI button)
+  renderDetailPanel?: (
+    item: TableRow<T>,
+    onClose: () => void,
+    otherPanelOpen: boolean,
+  ) => React.ReactNode;
+  // Optional header actions (e.g., AI button), rendered left of the search button
   renderHeaderActions?: (columns: TableColumnDefinition[]) => React.ReactNode;
   // Chat panel state (for header padding calculation)
   isChatPanelOpen?: boolean;
@@ -68,22 +77,25 @@ export function ResourcePage<T = any>({
     if (!rows) return null;
     if (clickedItem && getItemName(clickedItem) === selectedItemName) {
       const clickedId = getObjectId(clickedItem.object);
-      const fresh = rows.find(row => getObjectId(row.object) === clickedId);
+      const fresh = rows.find((row) => getObjectId(row.object) === clickedId);
       if (fresh) return fresh;
       // Clicked row no longer exists in the current data (deleted or the
       // namespace filter changed) — fall through to a plain name lookup.
     }
-    return rows.find(row => getItemName(row) === selectedItemName) ?? null;
+    return rows.find((row) => getItemName(row) === selectedItemName) ?? null;
   }, [selectedItemName, clickedItem, data, getItemName]);
 
   const isDetailPanelOpen = showDetailPanel && !!selectedItem;
 
-  const handleSelectItem = useCallback((item: TableRow<T> | null) => {
-    setClickedItem(item);
-    if (onSelectItemName && getItemName) {
-      onSelectItemName(item ? getItemName(item) : undefined);
-    }
-  }, [onSelectItemName, getItemName]);
+  const handleSelectItem = useCallback(
+    (item: TableRow<T> | null) => {
+      setClickedItem(item);
+      if (onSelectItemName && getItemName) {
+        onSelectItemName(item ? getItemName(item) : undefined);
+      }
+    },
+    [onSelectItemName, getItemName],
+  );
 
   const handleCloseDetailPanel = useCallback(() => {
     setClickedItem(null);
@@ -105,19 +117,23 @@ export function ResourcePage<T = any>({
   return (
     <>
       <main className="flex-1 flex flex-col h-full min-w-0">
-        <header className={`shrink-0 h-14 flex items-center justify-between px-5 mt-2 transition-all duration-300 ${getHeaderActionsPadding()}`}>
+        <header
+          className={`shrink-0 h-14 flex items-center justify-between px-5 mt-2 transition-all duration-300 ${getHeaderActionsPadding()}`}
+        >
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-100">{title}</h2>
           </div>
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {renderHeaderActions?.(columns)}
+            <div ref={toolbarRef} />
             <button
               onClick={() => {
                 const event = new KeyboardEvent('keydown', {
                   key: 'k',
                   metaKey: true,
                   ctrlKey: true,
-                  bubbles: true
+                  bubbles: true,
                 });
                 document.dispatchEvent(event);
               }}
@@ -126,8 +142,6 @@ export function ResourcePage<T = any>({
             >
               <Search size={18} />
             </button>
-            <div ref={toolbarRef} />
-            {renderHeaderActions?.(columns)}
           </div>
         </header>
         <section className="flex-1 min-h-0 overflow-hidden">
@@ -149,9 +163,10 @@ export function ResourcePage<T = any>({
         </section>
       </main>
       {/* Detail panel */}
-      {renderDetailPanel && isDetailPanelOpen && selectedItem && (
-        renderDetailPanel(selectedItem, handleCloseDetailPanel, isChatPanelOpen)
-      )}
+      {renderDetailPanel &&
+        isDetailPanelOpen &&
+        selectedItem &&
+        renderDetailPanel(selectedItem, handleCloseDetailPanel, isChatPanelOpen)}
     </>
   );
 }

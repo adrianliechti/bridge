@@ -80,10 +80,11 @@ function SingleLineTable({ entries }: { entries: [string, string][] }) {
       <table className="w-full text-xs">
         <tbody>
           {entries.map(([key, value]) => (
-            <tr key={key} className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
-              <td className="py-1.5 pr-3 text-neutral-500 whitespace-nowrap">
-                {key}
-              </td>
+            <tr
+              key={key}
+              className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0"
+            >
+              <td className="py-1.5 pr-3 text-neutral-500 whitespace-nowrap">{key}</td>
               <td className="py-1.5 font-mono break-all text-neutral-900 dark:text-neutral-300">
                 {value}
               </td>
@@ -161,14 +162,16 @@ export const ConfigMapAdapter: ResourceAdapter<V1ConfigMap> = {
         id: 'status',
         data: {
           type: 'status-cards',
-          items: [
-            ...(resource.immutable ? [{
-              label: 'Immutable',
-              value: 'Yes',
-              status: 'warning' as const,
-              icon: <Lock size={14} className="text-amber-400" />,
-            }] : []),
-          ],
+          items: resource.immutable
+            ? [
+                {
+                  label: 'Immutable',
+                  value: 'Yes',
+                  status: 'warning' as const,
+                  icon: <Lock size={14} className="text-amber-400" />,
+                },
+              ]
+            : [],
         },
       },
     ];
@@ -176,8 +179,8 @@ export const ConfigMapAdapter: ResourceAdapter<V1ConfigMap> = {
     // Separate single-line and multiline entries
     const singleLineEntries: [string, string][] = [];
     const multilineEntries: [string, string][] = [];
-    
-    dataKeys.forEach(key => {
+
+    dataKeys.forEach((key) => {
       if (isMultiline(data[key])) {
         multilineEntries.push([key, data[key]]);
       } else {
@@ -224,7 +227,7 @@ export const ConfigMapAdapter: ResourceAdapter<V1ConfigMap> = {
           type: 'custom',
           render: () => (
             <div className="space-y-2">
-              {binaryKeys.map(key => (
+              {binaryKeys.map((key) => (
                 <BinaryValue key={key} name={key} value={binaryData[key]} />
               ))}
             </div>

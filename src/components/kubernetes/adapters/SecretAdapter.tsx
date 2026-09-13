@@ -3,13 +3,29 @@
 
 /* eslint-disable react-refresh/only-export-components */
 
-import { Key, Lock, Eye, EyeOff, Copy, Check, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  Key,
+  Lock,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  FileText,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 import { useState } from 'react';
 import type { ResourceAdapter, ResourceSections, Section } from './types';
 import type { V1Secret } from '@kubernetes/client-node';
 import { HelmReleaseView } from '../../sections/HelmReleaseView';
 import { DockerConfigView } from '../../sections/DockerConfigView';
-import { CertificateView, PrivateKeyView, CsrView, PublicKeyView, detectPemType } from '../../sections/CertificateView';
+import {
+  CertificateView,
+  PrivateKeyView,
+  CsrView,
+  PublicKeyView,
+  detectPemType,
+} from '../../sections/CertificateView';
 
 // Decode base64 safely
 function decodeBase64(encoded: string): string | null {
@@ -41,15 +57,21 @@ function isMultiline(content: string): boolean {
 
 // Check if a key name indicates sensitive data
 function isSensitiveKey(name: string): boolean {
-  return !name.endsWith('.crt') && 
-         !name.endsWith('.pem') && 
-         name !== 'ca.crt' && 
-         name !== 'tls.crt' &&
-         name !== 'namespace';
+  return (
+    !name.endsWith('.crt') &&
+    !name.endsWith('.pem') &&
+    name !== 'ca.crt' &&
+    name !== 'tls.crt' &&
+    name !== 'namespace'
+  );
 }
 
 // Component for displaying single-line secret values as a table
-function SingleLineSecretTable({ entries }: { entries: { key: string; decoded: string; isSensitive: boolean }[] }) {
+function SingleLineSecretTable({
+  entries,
+}: {
+  entries: { key: string; decoded: string; isSensitive: boolean }[];
+}) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
 
@@ -60,7 +82,7 @@ function SingleLineSecretTable({ entries }: { entries: { key: string; decoded: s
   };
 
   const toggleReveal = (key: string) => {
-    setRevealedKeys(prev => {
+    setRevealedKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
         next.delete(key);
@@ -76,10 +98,11 @@ function SingleLineSecretTable({ entries }: { entries: { key: string; decoded: s
       <table className="w-full text-xs">
         <tbody>
           {entries.map(({ key, decoded, isSensitive }) => (
-            <tr key={key} className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
-              <td className="py-1.5 pr-3 text-neutral-500 whitespace-nowrap">
-                {key}
-              </td>
+            <tr
+              key={key}
+              className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0"
+            >
+              <td className="py-1.5 pr-3 text-neutral-500 whitespace-nowrap">{key}</td>
               <td className="py-1.5 font-mono break-all">
                 {isSensitive && !revealedKeys.has(key) ? (
                   <span className="text-neutral-400">••••••••••••••••</span>
@@ -126,7 +149,15 @@ function SingleLineSecretTable({ entries }: { entries: { key: string; decoded: s
 }
 
 // Component for displaying a multiline secret value (collapsible)
-function MultilineSecretValue({ name, decoded, isSensitive }: { name: string; decoded: string; isSensitive: boolean }) {
+function MultilineSecretValue({
+  name,
+  decoded,
+  isSensitive,
+}: {
+  name: string;
+  decoded: string;
+  isSensitive: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -212,26 +243,30 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
     // Special handling for Helm release secrets
     if (resource.type === 'helm.sh/release.v1' && data.release) {
       return {
-        sections: [{
-          id: 'helm-release',
-          data: {
-            type: 'custom',
-            render: () => <HelmReleaseView encoded={data.release} />,
+        sections: [
+          {
+            id: 'helm-release',
+            data: {
+              type: 'custom',
+              render: () => <HelmReleaseView encoded={data.release} />,
+            },
           },
-        }],
+        ],
       };
     }
 
     // Special handling for Docker config secrets
     if (resource.type === 'kubernetes.io/dockerconfigjson' && data['.dockerconfigjson']) {
       return {
-        sections: [{
-          id: 'docker-config',
-          data: {
-            type: 'custom',
-            render: () => <DockerConfigView encoded={data['.dockerconfigjson']} />,
+        sections: [
+          {
+            id: 'docker-config',
+            data: {
+              type: 'custom',
+              render: () => <DockerConfigView encoded={data['.dockerconfigjson']} />,
+            },
           },
-        }],
+        ],
       };
     }
 
@@ -243,12 +278,14 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
         id: 'status',
         data: {
           type: 'status-cards',
-          items: [{
-            label: 'Immutable',
-            value: 'Yes',
-            status: 'warning' as const,
-            icon: <Lock size={14} className="text-amber-400" />,
-          }],
+          items: [
+            {
+              label: 'Immutable',
+              value: 'Yes',
+              status: 'warning' as const,
+              icon: <Lock size={14} className="text-amber-400" />,
+            },
+          ],
         },
       });
     }
@@ -262,7 +299,7 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
     const publicKeyEntries: string[] = [];
     const csrEntries: { key: string; pem: string }[] = [];
 
-    keys.forEach(key => {
+    keys.forEach((key) => {
       const rawValue = data[key] || btoa(stringData[key] || '');
       const decoded = decodeBase64(rawValue);
       const isSensitive = isSensitiveKey(key);
@@ -348,7 +385,7 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
           type: 'custom',
           render: () => (
             <div className="space-y-2">
-              {publicKeyEntries.map(key => (
+              {publicKeyEntries.map((key) => (
                 <PublicKeyView key={key} name={key} />
               ))}
             </div>
@@ -397,7 +434,12 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
           render: () => (
             <div className="space-y-2">
               {multilineEntries.map(({ key, decoded, isSensitive }) => (
-                <MultilineSecretValue key={key} name={key} decoded={decoded} isSensitive={isSensitive} />
+                <MultilineSecretValue
+                  key={key}
+                  name={key}
+                  decoded={decoded}
+                  isSensitive={isSensitive}
+                />
               ))}
             </div>
           ),
@@ -414,11 +456,13 @@ export const SecretAdapter: ResourceAdapter<V1Secret> = {
           type: 'custom',
           render: () => (
             <div className="space-y-2">
-              {binaryEntries.map(key => (
+              {binaryEntries.map((key) => (
                 <div key={key} className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-3">
                   <div className="flex items-center gap-2">
                     <FileText size={14} className="text-purple-500 dark:text-purple-400" />
-                    <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{key}</span>
+                    <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                      {key}
+                    </span>
                     <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400">
                       Binary
                     </span>

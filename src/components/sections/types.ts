@@ -62,7 +62,16 @@ export interface InfoRowData {
 export interface ContainerData {
   name: string;
   image: string;
-  state?: 'running' | 'waiting' | 'terminated' | 'paused' | 'exited' | 'created' | 'dead' | 'removing' | 'restarting';
+  state?:
+    | 'running'
+    | 'waiting'
+    | 'terminated'
+    | 'paused'
+    | 'exited'
+    | 'created'
+    | 'dead'
+    | 'removing'
+    | 'restarting';
   stateReason?: string;
   stateMessage?: string;
   ready?: boolean;
@@ -279,7 +288,18 @@ export type SectionData =
   | { type: 'status-cards'; items: StatusCardData[] }
   | { type: 'gauges'; items: GaugeData[]; showPodGrid?: GridData }
   | { type: 'info-grid'; items: InfoRowData[]; columns?: 1 | 2 | 3 }
-  | { type: 'containers'; items: ContainerData[]; metricsLoader?: () => Promise<Map<string, { cpu: { usage: string; usageNanoCores: number }; memory: { usage: string; usageBytes: number } }> | null>; title?: string }
+  | {
+      type: 'containers';
+      items: ContainerData[];
+      metricsLoader?: () => Promise<Map<
+        string,
+        {
+          cpu: { usage: string; usageNanoCores: number };
+          memory: { usage: string; usageBytes: number };
+        }
+      > | null>;
+      title?: string;
+    }
   | { type: 'volumes'; items: VolumeData[] }
   | { type: 'labels'; labels: Record<string, string>; title?: string }
   | { type: 'capacity-bars'; items: CapacityBarData[] }
@@ -361,15 +381,19 @@ export interface ResourceAction<T = unknown> {
   };
   /** Whether the action requires user input (mutually exclusive with confirm) */
   input?: ActionInput;
-  /** 
-   * Execute the action. 
+  /**
+   * Execute the action.
    * @param context - The context name (cluster for K8s, host for Docker)
    * @param resource - The resource to act upon
    * @param inputValues - Optional input values if the action has input fields
    * @returns A promise that resolves when the action completes
    */
-  execute: (context: string, resource: T, inputValues?: Record<string, string | number>) => Promise<void>;
-  /** 
+  execute: (
+    context: string,
+    resource: T,
+    inputValues?: Record<string, string | number>,
+  ) => Promise<void>;
+  /**
    * Optional function to determine if action should be shown.
    * @param resource - The resource to check
    * @returns true if the action should be displayed

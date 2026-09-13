@@ -52,7 +52,7 @@ import type { ResourceSections } from '../../sections/types';
  * ResourceAdapter extracts display-ready data from a Kubernetes resource.
  * Each resource kind implements this interface to provide standardized
  * data that ResourceVisualizer can render using common components.
- * 
+ *
  * Benefits:
  * - Separation of concerns: data extraction vs presentation
  * - Testability: adapters are pure functions (mostly)

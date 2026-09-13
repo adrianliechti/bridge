@@ -35,12 +35,14 @@ browser directly:
 ```js
 import { chromium } from 'playwright-core';
 const browser = await chromium.launch({
-  executablePath: '/Users/adrian/Library/Caches/ms-playwright/<chromium-XXXX>/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+  executablePath:
+    '/Users/adrian/Library/Caches/ms-playwright/<chromium-XXXX>/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
   headless: true,
 });
 ```
 
 Locator gotchas:
+
 - The resource detail panel is `aside.fixed`; the left nav is also an `aside`, so scope tab
   clicks to `aside.fixed` or you get strict-mode violations.
 - Table rows: `tbody tr`; namespace is the 2nd column in all-namespaces view.

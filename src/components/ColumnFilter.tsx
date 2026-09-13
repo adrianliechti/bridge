@@ -74,7 +74,7 @@ export function ColumnFilter({ columns }: ColumnFilterProps) {
                 >
                   {isVisible && <Check size={12} className="text-white dark:text-neutral-300" />}
                 </span>
-                <span 
+                <span
                   onClick={column.getToggleVisibilityHandler()}
                   className="text-sm text-neutral-700 dark:text-neutral-400 cursor-pointer"
                 >

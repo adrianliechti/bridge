@@ -17,7 +17,7 @@ function normalizeForSearch(str: string): string {
 }
 
 // Convert shared resource types to command palette format
-const commandPaletteResourceTypes: ResourceTypeItem[] = dockerResourceTypes.map(rt => ({
+const commandPaletteResourceTypes: ResourceTypeItem[] = dockerResourceTypes.map((rt) => ({
   kind: rt.kind,
   label: rt.label,
   icon: rt.icon,
@@ -37,10 +37,11 @@ interface DockerAdapterOptions {
  */
 function findResourceTypeByQuery(query: string): ResourceTypeItem | undefined {
   const q = query.toLowerCase();
-  return commandPaletteResourceTypes.find(rt => 
-    rt.kind.toLowerCase() === q ||
-    rt.label.toLowerCase() === q ||
-    rt.aliases?.some(a => a.toLowerCase() === q)
+  return commandPaletteResourceTypes.find(
+    (rt) =>
+      rt.kind.toLowerCase() === q ||
+      rt.label.toLowerCase() === q ||
+      rt.aliases?.some((a) => a.toLowerCase() === q),
   );
 }
 
@@ -51,7 +52,7 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
     id: 'docker',
     resourceTypes: commandPaletteResourceTypes,
     supportsNamespaces: false,
-    
+
     searchModePrefixes: [
       { prefix: ':', mode: 'resources' },
       { prefix: '/', mode: 'filter' },
@@ -76,7 +77,9 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
         id: `type-${item.kind}`,
         type: 'resource-type',
         label: item.label,
-        sublabel: item.aliases?.length ? `${item.category} · ${item.aliases.join(', ')}` : item.category,
+        sublabel: item.aliases?.length
+          ? `${item.category} · ${item.aliases.join(', ')}`
+          : item.category,
         icon: item.icon,
         category: item.category,
         data: {
@@ -90,7 +93,11 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
       return findResourceTypeByQuery(query);
     },
 
-    async searchResources(query: string, _allScopes: boolean, resourceKind?: string): Promise<SearchResult[]> {
+    async searchResources(
+      query: string,
+      _allScopes: boolean,
+      resourceKind?: string,
+    ): Promise<SearchResult[]> {
       if (!query || query.length < 2) {
         return [];
       }
@@ -112,7 +119,8 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
         if (searchContainers) {
           for (const container of containers) {
             const names = container.Names || [];
-            const displayName = names[0]?.replace(/^\//, '') || container.Id?.substring(0, 12) || '';
+            const displayName =
+              names[0]?.replace(/^\//, '') || container.Id?.substring(0, 12) || '';
             // URL-friendly name (same as getResourceName in ResourcePage)
             const urlName = displayName;
             if (normalizeForSearch(displayName).includes(searchNormalized)) {

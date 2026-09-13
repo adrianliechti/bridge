@@ -42,7 +42,7 @@ function formatTimestamp(timestamp?: string): string {
   if (!timestamp) return '';
   try {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { 
+    return date.toLocaleTimeString('en-US', {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit',
@@ -76,20 +76,18 @@ const KLOG_REGEX = /^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d+)\s+\d+\s+([\w.]+:
 function parseKlog(message: string): ParsedLog | null {
   const match = message.match(KLOG_REGEX);
   if (!match) return null;
-  
+
   const [, levelChar, , , source, rest] = match;
-  const level: LogLevel = 
-    levelChar === 'E' ? 'error' : 
-    levelChar === 'W' ? 'warn' : 
-    levelChar === 'F' ? 'error' : 'info';
-  
+  const level: LogLevel =
+    levelChar === 'E' ? 'error' : levelChar === 'W' ? 'warn' : levelChar === 'F' ? 'error' : 'info';
+
   const kvPairs = parseKeyValuePairs(rest);
-  
+
   const lines = [`source: ${source}`];
   for (const [key, value] of Object.entries(kvPairs)) {
     lines.push(`${key}: ${value}`);
   }
-  
+
   return {
     format: 'klog',
     formatted: lines.join('\n'),
@@ -100,11 +98,11 @@ function parseKlog(message: string): ParsedLog | null {
 // Parse key=value pairs (logfmt style)
 function parseKeyValuePairs(text: string): Record<string, string> {
   const result: Record<string, string> = {};
-  
+
   const regex = /(?:"([^"]*)"|([\w.]+)=(?:"([^"]*)"|([^\s]*)))/g;
   let match;
   let msgIndex = 0;
-  
+
   while ((match = regex.exec(text)) !== null) {
     if (match[1] !== undefined) {
       result[`msg${msgIndex || ''}`] = match[1];
@@ -115,7 +113,7 @@ function parseKeyValuePairs(text: string): Record<string, string> {
       result[key] = value;
     }
   }
-  
+
   return result;
 }
 
@@ -124,15 +122,15 @@ function extractMessageAndKvPairs(text: string): { message: string; kvText: stri
   // Find where key=value pairs start (word followed by = not inside quotes)
   // Match patterns like: word= or word.subword=
   const kvStartMatch = text.match(/(?:^|\s)([\w.]+)=/);
-  
+
   if (!kvStartMatch) {
     return { message: text, kvText: '' };
   }
-  
+
   const kvStartIndex = kvStartMatch.index! + (kvStartMatch[0].startsWith(' ') ? 1 : 0);
   const message = text.slice(0, kvStartIndex).trim();
   const kvText = text.slice(kvStartIndex);
-  
+
   return { message, kvText };
 }
 
@@ -140,45 +138,44 @@ function extractMessageAndKvPairs(text: string): { message: string; kvText: stri
 // This is the "pretty" format output by zerolog, zap, and similar structured loggers
 function parseConsoleFormat(message: string): ParsedLog | null {
   const trimmed = message.trim();
-  
+
   // Must have timestamp + level pattern at the start
-  const timestampLevelRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\s+(INF|WRN|ERR|DBG|TRC|INFO|WARN|ERROR|DEBUG|TRACE|FTL|FATAL)\s+/i;
+  const timestampLevelRegex =
+    /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\s+(INF|WRN|ERR|DBG|TRC|INFO|WARN|ERROR|DEBUG|TRACE|FTL|FATAL)\s+/i;
   const timestampLevelMatch = trimmed.match(timestampLevelRegex);
-  
+
   if (!timestampLevelMatch) return null;
-  
+
   const timestamp = timestampLevelMatch[1];
   const levelFromPrefix = timestampLevelMatch[2].toUpperCase();
   const restOfMessage = trimmed.slice(timestampLevelMatch[0].length);
-  
+
   // Extract plain text message and key=value pairs
   const { message: plainMessage, kvText } = extractMessageAndKvPairs(restOfMessage);
   const kvPairs = parseKeyValuePairs(kvText || restOfMessage);
   const keys = Object.keys(kvPairs);
-  
+
   // Determine log level from prefix
   let level: LogLevel = 'unknown';
-  if (levelFromPrefix.startsWith('ERR') || levelFromPrefix === 'FTL' || levelFromPrefix === 'FATAL') level = 'error';
+  if (levelFromPrefix.startsWith('ERR') || levelFromPrefix === 'FTL' || levelFromPrefix === 'FATAL')
+    level = 'error';
   else if (levelFromPrefix.startsWith('WRN') || levelFromPrefix === 'WARN') level = 'warn';
   else if (levelFromPrefix.startsWith('INF') || levelFromPrefix === 'INFO') level = 'info';
   else if (levelFromPrefix.startsWith('DBG') || levelFromPrefix === 'DEBUG') level = 'debug';
   else if (levelFromPrefix.startsWith('TRC') || levelFromPrefix === 'TRACE') level = 'trace';
-  
+
   // Build formatted output
-  const lines: string[] = [
-    `timestamp: ${timestamp}`,
-    `level: ${levelFromPrefix}`,
-  ];
-  
+  const lines: string[] = [`timestamp: ${timestamp}`, `level: ${levelFromPrefix}`];
+
   if (plainMessage) {
     lines.push(`message: ${plainMessage}`);
   }
-  
+
   // Add key=value pairs
   for (const key of keys) {
     lines.push(`${key}: ${kvPairs[key]}`);
   }
-  
+
   return {
     format: 'console',
     formatted: lines.join('\n'),
@@ -190,15 +187,15 @@ function parseConsoleFormat(message: string): ParsedLog | null {
 // Example: level=info msg="hello world" duration=1.23
 function parseLogfmt(message: string): ParsedLog | null {
   const trimmed = message.trim();
-  
+
   if (!/\w+=/.test(trimmed)) return null;
-  
+
   const kvPairs = parseKeyValuePairs(trimmed);
   const keys = Object.keys(kvPairs);
-  
+
   // Need at least 2 key=value pairs for pure logfmt
   if (keys.length < 2) return null;
-  
+
   // Determine log level from key=value pairs
   let level: LogLevel = 'unknown';
   const levelValue = (kvPairs.level ?? kvPairs.lvl ?? kvPairs.severity ?? '').toLowerCase();
@@ -207,9 +204,9 @@ function parseLogfmt(message: string): ParsedLog | null {
   else if (levelValue === 'info') level = 'info';
   else if (levelValue === 'debug') level = 'debug';
   else if (levelValue === 'trace') level = 'trace';
-  
-  const lines = keys.map(key => `${key}: ${kvPairs[key]}`);
-  
+
+  const lines = keys.map((key) => `${key}: ${kvPairs[key]}`);
+
   return {
     format: 'logfmt',
     formatted: lines.join('\n'),
@@ -222,33 +219,33 @@ function parseLogMessage(message: string): ParsedLog {
   const trimmed = message.trim();
   // Strip ANSI for format detection, but keep original for plain text display
   const stripped = stripAnsi(trimmed);
-  
+
   // Try JSON first
   if (stripped.startsWith('{') || stripped.startsWith('[')) {
     try {
       const parsed = JSON.parse(stripped);
-      return { 
-        format: 'json', 
-        formatted: JSON.stringify(parsed, null, 2), 
-        jsonData: parsed 
+      return {
+        format: 'json',
+        formatted: JSON.stringify(parsed, null, 2),
+        jsonData: parsed,
       };
     } catch {
       // Not valid JSON, continue
     }
   }
-  
+
   // Try klog format
   const klogResult = parseKlog(stripped);
   if (klogResult) return klogResult;
-  
+
   // Try console format (timestamp + level + message + key=value pairs)
   const consoleResult = parseConsoleFormat(stripped);
   if (consoleResult) return consoleResult;
-  
+
   // Try pure logfmt format (all key=value pairs)
   const logfmtResult = parseLogfmt(stripped);
   if (logfmtResult) return logfmtResult;
-  
+
   // Plain text - keep original with ANSI codes for rendering
   return { format: 'plain', formatted: message };
 }
@@ -305,39 +302,41 @@ const ANSI_BG_COLORS: Record<string, string> = {
 // Render ANSI escape codes as colored spans with theme-aware colors
 function AnsiText({ text }: { text: string }) {
   const parsed = Anser.ansiToJson(text, { use_classes: true, remove_empty: true });
-  
+
   if (parsed.length === 0) {
     return <>{text}</>;
   }
-  
+
   // Check if there are any actual ANSI codes (non-default styling)
-  const hasAnsiCodes = parsed.some(p => p.fg || p.bg || p.decorations?.length);
+  const hasAnsiCodes = parsed.some((p) => p.fg || p.bg || p.decorations?.length);
   if (!hasAnsiCodes) {
     return <>{text}</>;
   }
-  
+
   return (
     <>
       {parsed.map((part, i) => {
         const classes: string[] = [];
-        
+
         // Map foreground color
         if (part.fg && ANSI_FG_COLORS[part.fg]) {
           classes.push(ANSI_FG_COLORS[part.fg]);
         }
-        
+
         // Map background color
         if (part.bg && ANSI_BG_COLORS[part.bg]) {
           classes.push(ANSI_BG_COLORS[part.bg]);
         }
-        
+
         // Handle decorations
         if (part.decorations?.includes('bold')) classes.push('font-bold');
         if (part.decorations?.includes('italic')) classes.push('italic');
         if (part.decorations?.includes('underline')) classes.push('underline');
-        
+
         return classes.length > 0 ? (
-          <span key={i} className={classes.join(' ')}>{part.content}</span>
+          <span key={i} className={classes.join(' ')}>
+            {part.content}
+          </span>
         ) : (
           <span key={i}>{part.content}</span>
         );
@@ -356,32 +355,41 @@ const LOG_LEVEL_BG: Record<LogLevel, string> = {
 };
 
 // Detect log level from message content or JSON structure
-function detectLogLevel(message: string, jsonData?: Record<string, unknown>, preDetected?: LogLevel): LogLevel {
+function detectLogLevel(
+  message: string,
+  jsonData?: Record<string, unknown>,
+  preDetected?: LogLevel,
+): LogLevel {
   if (preDetected && preDetected !== 'unknown') return preDetected;
-  
+
   if (jsonData) {
-    const level = (jsonData.level ?? jsonData.severity ?? jsonData.lvl ?? jsonData.log_level ?? '') as string;
+    const level = (jsonData.level ??
+      jsonData.severity ??
+      jsonData.lvl ??
+      jsonData.log_level ??
+      '') as string;
     const levelLower = String(level).toLowerCase();
-    if (levelLower.includes('err') || levelLower === 'fatal' || levelLower === 'critical') return 'error';
+    if (levelLower.includes('err') || levelLower === 'fatal' || levelLower === 'critical')
+      return 'error';
     if (levelLower.includes('warn')) return 'warn';
     if (levelLower === 'info') return 'info';
     if (levelLower === 'debug') return 'debug';
     if (levelLower === 'trace') return 'trace';
   }
-  
+
   const lower = message.toLowerCase();
   const start = lower.slice(0, 100);
-  
+
   if (/\b(error|err|fatal|critical|panic|exception)\b/.test(start)) return 'error';
   if (/\b(warn|warning)\b/.test(start)) return 'warn';
   if (/\binfo\b/.test(start)) return 'info';
   if (/\bdebug\b/.test(start)) return 'debug';
   if (/\btrace\b/.test(start)) return 'trace';
-  
+
   return 'unknown';
 }
 
-export function LogViewer({ 
+export function LogViewer({
   logs,
   sources,
   isLoading = false,
@@ -393,14 +401,17 @@ export function LogViewer({
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showOnlyIssues, setShowOnlyIssues] = useState(false);
-  
+
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
 
   const handleCopyLogs = async () => {
-    const text = logs.map(log => 
-      `${log.timestamp ?? ''} [${log.source}]${log.container ? ` [${log.container}]` : ''} ${log.message}`
-    ).join('\n');
+    const text = logs
+      .map(
+        (log) =>
+          `${log.timestamp ?? ''} [${log.source}]${log.container ? ` [${log.container}]` : ''} ${log.message}`,
+      )
+      .join('\n');
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -460,25 +471,19 @@ export function LogViewer({
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Copy logs"
           >
-            {copied ? (
-              <Check size={12} className="text-emerald-500" />
-            ) : (
-              <Copy size={12} />
-            )}
+            {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
           </button>
         </ToolbarPortal>
       )}
 
       {/* Logs content */}
-      <div 
+      <div
         ref={logsContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-auto font-mono text-xs"
       >
-        {isLoading && (
-          <div className="p-4 text-neutral-500 dark:text-neutral-500">Loading...</div>
-        )}
-        
+        {isLoading && <div className="p-4 text-neutral-500 dark:text-neutral-500">Loading...</div>}
+
         {error && (
           <div className="p-4 text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/10 border-b border-red-300 dark:border-red-500/30">
             {error}
@@ -493,13 +498,17 @@ export function LogViewer({
           <div className="p-4 text-neutral-500 dark:text-neutral-500">{emptyMessage}</div>
         )}
 
-        {logs.length > 0 && showOnlyIssues && !logs.some(log => {
-          const parsed = parseLogMessage(log.message);
-          const level = detectLogLevel(log.message, parsed.jsonData, parsed.level);
-          return level === 'error' || level === 'warn';
-        }) && (
-          <div className="p-4 text-neutral-500 dark:text-neutral-500">No warnings or errors in the current logs</div>
-        )}
+        {logs.length > 0 &&
+          showOnlyIssues &&
+          !logs.some((log) => {
+            const parsed = parseLogMessage(log.message);
+            const level = detectLogLevel(log.message, parsed.jsonData, parsed.level);
+            return level === 'error' || level === 'warn';
+          }) && (
+            <div className="p-4 text-neutral-500 dark:text-neutral-500">
+              No warnings or errors in the current logs
+            </div>
+          )}
 
         <div className="p-2 space-y-1">
           {logs.map((log, index) => {
@@ -514,29 +523,29 @@ export function LogViewer({
             const textColor = LOG_LEVEL_COLORS[level];
             const bgStyle = LOG_LEVEL_BG[level];
             const isStructured = parsed.format !== 'plain';
-            
+
             return (
-              <div key={index} className={`hover:bg-neutral-100 dark:hover:bg-neutral-900/50 rounded px-2 py-1 group ${bgStyle}`}>
+              <div
+                key={index}
+                className={`hover:bg-neutral-100 dark:hover:bg-neutral-900/50 rounded px-2 py-1 group ${bgStyle}`}
+              >
                 {/* Metadata line */}
                 <div className="flex items-center gap-2 text-[10px] leading-tight mb-0.5">
-                  <span 
-                    className={`${getSourceColor(log.source, sources)}`}
-                    title={log.source}
-                  >
+                  <span className={`${getSourceColor(log.source, sources)}`} title={log.source}>
                     {log.source}
                   </span>
                   <span className="text-neutral-500 dark:text-neutral-600">
                     {formatTimestamp(log.timestamp)}
                   </span>
                   {log.container && log.container !== log.source && (
-                    <span className="text-neutral-500 dark:text-neutral-500">
-                      {log.container}
-                    </span>
+                    <span className="text-neutral-500 dark:text-neutral-500">{log.container}</span>
                   )}
                 </div>
                 {/* Log message */}
                 {isStructured ? (
-                  <pre className={`${textColor} whitespace-pre overflow-x-auto scrollbar-hide leading-snug text-[11px]`}>
+                  <pre
+                    className={`${textColor} whitespace-pre overflow-x-auto scrollbar-hide leading-snug text-[11px]`}
+                  >
                     <AnsiText text={parsed.formatted} />
                   </pre>
                 ) : (

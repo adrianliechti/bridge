@@ -5,7 +5,12 @@
 import React from 'react';
 import { Network, Route, KeyRound, Globe } from 'lucide-react';
 import type { ResourceAdapter, ResourceSections } from './types';
-import type { V1Ingress, V1IngressRule, V1IngressTLS, V1HTTPIngressPath } from '@kubernetes/client-node';
+import type {
+  V1Ingress,
+  V1IngressRule,
+  V1IngressTLS,
+  V1HTTPIngressPath,
+} from '@kubernetes/client-node';
 
 export const IngressAdapter: ResourceAdapter<V1Ingress> = {
   kinds: ['Ingress', 'Ingresses'],
@@ -115,7 +120,7 @@ export const IngressAdapter: ResourceAdapter<V1Ingress> = {
                       value: String(
                         spec.defaultBackend.service.port?.number ||
                           spec.defaultBackend.service.port?.name ||
-                          'unknown'
+                          'unknown',
                       ),
                     },
                   ],
@@ -132,7 +137,7 @@ export const IngressAdapter: ResourceAdapter<V1Ingress> = {
 // Rule Card Component
 function RuleCard({ rule, index }: { rule: V1IngressRule; index: number }) {
   const [expanded, setExpanded] = React.useState(false);
-  
+
   return (
     <div className="border border-blue-500/30 bg-blue-500/5 rounded-lg overflow-hidden">
       <button
@@ -166,19 +171,27 @@ function RuleCard({ rule, index }: { rule: V1IngressRule; index: number }) {
               <div className="text-xs text-neutral-500 mb-1">Paths</div>
               <div className="space-y-2">
                 {rule.http.paths.map((path: V1HTTPIngressPath, i: number) => {
-                  const port = path.backend.service?.port?.number || path.backend.service?.port?.name || '';
+                  const port =
+                    path.backend.service?.port?.number || path.backend.service?.port?.name || '';
                   return (
-                    <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
+                    <div
+                      key={i}
+                      className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2"
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         <Route size={10} className="text-purple-400" />
-                        <span className="text-neutral-700 dark:text-neutral-300 font-mono">{path.path || '/'}</span>
+                        <span className="text-neutral-700 dark:text-neutral-300 font-mono">
+                          {path.path || '/'}
+                        </span>
                         <span className="px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px]">
                           {path.pathType}
                         </span>
                       </div>
                       <div className="ml-4 flex items-center gap-2">
                         <span className="text-neutral-600">→</span>
-                        <span className="text-emerald-400">{path.backend.service?.name || 'unknown'}</span>
+                        <span className="text-emerald-400">
+                          {path.backend.service?.name || 'unknown'}
+                        </span>
                         <span className="text-neutral-600">:</span>
                         <span className="text-blue-400">{port}</span>
                       </div>
@@ -197,7 +210,7 @@ function RuleCard({ rule, index }: { rule: V1IngressRule; index: number }) {
 // TLS Card Component
 function TLSCard({ tls, index }: { tls: V1IngressTLS; index: number }) {
   const [expanded, setExpanded] = React.useState(false);
-  
+
   return (
     <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg overflow-hidden">
       <button
@@ -229,7 +242,10 @@ function TLSCard({ tls, index }: { tls: V1IngressTLS; index: number }) {
               <div className="text-xs text-neutral-500 mb-1">Hosts</div>
               <div className="space-y-1">
                 {tls.hosts.map((host: string, i: number) => (
-                  <div key={i} className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2">
+                  <div
+                    key={i}
+                    className="text-xs bg-neutral-100 dark:bg-neutral-900/50 rounded p-2"
+                  >
                     <div className="flex items-center gap-2">
                       <Globe size={10} className="text-cyan-400" />
                       <span className="text-cyan-400">{host}</span>

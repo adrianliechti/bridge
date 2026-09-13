@@ -5,16 +5,26 @@ import type { DockerAdapter, InfoRowData, Section, ContainerData, EnvVarData } f
 import type { ComposeApplication, ContainerInspect } from '../../../api/docker/docker';
 
 // Map Docker container state to ContainerData state
-function mapDockerState(running?: boolean, paused?: boolean, status?: string): ContainerData['state'] {
+function mapDockerState(
+  running?: boolean,
+  paused?: boolean,
+  status?: string,
+): ContainerData['state'] {
   if (running) return 'running';
   if (paused) return 'paused';
   switch (status?.toLowerCase()) {
-    case 'exited': return 'exited';
-    case 'created': return 'created';
-    case 'dead': return 'dead';
-    case 'removing': return 'removing';
-    case 'restarting': return 'restarting';
-    default: return undefined;
+    case 'exited':
+      return 'exited';
+    case 'created':
+      return 'created';
+    case 'dead':
+      return 'dead';
+    case 'removing':
+      return 'removing';
+    case 'restarting':
+      return 'restarting';
+    default:
+      return undefined;
   }
 }
 
@@ -24,7 +34,7 @@ function inspectedContainerToContainerData(container: ContainerInspect): Contain
   const state = container.State;
 
   // Parse environment variables
-  const env: EnvVarData[] = (config?.Env ?? []).map(envStr => {
+  const env: EnvVarData[] = (config?.Env ?? []).map((envStr) => {
     const [key, ...valueParts] = envStr.split('=');
     return {
       name: key,
@@ -42,7 +52,7 @@ function inspectedContainerToContainerData(container: ContainerInspect): Contain
   });
 
   // Extract mounts
-  const mounts = container.Mounts?.map(m => ({
+  const mounts = container.Mounts?.map((m) => ({
     name: m.Name ?? m.Type ?? 'mount',
     mountPath: m.Destination ?? '',
     readOnly: !m.RW,
@@ -73,7 +83,7 @@ export const ApplicationAdapter: DockerAdapter<ComposeApplication> = {
     const allContainers: ContainerData[] = [];
     for (const service of application.services) {
       // Convert inspected containers to ContainerData format with group and replica info
-      const serviceContainers = service.containers.map(c => ({
+      const serviceContainers = service.containers.map((c) => ({
         ...inspectedContainerToContainerData(c),
         group: service.name,
         replicas: `${service.running}/${service.total}`,
@@ -91,7 +101,7 @@ export const ApplicationAdapter: DockerAdapter<ComposeApplication> = {
 
     // Networks section
     if (application.networks.length > 0) {
-      const networkItems: InfoRowData[] = application.networks.map(network => ({
+      const networkItems: InfoRowData[] = application.networks.map((network) => ({
         label: network.Name ?? 'unknown',
         value: `${network.Driver ?? 'bridge'} (${network.Scope ?? 'local'})`,
       }));
@@ -105,7 +115,7 @@ export const ApplicationAdapter: DockerAdapter<ComposeApplication> = {
 
     // Volumes section
     if (application.volumes.length > 0) {
-      const volumeItems: InfoRowData[] = application.volumes.map(volume => ({
+      const volumeItems: InfoRowData[] = application.volumes.map((volume) => ({
         label: volume.Name ?? 'unknown',
         value: volume.Driver ?? 'local',
       }));

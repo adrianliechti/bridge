@@ -6,32 +6,36 @@ import type { ResourceAdapter, ResourceSections, Section, StatusLevel } from './
 import type { V1Service } from '@kubernetes/client-node';
 
 // Get service type display info
-function getServiceTypeInfo(type?: string): { label: string; status: StatusLevel; icon: React.ReactNode } {
+function getServiceTypeInfo(type?: string): {
+  label: string;
+  status: StatusLevel;
+  icon: React.ReactNode;
+} {
   switch (type) {
     case 'LoadBalancer':
-      return { 
-        label: 'LoadBalancer', 
-        status: 'success', 
-        icon: <Globe size={14} className="text-emerald-400" /> 
+      return {
+        label: 'LoadBalancer',
+        status: 'success',
+        icon: <Globe size={14} className="text-emerald-400" />,
       };
     case 'NodePort':
-      return { 
-        label: 'NodePort', 
-        status: 'warning', 
-        icon: <Server size={14} className="text-amber-400" /> 
+      return {
+        label: 'NodePort',
+        status: 'warning',
+        icon: <Server size={14} className="text-amber-400" />,
       };
     case 'ExternalName':
-      return { 
-        label: 'ExternalName', 
-        status: 'neutral', 
-        icon: <ExternalLink size={14} className="text-purple-400" /> 
+      return {
+        label: 'ExternalName',
+        status: 'neutral',
+        icon: <ExternalLink size={14} className="text-purple-400" />,
       };
     case 'ClusterIP':
     default:
-      return { 
-        label: type || 'ClusterIP', 
-        status: 'neutral', 
-        icon: <Network size={14} className="text-blue-400" /> 
+      return {
+        label: type || 'ClusterIP',
+        status: 'neutral',
+        icon: <Network size={14} className="text-blue-400" />,
       };
   }
 }
@@ -50,7 +54,8 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
     const typeInfo = getServiceTypeInfo(spec.type);
     const hasLoadBalancer = spec.type === 'LoadBalancer';
     const loadBalancerIngress = status?.loadBalancer?.ingress;
-    const hasExternalAccess = hasLoadBalancer && loadBalancerIngress && loadBalancerIngress.length > 0;
+    const hasExternalAccess =
+      hasLoadBalancer && loadBalancerIngress && loadBalancerIngress.length > 0;
 
     const sections: Section[] = [
       // Service type and cluster IP
@@ -65,24 +70,36 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
               status: typeInfo.status,
               icon: typeInfo.icon,
             },
-            ...(spec.clusterIP && spec.clusterIP !== 'None' ? [{
-              label: 'Cluster IP',
-              value: spec.clusterIP,
-              status: 'neutral' as const,
-              icon: <Network size={14} className="text-blue-400" />,
-            }] : []),
-            ...(spec.clusterIP === 'None' ? [{
-              label: 'Cluster IP',
-              value: 'Headless',
-              status: 'neutral' as const,
-              icon: <Network size={14} className="text-neutral-400" />,
-            }] : []),
-            ...(spec.externalName ? [{
-              label: 'External Name',
-              value: spec.externalName,
-              status: 'neutral' as const,
-              icon: <ExternalLink size={14} className="text-purple-400" />,
-            }] : []),
+            ...(spec.clusterIP && spec.clusterIP !== 'None'
+              ? [
+                  {
+                    label: 'Cluster IP',
+                    value: spec.clusterIP,
+                    status: 'neutral' as const,
+                    icon: <Network size={14} className="text-blue-400" />,
+                  },
+                ]
+              : []),
+            ...(spec.clusterIP === 'None'
+              ? [
+                  {
+                    label: 'Cluster IP',
+                    value: 'Headless',
+                    status: 'neutral' as const,
+                    icon: <Network size={14} className="text-neutral-400" />,
+                  },
+                ]
+              : []),
+            ...(spec.externalName
+              ? [
+                  {
+                    label: 'External Name',
+                    value: spec.externalName,
+                    status: 'neutral' as const,
+                    icon: <ExternalLink size={14} className="text-purple-400" />,
+                  },
+                ]
+              : []),
           ],
         },
       },
@@ -109,7 +126,10 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
                 </thead>
                 <tbody>
                   {spec.ports!.map((port, i) => (
-                    <tr key={i} className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0">
+                    <tr
+                      key={i}
+                      className="border-b border-neutral-200 dark:border-neutral-700/50 last:border-0"
+                    >
                       <td className="py-2 text-neutral-900 dark:text-neutral-300">
                         {port.name || <span className="text-neutral-400 italic">unnamed</span>}
                       </td>
@@ -145,11 +165,13 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
         data: {
           type: 'custom',
           render: () => (
-            <div className={`rounded-lg p-3 border ${
-              hasExternalAccess 
-                ? 'bg-emerald-500/10 border-emerald-500/30' 
-                : 'bg-amber-500/10 border-amber-500/30'
-            }`}>
+            <div
+              className={`rounded-lg p-3 border ${
+                hasExternalAccess
+                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                  : 'bg-amber-500/10 border-amber-500/30'
+              }`}
+            >
               {hasExternalAccess ? (
                 <div className="space-y-2">
                   {loadBalancerIngress!.map((ingress, i) => (
@@ -209,8 +231,8 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
     }
 
     // Traffic Policy & Session Affinity
-    const hasTrafficConfig = spec.externalTrafficPolicy || spec.internalTrafficPolicy || 
-                             spec.sessionAffinity !== 'None';
+    const hasTrafficConfig =
+      spec.externalTrafficPolicy || spec.internalTrafficPolicy || spec.sessionAffinity !== 'None';
     if (hasTrafficConfig) {
       sections.push({
         id: 'traffic',
@@ -219,35 +241,58 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
           type: 'info-grid',
           columns: 2,
           items: [
-            ...(spec.externalTrafficPolicy ? [{ 
-              label: 'External Traffic', 
-              value: spec.externalTrafficPolicy,
-              color: spec.externalTrafficPolicy === 'Local' ? 'text-amber-400' : undefined,
-            }] : []),
-            ...(spec.internalTrafficPolicy ? [{ 
-              label: 'Internal Traffic', 
-              value: spec.internalTrafficPolicy,
-            }] : []),
-            ...(spec.sessionAffinity && spec.sessionAffinity !== 'None' ? [{ 
-              label: 'Session Affinity', 
-              value: spec.sessionAffinity,
-              color: 'text-purple-400',
-            }] : []),
-            ...(spec.sessionAffinityConfig?.clientIP?.timeoutSeconds ? [{ 
-              label: 'Affinity Timeout', 
-              value: `${spec.sessionAffinityConfig.clientIP.timeoutSeconds}s`,
-            }] : []),
-            ...(spec.healthCheckNodePort ? [{ 
-              label: 'Health Check Port', 
-              value: spec.healthCheckNodePort,
-            }] : []),
+            ...(spec.externalTrafficPolicy
+              ? [
+                  {
+                    label: 'External Traffic',
+                    value: spec.externalTrafficPolicy,
+                    color: spec.externalTrafficPolicy === 'Local' ? 'text-amber-400' : undefined,
+                  },
+                ]
+              : []),
+            ...(spec.internalTrafficPolicy
+              ? [
+                  {
+                    label: 'Internal Traffic',
+                    value: spec.internalTrafficPolicy,
+                  },
+                ]
+              : []),
+            ...(spec.sessionAffinity && spec.sessionAffinity !== 'None'
+              ? [
+                  {
+                    label: 'Session Affinity',
+                    value: spec.sessionAffinity,
+                    color: 'text-purple-400',
+                  },
+                ]
+              : []),
+            ...(spec.sessionAffinityConfig?.clientIP?.timeoutSeconds
+              ? [
+                  {
+                    label: 'Affinity Timeout',
+                    value: `${spec.sessionAffinityConfig.clientIP.timeoutSeconds}s`,
+                  },
+                ]
+              : []),
+            ...(spec.healthCheckNodePort
+              ? [
+                  {
+                    label: 'Health Check Port',
+                    value: spec.healthCheckNodePort,
+                  },
+                ]
+              : []),
           ],
         },
       });
     }
 
     // Load Balancer Configuration
-    if (hasLoadBalancer && (spec.loadBalancerIP || spec.loadBalancerSourceRanges?.length || spec.loadBalancerClass)) {
+    if (
+      hasLoadBalancer &&
+      (spec.loadBalancerIP || spec.loadBalancerSourceRanges?.length || spec.loadBalancerClass)
+    ) {
       sections.push({
         id: 'lb-config',
         title: 'Load Balancer Configuration',
@@ -286,9 +331,7 @@ export const ServiceAdapter: ResourceAdapter<V1Service> = {
                 </div>
               )}
               {spec.allocateLoadBalancerNodePorts === false && (
-                <div className="text-xs text-neutral-500">
-                  NodePort allocation disabled
-                </div>
+                <div className="text-xs text-neutral-500">NodePort allocation disabled</div>
               )}
             </div>
           ),

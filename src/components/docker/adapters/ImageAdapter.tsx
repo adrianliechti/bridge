@@ -32,7 +32,7 @@ function parseImageRef(ref: string): { repository: string; tag: string } {
   const lastSlash = ref.lastIndexOf('/');
   const afterSlash = lastSlash >= 0 ? ref.substring(lastSlash + 1) : ref;
   const colonInName = afterSlash.lastIndexOf(':');
-  
+
   if (colonInName >= 0) {
     // There's a tag
     const tagStart = lastSlash >= 0 ? lastSlash + 1 + colonInName : colonInName;
@@ -41,7 +41,7 @@ function parseImageRef(ref: string): { repository: string; tag: string } {
       tag: ref.substring(tagStart + 1),
     };
   }
-  
+
   // No tag, just repository
   return { repository: ref, tag: 'latest' };
 }
@@ -97,18 +97,24 @@ export const ImageAdapter: DockerAdapter<DockerImage> = {
       { label: 'Image ID', value: image.Id?.replace('sha256:', '').substring(0, 12) },
       { label: 'Full ID', value: image.Id?.replace('sha256:', '') },
       { label: 'Size', value: formatImageSize(image.Size) },
-      { label: 'Virtual Size', value: image.VirtualSize ? formatImageSize(image.VirtualSize) : undefined },
+      {
+        label: 'Virtual Size',
+        value: image.VirtualSize ? formatImageSize(image.VirtualSize) : undefined,
+      },
       { label: 'Created', value: formatUnixTime(image.Created) },
     ];
 
     if (image.ParentId) {
-      infoItems.push({ label: 'Parent', value: image.ParentId.replace('sha256:', '').substring(0, 12) });
+      infoItems.push({
+        label: 'Parent',
+        value: image.ParentId.replace('sha256:', '').substring(0, 12),
+      });
     }
 
     sections.push({
       id: 'info',
       title: 'Information',
-      data: { type: 'info-grid', items: infoItems.filter(item => item.value) },
+      data: { type: 'info-grid', items: infoItems.filter((item) => item.value) },
     });
 
     // Tags section
@@ -165,7 +171,7 @@ export const ImageAdapter: DockerAdapter<DockerImage> = {
           }
           return false;
         },
-      }
+      },
     ),
   ],
 };

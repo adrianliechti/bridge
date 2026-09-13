@@ -85,15 +85,15 @@ export const NetworkAdapter: DockerAdapter<DockerNetworkInspect> = {
     sections.push({
       id: 'info',
       title: 'Information',
-      data: { type: 'info-grid', items: infoItems.filter(item => item.value) },
+      data: { type: 'info-grid', items: infoItems.filter((item) => item.value) },
     });
 
     // IPAM Configuration section
     if (ipam?.Config && ipam.Config.length > 0) {
       const ipamItems: InfoRowData[] = [];
-      
+
       ipamItems.push({ label: 'Driver', value: ipam.Driver ?? 'default' });
-      
+
       ipam.Config.forEach((config, index) => {
         const prefix = ipam.Config!.length > 1 ? `[${index + 1}] ` : '';
         if (config.Subnet) {
@@ -164,7 +164,7 @@ export const NetworkAdapter: DockerAdapter<DockerNetworkInspect> = {
           // Hide delete for built-in networks
           return !network.Name || !BUILTIN_NETWORKS.includes(network.Name);
         },
-      }
+      },
     ),
   ],
 };

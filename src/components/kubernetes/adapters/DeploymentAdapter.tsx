@@ -2,10 +2,18 @@
 // Extracts display data from Deployment resources
 
 import type { ResourceAdapter, ResourceSections, ReplicaSetData } from './types';
-import { getResourceList, getResourceConfig, restartWorkload, scaleResource } from '../../../api/kubernetes/kubernetes';
+import {
+  getResourceList,
+  getResourceConfig,
+  restartWorkload,
+  scaleResource,
+} from '../../../api/kubernetes/kubernetes';
 import type { V1Deployment } from '@kubernetes/client-node';
 import { getContainerSections, getResourceQuotaSection } from './utils';
-import { getPodMetricsBySelector, aggregateContainerMetrics } from '../../../api/kubernetes/kubernetesMetrics';
+import {
+  getPodMetricsBySelector,
+  aggregateContainerMetrics,
+} from '../../../api/kubernetes/kubernetesMetrics';
 import { createScaleAction, createRestartAction } from '../../sections/actionHelpers';
 
 export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
@@ -22,18 +30,16 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
         await scaleResource(context, config, name, replicas, namespace);
       },
       (resource) => (resource.spec as V1Deployment['spec'])?.replicas ?? 1,
-      { title: 'Scale Deployment' }
+      { title: 'Scale Deployment' },
     ),
-    createRestartAction(
-      async (context, resource) => {
-        const name = resource.metadata?.name;
-        const namespace = resource.metadata?.namespace;
-        if (!name || !namespace) throw new Error('Deployment name/namespace missing');
-        const config = await getResourceConfig(context, 'deployments');
-        if (!config) throw new Error('Could not get deployment configuration');
-        await restartWorkload(context, config, name, namespace);
-      }
-    ),
+    createRestartAction(async (context, resource) => {
+      const name = resource.metadata?.name;
+      const namespace = resource.metadata?.namespace;
+      if (!name || !namespace) throw new Error('Deployment name/namespace missing');
+      const config = await getResourceConfig(context, 'deployments');
+      if (!config) throw new Error('Could not get deployment configuration');
+      await restartWorkload(context, config, name, namespace);
+    }),
   ],
 
   adapt(context: string, resource): ResourceSections {
@@ -98,10 +104,20 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
             type: 'info-grid',
             items: [
               { label: 'Strategy', value: spec.strategy?.type || 'RollingUpdate' },
-              ...(spec.strategy?.rollingUpdate ? [
-                { label: 'Max Surge', value: String(spec.strategy.rollingUpdate.maxSurge ?? '25%'), color: 'text-cyan-400' },
-                { label: 'Max Unavailable', value: String(spec.strategy.rollingUpdate.maxUnavailable ?? '25%'), color: 'text-amber-400' },
-              ] : []),
+              ...(spec.strategy?.rollingUpdate
+                ? [
+                    {
+                      label: 'Max Surge',
+                      value: String(spec.strategy.rollingUpdate.maxSurge ?? '25%'),
+                      color: 'text-cyan-400',
+                    },
+                    {
+                      label: 'Max Unavailable',
+                      value: String(spec.strategy.rollingUpdate.maxUnavailable ?? '25%'),
+                      color: 'text-amber-400',
+                    },
+                  ]
+                : []),
             ],
             columns: 3,
           },
@@ -115,44 +131,54 @@ export const DeploymentAdapter: ResourceAdapter<V1Deployment> = {
             title: 'ReplicaSets',
             loader: async (): Promise<ReplicaSetData[]> => {
               if (!namespace || !metadata?.name) return [];
-              
+
               try {
                 const rsConfig = await getResourceConfig(context, 'replicasets');
                 if (!rsConfig) return [];
-                
+
                 const rsList = await getResourceList(context, rsConfig, namespace);
                 const deploymentName = metadata.name ?? '';
                 const deploymentUid = metadata.uid;
-                
+
                 return rsList
-                  .filter(rs => {
+                  .filter((rs) => {
                     const meta = rs.metadata as Record<string, unknown>;
                     const rsName = meta.name as string;
-                    
+
                     // Check ownerReferences
-                    const refs = meta.ownerReferences as Array<{ name: string; uid: string; kind?: string }> | undefined;
-                    if (refs?.some(ref => (ref.kind === 'Deployment' && ref.name === deploymentName) || ref.uid === deploymentUid)) {
+                    const refs = meta.ownerReferences as
+                      | Array<{ name: string; uid: string; kind?: string }>
+                      | undefined;
+                    if (
+                      refs?.some(
+                        (ref) =>
+                          (ref.kind === 'Deployment' && ref.name === deploymentName) ||
+                          ref.uid === deploymentUid,
+                      )
+                    ) {
                       return true;
                     }
-                    
+
                     // Fallback: match by name prefix
                     if (rsName.startsWith(deploymentName + '-')) {
                       const suffix = rsName.slice(deploymentName.length + 1);
                       return /^[a-z0-9]{7,10}$/.test(suffix);
                     }
-                    
+
                     return false;
                   })
-                  .map(rs => {
+                  .map((rs) => {
                     const meta = rs.metadata as Record<string, unknown>;
-                    const rsSpec = rs.spec as { template?: { spec?: { containers?: Array<{ image: string }> } } };
+                    const rsSpec = rs.spec as {
+                      template?: { spec?: { containers?: Array<{ image: string }> } };
+                    };
                     const rsStatus = rs.status as { replicas?: number; readyReplicas?: number };
-                    
+
                     return {
                       name: meta.name as string,
                       replicas: rsStatus?.replicas ?? 0,
                       readyReplicas: rsStatus?.readyReplicas ?? 0,
-                      images: rsSpec?.template?.spec?.containers?.map(c => c.image) ?? [],
+                      images: rsSpec?.template?.spec?.containers?.map((c) => c.image) ?? [],
                       isCurrent: (rsStatus?.replicas ?? 0) > 0,
                       namespace,
                       context,

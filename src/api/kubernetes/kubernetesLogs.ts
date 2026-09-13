@@ -51,10 +51,10 @@ async function streamPodLogs(
     onLog: (log: LogEntry) => void;
     onError?: (error: Error) => void;
     signal?: AbortSignal;
-  }
+  },
 ): Promise<void> {
   const params = new URLSearchParams();
-  
+
   if (options.container) {
     params.set('container', options.container);
   }
@@ -72,7 +72,7 @@ async function streamPodLogs(
 
   try {
     const response = await fetch(url, { signal: options.signal });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch logs: ${response.status} ${response.statusText}`);
     }
@@ -126,7 +126,7 @@ async function streamPodLogs(
 // Stream combined logs from multiple pods
 export function streamCombinedLogs(options: LogStreamOptions): AbortController {
   const controller = new AbortController();
-  
+
   // Start streaming from all pods in parallel
   for (const podName of options.podNames) {
     streamPodLogs(options.context, options.namespace, podName, {
@@ -144,30 +144,34 @@ export function streamCombinedLogs(options: LogStreamOptions): AbortController {
 }
 
 // Get available containers for a pod
-export async function getPodContainers(context: string, namespace: string, podName: string): Promise<string[]> {
+export async function getPodContainers(
+  context: string,
+  namespace: string,
+  podName: string,
+): Promise<string[]> {
   const url = `/contexts/${context}/api/v1/namespaces/${namespace}/pods/${podName}`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch pod: ${response.status}`);
   }
-  
+
   const pod = await response.json();
   const containers: string[] = [];
-  
+
   // Add init containers
   if (pod.spec?.initContainers) {
     for (const c of pod.spec.initContainers) {
       containers.push(c.name);
     }
   }
-  
+
   // Add regular containers
   if (pod.spec?.containers) {
     for (const c of pod.spec.containers) {
       containers.push(c.name);
     }
   }
-  
+
   return containers;
 }
 
@@ -176,7 +180,7 @@ export async function getWorkloadPods(
   context: string,
   namespace: string,
   workloadKind: string,
-  workloadName: string
+  workloadName: string,
 ): Promise<string[]> {
   // Fetch the workload to get selector labels
   let apiPath: string;
@@ -204,10 +208,10 @@ export async function getWorkloadPods(
   if (!workloadResponse.ok) {
     throw new Error(`Failed to fetch ${workloadKind}: ${workloadResponse.status}`);
   }
-  
+
   const workload = await workloadResponse.json();
   const matchLabels = workload.spec?.selector?.matchLabels;
-  
+
   if (!matchLabels) {
     throw new Error('Workload has no selector labels');
   }
@@ -219,9 +223,9 @@ export async function getWorkloadPods(
 
   // Fetch pods with matching labels
   const podsResponse = await fetch(
-    `/contexts/${context}/api/v1/namespaces/${namespace}/pods?labelSelector=${encodeURIComponent(labelSelector)}`
+    `/contexts/${context}/api/v1/namespaces/${namespace}/pods?labelSelector=${encodeURIComponent(labelSelector)}`,
   );
-  
+
   if (!podsResponse.ok) {
     throw new Error(`Failed to fetch pods: ${podsResponse.status}`);
   }

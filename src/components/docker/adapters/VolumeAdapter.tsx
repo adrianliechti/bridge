@@ -12,7 +12,7 @@ import { createDeleteAction } from '../../sections/actionHelpers';
 function formatBytes(bytes?: number): string {
   if (bytes === undefined || bytes === null || bytes < 0) return 'Unknown';
   if (bytes === 0) return '0 B';
-  
+
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
@@ -70,7 +70,7 @@ export const VolumeAdapter: DockerAdapter<DockerVolume> = {
     sections.push({
       id: 'info',
       title: 'Information',
-      data: { type: 'info-grid', items: infoItems.filter(item => item.value) },
+      data: { type: 'info-grid', items: infoItems.filter((item) => item.value) },
     });
 
     // Labels section
@@ -106,7 +106,8 @@ export const VolumeAdapter: DockerAdapter<DockerVolume> = {
         await removeVolume(context, (resource as DockerVolume).Name!);
       },
       {
-        message: 'Are you sure you want to delete this volume? This action cannot be undone and all data will be lost.',
+        message:
+          'Are you sure you want to delete this volume? This action cannot be undone and all data will be lost.',
         isDisabled: (resource) => {
           const volume = resource as DockerVolume;
           if (volume.UsageData?.RefCount && volume.UsageData.RefCount > 0) {
@@ -114,7 +115,7 @@ export const VolumeAdapter: DockerAdapter<DockerVolume> = {
           }
           return false;
         },
-      }
+      },
     ),
   ],
 };

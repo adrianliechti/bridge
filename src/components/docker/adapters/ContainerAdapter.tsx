@@ -1,7 +1,15 @@
 // Docker Container Adapter
 // Extracts display data from Docker containers
 
-import type { DockerAdapter, StatusCardData, InfoRowData, ContainerData, VolumeData, Section, EnvVarData } from './types';
+import type {
+  DockerAdapter,
+  StatusCardData,
+  InfoRowData,
+  ContainerData,
+  VolumeData,
+  Section,
+  EnvVarData,
+} from './types';
 import type { ContainerInspectResponse } from '../../../api/docker/docker';
 import {
   startContainer,
@@ -23,26 +31,39 @@ const COMPOSE_SERVICE_LABEL = 'com.docker.compose.service';
 // Map Docker states to our unified state type
 function mapDockerState(state?: string): ContainerData['state'] {
   switch (state?.toLowerCase()) {
-    case 'running': return 'running';
-    case 'paused': return 'paused';
-    case 'exited': return 'exited';
-    case 'created': return 'created';
-    case 'dead': return 'dead';
-    case 'removing': return 'removing';
-    case 'restarting': return 'restarting';
-    default: return undefined;
+    case 'running':
+      return 'running';
+    case 'paused':
+      return 'paused';
+    case 'exited':
+      return 'exited';
+    case 'created':
+      return 'created';
+    case 'dead':
+      return 'dead';
+    case 'removing':
+      return 'removing';
+    case 'restarting':
+      return 'restarting';
+    default:
+      return undefined;
   }
 }
 
 // Get status level from Docker state
 function getStatusLevel(state?: string): 'success' | 'warning' | 'error' | 'neutral' {
   switch (state?.toLowerCase()) {
-    case 'running': return 'success';
-    case 'paused': return 'warning';
-    case 'restarting': return 'warning';
+    case 'running':
+      return 'success';
+    case 'paused':
+      return 'warning';
+    case 'restarting':
+      return 'warning';
     case 'exited':
-    case 'dead': return 'error';
-    default: return 'neutral';
+    case 'dead':
+      return 'error';
+    default:
+      return 'neutral';
   }
 }
 
@@ -61,9 +82,9 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
         label: 'Status',
         value: state?.Status ?? 'Unknown',
         status: getStatusLevel(state?.Status),
-        icon: state?.Running 
-          ? createElement(Play, { size: 14 }) 
-          : state?.Paused 
+        icon: state?.Running
+          ? createElement(Play, { size: 14 })
+          : state?.Paused
             ? createElement(Pause, { size: 14 })
             : createElement(Square, { size: 14 }),
       },
@@ -110,9 +131,7 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
                 <div className="text-sm flex items-center gap-2">
                   <LayoutGrid size={14} className="text-blue-400" />
                   <span className="text-cyan-400">{composeProject}</span>
-                  {composeService && (
-                    <span className="text-neutral-500">/ {composeService}</span>
-                  )}
+                  {composeService && <span className="text-neutral-500">/ {composeService}</span>}
                 </div>
               </div>
             </Link>
@@ -126,7 +145,10 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       { label: 'ID', value: container.Id?.substring(0, 12) },
       { label: 'Name', value: container.Name?.replace(/^\//, '') },
       { label: 'Image', value: config?.Image },
-      { label: 'Created', value: container.Created ? new Date(container.Created).toLocaleString() : undefined },
+      {
+        label: 'Created',
+        value: container.Created ? new Date(container.Created).toLocaleString() : undefined,
+      },
       { label: 'Platform', value: container.Platform },
       { label: 'Driver', value: container.Driver },
     ];
@@ -147,7 +169,7 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
 
     // Container details section (as a single "container")
     // Parse environment variables
-    const envItems: EnvVarData[] = (config?.Env ?? []).map(env => {
+    const envItems: EnvVarData[] = (config?.Env ?? []).map((env) => {
       const [key, ...valueParts] = env.split('=');
       return {
         name: key,
@@ -155,27 +177,29 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       };
     });
 
-    const containerData: ContainerData[] = [{
-      name: container.Name?.replace(/^\//, '') ?? 'container',
-      image: config?.Image ?? '',
-      state: mapDockerState(state?.Status),
-      stateReason: state?.Error || undefined,
-      command: config?.Cmd ?? undefined,
-      args: undefined,
-      ports: Object.entries(config?.ExposedPorts ?? {}).map(([port]) => {
-        const [portNum, protocol] = port.split('/');
-        return {
-          containerPort: parseInt(portNum, 10),
-          protocol: protocol?.toUpperCase(),
-        };
-      }),
-      mounts: container.Mounts?.map(m => ({
-        name: m.Name ?? m.Type ?? 'mount',
-        mountPath: m.Destination ?? '',
-        readOnly: !m.RW,
-      })),
-      env: envItems.length > 0 ? envItems : undefined,
-    }];
+    const containerData: ContainerData[] = [
+      {
+        name: container.Name?.replace(/^\//, '') ?? 'container',
+        image: config?.Image ?? '',
+        state: mapDockerState(state?.Status),
+        stateReason: state?.Error || undefined,
+        command: config?.Cmd ?? undefined,
+        args: undefined,
+        ports: Object.entries(config?.ExposedPorts ?? {}).map(([port]) => {
+          const [portNum, protocol] = port.split('/');
+          return {
+            containerPort: parseInt(portNum, 10),
+            protocol: protocol?.toUpperCase(),
+          };
+        }),
+        mounts: container.Mounts?.map((m) => ({
+          name: m.Name ?? m.Type ?? 'mount',
+          mountPath: m.Destination ?? '',
+          readOnly: !m.RW,
+        })),
+        env: envItems.length > 0 ? envItems : undefined,
+      },
+    ];
 
     sections.push({
       id: 'containers',
@@ -187,7 +211,7 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
     if (networkSettings?.Networks && Object.keys(networkSettings.Networks).length > 0) {
       const addresses: Array<{ type: string; address: string }> = [];
       const networkInfo: InfoRowData[] = [];
-      
+
       for (const [name, network] of Object.entries(networkSettings.Networks)) {
         // Add IP addresses to addresses section
         if (network.IPAddress) {
@@ -223,7 +247,7 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
     // Ports section
     if (networkSettings?.Ports && Object.keys(networkSettings.Ports).length > 0) {
       const portInfo: InfoRowData[] = [];
-      
+
       for (const [containerPort, hostBindings] of Object.entries(networkSettings.Ports)) {
         if (hostBindings && hostBindings.length > 0) {
           for (const binding of hostBindings) {
@@ -246,16 +270,18 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
 
     // Mounts/Volumes section
     if (container.Mounts && container.Mounts.length > 0) {
-      const volumes: VolumeData[] = container.Mounts.map(m => ({
+      const volumes: VolumeData[] = container.Mounts.map((m) => ({
         name: m.Name ?? m.Source ?? 'volume',
         type: m.Type ?? 'unknown',
         source: m.Source ?? '',
         extra: m.Driver ? { Driver: m.Driver } : undefined,
-        mounts: [{
-          container: container.Name?.replace(/^\//, '') ?? 'container',
-          mountPath: m.Destination ?? '',
-          readOnly: !m.RW,
-        }],
+        mounts: [
+          {
+            container: container.Name?.replace(/^\//, '') ?? 'container',
+            mountPath: m.Destination ?? '',
+            readOnly: !m.RW,
+          },
+        ],
       }));
 
       sections.push({
@@ -354,7 +380,7 @@ export const ContainerAdapter: DockerAdapter<ContainerInspectResponse> = {
       {
         message: 'Are you sure you want to delete this container? This action cannot be undone.',
         isVisible: (resource) => !(resource as ContainerInspectResponse).State?.Running,
-      }
+      },
     ),
   ],
 };

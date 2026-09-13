@@ -1,10 +1,19 @@
 // Certificate Adapter (cert-manager.io/v1)
 // Extracts display data from cert-manager Certificate resources
 
-import { Shield, Clock, Key, Lock, CheckCircle2, AlertCircle, RefreshCw, XCircle, Link as LinkIcon } from 'lucide-react';
+import {
+  Shield,
+  Clock,
+  Key,
+  Lock,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  XCircle,
+  Link as LinkIcon,
+} from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { ResourceAdapter, ResourceSections, StatusLevel, Section } from './types';
-
 
 // cert-manager Certificate types
 interface IssuerRef {
@@ -85,8 +94,12 @@ interface Certificate {
 }
 
 // Helper functions
-function getReadyStatus(conditions?: CertificateCondition[]): { ready: boolean; reason?: string; message?: string } {
-  const readyCondition = conditions?.find(c => c.type === 'Ready');
+function getReadyStatus(conditions?: CertificateCondition[]): {
+  ready: boolean;
+  reason?: string;
+  message?: string;
+} {
+  const readyCondition = conditions?.find((c) => c.type === 'Ready');
   if (!readyCondition) {
     return { ready: false };
   }
@@ -150,34 +163,34 @@ function formatDate(dateStr?: string): string {
 
 function getTimeUntil(dateStr?: string): { text: string; status: StatusLevel } {
   if (!dateStr) return { text: 'Unknown', status: 'neutral' };
-  
+
   const now = new Date();
   const target = new Date(dateStr);
   const diffMs = target.getTime() - now.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
+
   if (diffMs < 0) {
     return { text: 'Expired', status: 'error' };
   }
-  
+
   if (diffDays < 7) {
     return { text: `${diffDays}d remaining`, status: 'error' };
   }
-  
+
   if (diffDays < 30) {
     return { text: `${diffDays}d remaining`, status: 'warning' };
   }
-  
+
   if (diffDays > 365) {
     const years = Math.floor(diffDays / 365);
     return { text: `${years}y remaining`, status: 'success' };
   }
-  
+
   if (diffDays > 30) {
     const months = Math.floor(diffDays / 30);
     return { text: `${months}mo remaining`, status: 'success' };
   }
-  
+
   return { text: `${diffDays}d remaining`, status: 'success' };
 }
 
@@ -210,27 +223,36 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
         data: {
           type: 'status-cards',
           items: [
-            { 
-              label: 'Status', 
+            {
+              label: 'Status',
               value: ready ? 'Ready' : (reason ?? 'Not Ready'),
               status: getStatusLevel(ready, reason),
               icon: getStatusIcon(ready, reason),
             },
-            { 
-              label: 'Expires', 
+            {
+              label: 'Expires',
               value: expiry.text,
               status: expiry.status,
-              icon: <Clock size={14} className={
-                expiry.status === 'error' ? 'text-red-400' :
-                expiry.status === 'warning' ? 'text-amber-400' :
-                'text-emerald-400'
-              } />
+              icon: (
+                <Clock
+                  size={14}
+                  className={
+                    expiry.status === 'error'
+                      ? 'text-red-400'
+                      : expiry.status === 'warning'
+                        ? 'text-amber-400'
+                        : 'text-emerald-400'
+                  }
+                />
+              ),
             },
-            { 
-              label: 'Type', 
+            {
+              label: 'Type',
               value: spec.isCA ? 'CA Certificate' : 'TLS Certificate',
               status: 'neutral' as const,
-              icon: <Shield size={14} className={spec.isCA ? 'text-purple-400' : 'text-blue-400'} />
+              icon: (
+                <Shield size={14} className={spec.isCA ? 'text-purple-400' : 'text-blue-400'} />
+              ),
             },
             {
               label: 'Revision',
@@ -254,9 +276,15 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
           ...(spec.commonName ? [{ label: 'Common Name', value: spec.commonName }] : []),
           { label: 'Duration', value: formatDuration(spec.duration) },
           { label: 'Algorithm', value: getAlgorithmDisplay(spec.privateKey) },
-          ...(status?.notBefore ? [{ label: 'Valid From', value: formatDate(status.notBefore) }] : []),
-          ...(status?.notAfter ? [{ label: 'Valid Until', value: formatDate(status.notAfter) }] : []),
-          ...(status?.renewalTime ? [{ label: 'Renewal Time', value: formatDate(status.renewalTime) }] : []),
+          ...(status?.notBefore
+            ? [{ label: 'Valid From', value: formatDate(status.notBefore) }]
+            : []),
+          ...(status?.notAfter
+            ? [{ label: 'Valid Until', value: formatDate(status.notAfter) }]
+            : []),
+          ...(status?.renewalTime
+            ? [{ label: 'Renewal Time', value: formatDate(status.renewalTime) }]
+            : []),
         ],
       },
     });
@@ -265,10 +293,10 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
     const issuerKind = spec.issuerRef.kind ?? 'Issuer';
     const isClusterIssuer = issuerKind === 'ClusterIssuer';
     // Determine resource type: ClusterIssuer is cluster-scoped, Issuer is namespaced
-    const issuerResourceType = isClusterIssuer 
-      ? 'clusterissuers.cert-manager.io' 
+    const issuerResourceType = isClusterIssuer
+      ? 'clusterissuers.cert-manager.io'
       : 'issuers.cert-manager.io';
-    
+
     sections.push({
       id: 'issuer',
       title: 'Issuer',
@@ -276,15 +304,17 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
         type: 'custom',
         render: () => {
           const content = (
-            <div className={`bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 hover:bg-purple-500/15 transition-colors cursor-pointer`}>
+            <div
+              className={`bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 hover:bg-purple-500/15 transition-colors cursor-pointer`}
+            >
               <div className="flex items-center gap-2 mb-2">
                 <Key size={14} className="text-purple-400" />
-                <span className="text-sm font-medium text-purple-300">
-                  {issuerKind}
-                </span>
+                <span className="text-sm font-medium text-purple-300">{issuerKind}</span>
                 <LinkIcon size={12} className="text-purple-400/60 ml-auto" />
               </div>
-              <div className="text-sm text-neutral-700 dark:text-neutral-300">{spec.issuerRef.name}</div>
+              <div className="text-sm text-neutral-700 dark:text-neutral-300">
+                {spec.issuerRef.name}
+              </div>
               {spec.issuerRef.group && (
                 <div className="text-xs text-neutral-500 mt-1">{spec.issuerRef.group}</div>
               )}
@@ -292,17 +322,17 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
           );
 
           // ClusterIssuer is cluster-scoped, Issuer needs namespace
-          const searchParams = isClusterIssuer 
+          const searchParams = isClusterIssuer
             ? (prev: Record<string, unknown>) => prev
             : (prev: Record<string, unknown>) => ({ ...prev, namespace });
 
           return (
             <Link
               to="/cluster/$context/$resourceType/$name"
-              params={{ 
-                context, 
-                resourceType: issuerResourceType, 
-                name: spec.issuerRef.name 
+              params={{
+                context,
+                resourceType: issuerResourceType,
+                name: spec.issuerRef.name,
               }}
               search={searchParams}
             >
@@ -323,8 +353,8 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
           render: () => (
             <div className="flex flex-wrap gap-2">
               {spec.dnsNames!.map((name, i) => (
-                <span 
-                  key={i} 
+                <span
+                  key={i}
                   className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30"
                 >
                   {name}
@@ -346,8 +376,8 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
           render: () => (
             <div className="flex flex-wrap gap-2">
               {spec.ipAddresses!.map((ip, i) => (
-                <span 
-                  key={i} 
+                <span
+                  key={i}
                   className="text-xs px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
                 >
                   {ip}
@@ -369,7 +399,9 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
           render: () => (
             <div className="space-y-1">
               {spec.uris!.map((uri, i) => (
-                <div key={i} className="text-xs text-neutral-700 dark:text-neutral-300 font-mono">{uri}</div>
+                <div key={i} className="text-xs text-neutral-700 dark:text-neutral-300 font-mono">
+                  {uri}
+                </div>
               ))}
             </div>
           ),
@@ -387,8 +419,8 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
           render: () => (
             <div className="flex flex-wrap gap-2">
               {spec.emailAddresses!.map((email, i) => (
-                <span 
-                  key={i} 
+                <span
+                  key={i}
                   className="text-xs px-2 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30"
                 >
                   {email}
@@ -434,27 +466,37 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
             <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Lock size={14} className="text-neutral-400" />
-                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Configuration</span>
+                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Configuration
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-neutral-500">Algorithm:</span>
-                  <span className="ml-1 text-neutral-700 dark:text-neutral-300">{spec.privateKey!.algorithm ?? 'RSA'}</span>
+                  <span className="ml-1 text-neutral-700 dark:text-neutral-300">
+                    {spec.privateKey!.algorithm ?? 'RSA'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-neutral-500">Size:</span>
-                  <span className="ml-1 text-neutral-700 dark:text-neutral-300">{spec.privateKey!.size ?? 2048}</span>
+                  <span className="ml-1 text-neutral-700 dark:text-neutral-300">
+                    {spec.privateKey!.size ?? 2048}
+                  </span>
                 </div>
                 {spec.privateKey!.encoding && (
                   <div>
                     <span className="text-neutral-500">Encoding:</span>
-                    <span className="ml-1 text-neutral-700 dark:text-neutral-300">{spec.privateKey!.encoding}</span>
+                    <span className="ml-1 text-neutral-700 dark:text-neutral-300">
+                      {spec.privateKey!.encoding}
+                    </span>
                   </div>
                 )}
                 {spec.privateKey!.rotationPolicy && (
                   <div>
                     <span className="text-neutral-500">Rotation:</span>
-                    <span className="ml-1 text-neutral-700 dark:text-neutral-300">{spec.privateKey!.rotationPolicy}</span>
+                    <span className="ml-1 text-neutral-700 dark:text-neutral-300">
+                      {spec.privateKey!.rotationPolicy}
+                    </span>
                   </div>
                 )}
               </div>
@@ -465,10 +507,13 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
     }
 
     // Subject (if defined)
-    if (spec.subject && Object.keys(spec.subject).some(k => {
-      const val = spec.subject![k as keyof typeof spec.subject];
-      return Array.isArray(val) ? val.length > 0 : !!val;
-    })) {
+    if (
+      spec.subject &&
+      Object.keys(spec.subject).some((k) => {
+        const val = spec.subject![k as keyof typeof spec.subject];
+        return Array.isArray(val) ? val.length > 0 : !!val;
+      })
+    ) {
       const subjectParts: string[] = [];
       if (spec.subject.organizations?.length) {
         subjectParts.push(`O=${spec.subject.organizations.join(', ')}`);
@@ -485,7 +530,7 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
       if (spec.subject.provinces?.length) {
         subjectParts.push(`ST=${spec.subject.provinces.join(', ')}`);
       }
-      
+
       sections.push({
         id: 'subject',
         title: 'Subject',
@@ -505,7 +550,7 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
       const keystoreTypes: string[] = [];
       if (spec.keystores.jks?.create) keystoreTypes.push('JKS');
       if (spec.keystores.pkcs12?.create) keystoreTypes.push('PKCS#12');
-      
+
       if (keystoreTypes.length > 0) {
         sections.push({
           id: 'keystores',
@@ -515,8 +560,8 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
             render: () => (
               <div className="flex flex-wrap gap-2">
                 {keystoreTypes.map((type, i) => (
-                  <span 
-                    key={i} 
+                  <span
+                    key={i}
                     className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-300 border border-green-500/30"
                   >
                     {type}
@@ -539,7 +584,9 @@ export const CertificateAdapter: ResourceAdapter<Certificate> = {
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
               <div className="flex items-center gap-2 text-red-400">
                 <AlertCircle size={14} />
-                <span className="text-sm font-medium">Failed Issuance Attempts: {status.failedIssuanceAttempts}</span>
+                <span className="text-sm font-medium">
+                  Failed Issuance Attempts: {status.failedIssuanceAttempts}
+                </span>
               </div>
               {status.lastFailureTime && (
                 <div className="text-xs text-neutral-500 mt-1">

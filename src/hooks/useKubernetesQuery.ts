@@ -12,12 +12,9 @@ const DEFAULT_REFETCH_INTERVAL = 5000; // 5 seconds
 export function useKubernetesQuery<T>(
   queryKey: unknown[],
   fetchFn: () => Promise<T>,
-  options: UseKubernetesQueryOptions = {}
+  options: UseKubernetesQueryOptions = {},
 ) {
-  const { 
-    refetchInterval = DEFAULT_REFETCH_INTERVAL,
-    enabled = true,
-  } = options;
+  const { refetchInterval = DEFAULT_REFETCH_INTERVAL, enabled = true } = options;
 
   const queryOptions: UseQueryOptions<T, Error> = {
     queryKey,

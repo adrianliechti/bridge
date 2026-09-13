@@ -4,6 +4,7 @@ type Config struct {
 	OpenAI *OpenAIConfig
 
 	Docker     *DockerConfig
+	Container  *ContainerConfig
 	Kubernetes *KubernetesConfig
 }
 
@@ -22,6 +23,7 @@ func New() (*Config, error) {
 
 	applyOpenAIConfig(cfg)
 	applyDockerConfig(cfg)
+	applyContainerConfig(cfg)
 	applyKubernetesConfig(cfg)
 
 	return cfg, nil

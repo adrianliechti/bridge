@@ -29,69 +29,95 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             type: 'status-cards',
             items: [
               { label: 'Phase', value: phase, status: getPhaseStatus(phase) },
-              { label: 'Capacity', value: capacity, icon: <HardDrive size={14} className="text-purple-400" /> },
-              { label: 'Reclaim Policy', value: spec.persistentVolumeReclaimPolicy ?? 'Delete', status: spec.persistentVolumeReclaimPolicy === 'Retain' ? 'warning' : 'neutral' },
+              {
+                label: 'Capacity',
+                value: capacity,
+                icon: <HardDrive size={14} className="text-purple-400" />,
+              },
+              {
+                label: 'Reclaim Policy',
+                value: spec.persistentVolumeReclaimPolicy ?? 'Delete',
+                status: spec.persistentVolumeReclaimPolicy === 'Retain' ? 'warning' : 'neutral',
+              },
               { label: 'Volume Mode', value: spec.volumeMode ?? 'Filesystem' },
             ],
           },
         },
 
         // Access Modes
-        ...(spec.accessModes?.length ? [{
-          id: 'access-modes',
-          title: 'Access Modes',
-          data: {
-            type: 'custom' as const,
-            render: () => (
-              <div className="flex flex-wrap gap-2">
-                {spec.accessModes!.map((mode, i) => (
-                  <span 
-                    key={i} 
-                    className={`text-xs px-2 py-1 rounded ${getAccessModeStyle(mode)}`}
-                  >
-                    {formatAccessMode(mode)}
-                  </span>
-                ))}
-              </div>
-            ),
-          },
-        }] : []),
+        ...(spec.accessModes?.length
+          ? [
+              {
+                id: 'access-modes',
+                title: 'Access Modes',
+                data: {
+                  type: 'custom' as const,
+                  render: () => (
+                    <div className="flex flex-wrap gap-2">
+                      {spec.accessModes!.map((mode, i) => (
+                        <span
+                          key={i}
+                          className={`text-xs px-2 py-1 rounded ${getAccessModeStyle(mode)}`}
+                        >
+                          {formatAccessMode(mode)}
+                        </span>
+                      ))}
+                    </div>
+                  ),
+                },
+              },
+            ]
+          : []),
 
         // Storage Class
-        ...(spec.storageClassName ? [{
-          id: 'storage-class',
-          data: {
-            type: 'custom' as const,
-            render: () => (
-              <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
-                <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">Storage Class</div>
-                <div className="text-sm text-purple-600 dark:text-purple-400 flex items-center gap-2">
-                  <Database size={14} />
-                  {spec.storageClassName}
-                </div>
-              </div>
-            ),
-          },
-        }] : []),
+        ...(spec.storageClassName
+          ? [
+              {
+                id: 'storage-class',
+                data: {
+                  type: 'custom' as const,
+                  render: () => (
+                    <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3">
+                      <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">
+                        Storage Class
+                      </div>
+                      <div className="text-sm text-purple-600 dark:text-purple-400 flex items-center gap-2">
+                        <Database size={14} />
+                        {spec.storageClassName}
+                      </div>
+                    </div>
+                  ),
+                },
+              },
+            ]
+          : []),
 
         // Claim Reference
-        ...(spec.claimRef ? [{
-          id: 'claim-ref',
-          data: {
-            type: 'custom' as const,
-            render: () => (
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
-                  <Link size={10} /> Bound To
-                </div>
-                <div className="text-sm">
-                  <span className="text-neutral-600 dark:text-neutral-500">{spec.claimRef!.namespace}/</span>
-                  <span className="text-cyan-600 dark:text-cyan-400">{spec.claimRef!.name}</span>
-                </div>
-              </div>
-            ),
-          },
-        }] : []),
+        ...(spec.claimRef
+          ? [
+              {
+                id: 'claim-ref',
+                data: {
+                  type: 'custom' as const,
+                  render: () => (
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                      <div className="text-xs text-neutral-600 dark:text-neutral-500 mb-1 flex items-center gap-1">
+                        <Link size={10} /> Bound To
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-neutral-600 dark:text-neutral-500">
+                          {spec.claimRef!.namespace}/
+                        </span>
+                        <span className="text-cyan-600 dark:text-cyan-400">
+                          {spec.claimRef!.name}
+                        </span>
+                      </div>
+                    </div>
+                  ),
+                },
+              },
+            ]
+          : []),
 
         // Volume Source
         {
@@ -101,9 +127,9 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
             type: 'custom' as const,
             render: () => {
               const sourceInfo = getVolumeSourceInfo(spec);
-              const type = sourceInfo.find(i => i.label === 'Type')?.value || 'Unknown';
-              const otherInfo = sourceInfo.filter(i => i.label !== 'Type');
-              
+              const type = sourceInfo.find((i) => i.label === 'Type')?.value || 'Unknown';
+              const otherInfo = sourceInfo.filter((i) => i.label !== 'Type');
+
               return (
                 <div className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3 space-y-2">
                   <div className="flex items-center gap-2">
@@ -116,8 +142,16 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
                     <div className="space-y-1 pl-1">
                       {otherInfo.map((item, i) => (
                         <div key={i} className="text-xs">
-                          <span className="text-neutral-600 dark:text-neutral-500">{item.label}:</span>{' '}
-                          <span className={item.color ? `${item.color.replace('text-cyan-400', 'text-cyan-600 dark:text-cyan-400').replace('text-purple-400', 'text-purple-600 dark:text-purple-400')}` : 'text-neutral-900 dark:text-neutral-300'}>
+                          <span className="text-neutral-600 dark:text-neutral-500">
+                            {item.label}:
+                          </span>{' '}
+                          <span
+                            className={
+                              item.color
+                                ? `${item.color.replace('text-cyan-400', 'text-cyan-600 dark:text-cyan-400').replace('text-purple-400', 'text-purple-600 dark:text-purple-400')}`
+                                : 'text-neutral-900 dark:text-neutral-300'
+                            }
+                          >
                             {item.value}
                           </span>
                         </div>
@@ -131,48 +165,62 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
         },
 
         // Node Affinity
-        ...(spec.nodeAffinity?.required?.nodeSelectorTerms ? [{
-          id: 'node-affinity',
-          title: 'Node Affinity',
-          data: {
-            type: 'custom' as const,
-            render: () => (
-              <div className="space-y-2">
-                {spec.nodeAffinity!.required!.nodeSelectorTerms.map((term, i) => (
-                  <div key={i} className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-2">
-                    {term.matchExpressions?.map((expr, j) => (
-                      <div key={j} className="text-xs">
-                        <span className="text-purple-400">{expr.key}</span>
-                        <span className="text-neutral-500 mx-1">{expr.operator}</span>
-                        {expr.values && (
-                          <span className="text-cyan-400">{expr.values.join(', ')}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ),
-          },
-        }] : []),
+        ...(spec.nodeAffinity?.required?.nodeSelectorTerms
+          ? [
+              {
+                id: 'node-affinity',
+                title: 'Node Affinity',
+                data: {
+                  type: 'custom' as const,
+                  render: () => (
+                    <div className="space-y-2">
+                      {spec.nodeAffinity!.required!.nodeSelectorTerms.map((term, i) => (
+                        <div
+                          key={i}
+                          className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-2"
+                        >
+                          {term.matchExpressions?.map((expr, j) => (
+                            <div key={j} className="text-xs">
+                              <span className="text-purple-400">{expr.key}</span>
+                              <span className="text-neutral-500 mx-1">{expr.operator}</span>
+                              {expr.values && (
+                                <span className="text-cyan-400">{expr.values.join(', ')}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                },
+              },
+            ]
+          : []),
 
         // Mount Options
-        ...(spec.mountOptions?.length ? [{
-          id: 'mount-options',
-          title: 'Mount Options',
-          data: {
-            type: 'custom' as const,
-            render: () => (
-              <div className="flex flex-wrap gap-1">
-                {spec.mountOptions!.map((opt, i) => (
-                  <span key={i} className="text-xs bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded text-neutral-800 dark:text-neutral-300">
-                    {opt}
-                  </span>
-                ))}
-              </div>
-            ),
-          },
-        }] : []),
+        ...(spec.mountOptions?.length
+          ? [
+              {
+                id: 'mount-options',
+                title: 'Mount Options',
+                data: {
+                  type: 'custom' as const,
+                  render: () => (
+                    <div className="flex flex-wrap gap-1">
+                      {spec.mountOptions!.map((opt, i) => (
+                        <span
+                          key={i}
+                          className="text-xs bg-neutral-200 dark:bg-neutral-800 px-2 py-1 rounded text-neutral-800 dark:text-neutral-300"
+                        >
+                          {opt}
+                        </span>
+                      ))}
+                    </div>
+                  ),
+                },
+              },
+            ]
+          : []),
       ],
     };
   },
@@ -180,15 +228,22 @@ export const PersistentVolumeAdapter: ResourceAdapter<V1PersistentVolume> = {
 
 function getPhaseStatus(phase: string): 'success' | 'warning' | 'error' | 'neutral' {
   switch (phase) {
-    case 'Bound': return 'success';
-    case 'Available': return 'success';
-    case 'Released': return 'warning';
-    case 'Failed': return 'error';
-    default: return 'neutral';
+    case 'Bound':
+      return 'success';
+    case 'Available':
+      return 'success';
+    case 'Released':
+      return 'warning';
+    case 'Failed':
+      return 'error';
+    default:
+      return 'neutral';
   }
 }
 
-function getVolumeSourceInfo(spec: V1PersistentVolume['spec']): Array<{ label: string; value: string | undefined; color?: string }> {
+function getVolumeSourceInfo(
+  spec: V1PersistentVolume['spec'],
+): Array<{ label: string; value: string | undefined; color?: string }> {
   if (!spec) return [];
 
   const items: Array<{ label: string; value: string | undefined; color?: string }> = [];
@@ -211,7 +266,11 @@ function getVolumeSourceInfo(spec: V1PersistentVolume['spec']): Array<{ label: s
     items.push({ label: 'Path', value: spec.local.path, color: 'text-cyan-400' });
   } else if (spec.awsElasticBlockStore) {
     items.push({ label: 'Type', value: 'AWS EBS' });
-    items.push({ label: 'Volume ID', value: spec.awsElasticBlockStore.volumeID, color: 'text-cyan-400' });
+    items.push({
+      label: 'Volume ID',
+      value: spec.awsElasticBlockStore.volumeID,
+      color: 'text-cyan-400',
+    });
   } else if (spec.gcePersistentDisk) {
     items.push({ label: 'Type', value: 'GCE PD' });
     items.push({ label: 'PD Name', value: spec.gcePersistentDisk.pdName, color: 'text-cyan-400' });
