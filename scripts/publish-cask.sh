@@ -37,11 +37,12 @@ if [ ! -f "$ARCHIVE" ]; then
 fi
 
 SHA256="$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')"
-echo "publish-cask: ${CASK_NAME} ${VERSION} sha256=${SHA256}"
+echo "publish-cask: ${CASK_NAME} ${VERSION} sha256=${SHA256}" >&2
 
 # CASK_DRY_RUN=1 renders the cask to stdout and exits — no tap clone/push.
 if [ "${CASK_DRY_RUN:-0}" = "1" ]; then
-  CASK_FILE="/dev/stdout"
+  CASK_FILE="$(mktemp)"
+  trap 'rm -f "$CASK_FILE"' EXIT
 else
   : "${GITHUB_TOKEN:?GITHUB_TOKEN is required to push the cask to the tap}"
   WORKDIR="$(mktemp -d)"
@@ -53,8 +54,8 @@ else
   CASK_FILE="$WORKDIR/tap/Casks/${CASK_NAME}.rb"
 fi
 
-# Note: ${VERSION}/${SHA256} are expanded by the shell; #{version}/#{appdir}
-# are literal Ruby string interpolations evaluated by Homebrew at install time.
+# ${VERSION}/${SHA256} are expanded by the shell; #{version} is Ruby
+# interpolation and {{appdir}} is resolved by Homebrew at install time.
 cat > "$CASK_FILE" <<EOF
 cask "${CASK_NAME}" do
   version "${VERSION}"
@@ -71,32 +72,34 @@ cask "${CASK_NAME}" do
   end
 
   depends_on arch: :arm64
+  depends_on macos: :monterey
 
   app "${APP_NAME}"
 
   # The app is not code-signed / notarized, so macOS quarantines the download
   # and refuses to open it. Strip the quarantine attribute on install.
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/${APP_NAME}"]
+  postflight_steps do
+    run "/usr/bin/xattr",
+        args: ["-dr", "com.apple.quarantine", "{{appdir}}/${APP_NAME}"]
   end
 
   uninstall quit: ["${BUNDLE_ID}", "${OLD_BUNDLE_ID}"]
 
   zap trash: [
     "~/Library/Caches/${BUNDLE_ID}",
-    "~/Library/HTTPStorages/${BUNDLE_ID}",
-    "~/Library/Saved Application State/${BUNDLE_ID}.savedState",
-    "~/Library/WebKit/${BUNDLE_ID}",
     "~/Library/Caches/${OLD_BUNDLE_ID}",
+    "~/Library/HTTPStorages/${BUNDLE_ID}",
     "~/Library/HTTPStorages/${OLD_BUNDLE_ID}",
+    "~/Library/Saved Application State/${BUNDLE_ID}.savedState",
     "~/Library/Saved Application State/${OLD_BUNDLE_ID}.savedState",
+    "~/Library/WebKit/${BUNDLE_ID}",
     "~/Library/WebKit/${OLD_BUNDLE_ID}",
   ]
 end
 EOF
 
 if [ "${CASK_DRY_RUN:-0}" = "1" ]; then
+  cat "$CASK_FILE"
   exit 0
 fi
 
