@@ -22,6 +22,7 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
     action: ResourceAction<T>,
     values?: Record<string, string | number>,
   ) => {
+    if (loadingAction) return;
     setError(null);
     setLoadingAction(action.id);
     try {
@@ -80,7 +81,7 @@ export function ActionBar<T>({ context, actions, resource, onActionComplete }: A
             <button
               key={action.id}
               onClick={() => handleActionClick(action)}
-              disabled={isDisabled || isLoading}
+              disabled={isDisabled || loadingAction !== null}
               title={disabledReason}
               className={`
                 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border

@@ -100,6 +100,7 @@ export const builtInResourceTypes: ResourceTypeConfig[] = [
   // Network
   { kind: 'services', label: 'Services', icon: Plug, category: 'network' },
   { kind: 'ingresses', label: 'Ingresses', icon: Globe, category: 'network' },
+  { kind: 'networkpolicies', label: 'Network Policies', icon: ShieldCheck, category: 'network' },
   { kind: 'gateways', label: 'Gateways', icon: Network, category: 'network' },
   { kind: 'httproutes', label: 'HTTPRoutes', icon: Globe, category: 'network' },
   { kind: 'grpcroutes', label: 'GRPCRoutes', icon: Globe, category: 'network' },

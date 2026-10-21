@@ -1,7 +1,18 @@
-import { X, Loader2, RefreshCw, Check } from 'lucide-react';
+import {
+  X,
+  Loader2,
+  RefreshCw,
+  Check,
+  LayoutDashboard,
+  Tags,
+  FileCode2,
+  Activity,
+  ScrollText,
+  SquareTerminal,
+} from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { V1ObjectReference } from '@kubernetes/client-node';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getResource,
   getResourceEvents,
@@ -17,6 +28,7 @@ import { TerminalViewer } from './TerminalViewer';
 import { MetadataView } from '../sections';
 import { EventsView } from './EventsView';
 import { ManifestEditor } from './ManifestEditor';
+import { DetailPanel, type DetailTab } from '../DetailPanel';
 
 type TabType = 'overview' | 'metadata' | 'yaml' | 'events' | 'logs' | 'terminal';
 
@@ -24,7 +36,6 @@ interface ResourcePanelProps {
   context: string;
   isOpen: boolean;
   onClose: () => void;
-  otherPanelOpen?: boolean;
   resource: V1ObjectReference | null;
   tab?: TabType;
   onTabChange?: (tab: TabType | undefined) => void;
@@ -52,11 +63,11 @@ export function ResourcePanel({
   context,
   isOpen,
   onClose,
-  otherPanelOpen = false,
   resource: resourceId,
   tab: urlTab,
   onTabChange,
 }: ResourcePanelProps) {
+  const queryClient = useQueryClient();
   // Fallback tab state for callers that don't sync the tab to the URL.
   // When onTabChange is provided, the URL (urlTab) is the source of truth.
   const [localTab, setLocalTab] = useState<TabType | undefined>(undefined);
@@ -117,18 +128,21 @@ export function ResourcePanel({
       return getResource(context, config, resourceId.name, resourceId.namespace);
     },
     enabled: isOpen && !!resourceId?.name && !!resourceId?.kind,
-    placeholderData: keepPreviousData,
   });
 
   // Fetch events using React Query
-  const { data: events = [], isLoading: eventsLoading } = useQuery({
+  const {
+    data: events = [],
+    isLoading: eventsLoading,
+    error: eventsError,
+    refetch: refetchEvents,
+  } = useQuery({
     queryKey: ['kubernetes', 'events', context, resourceId?.name, resourceId?.namespace],
     queryFn: async () => {
       if (!resourceId?.name) return [];
       return getResourceEvents(context, resourceId.name, resourceId.namespace);
     },
     enabled: isOpen && !!resourceId?.name,
-    placeholderData: keepPreviousData,
   });
 
   const error =
@@ -145,11 +159,15 @@ export function ResourcePanel({
     action: ResourceAction,
     values?: Record<string, string | number>,
   ) => {
+    if (!fullObject || loadingAction) return;
     setActionError(null);
     setLoadingAction(action.id);
     try {
       await action.execute(context, fullObject!, values);
-      refetchResource(); // Refresh after action
+      await Promise.all([
+        refetchResource(),
+        queryClient.invalidateQueries({ queryKey: ['kubernetes', 'resources', context] }),
+      ]);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Action failed');
     } finally {
@@ -213,89 +231,21 @@ export function ResourcePanel({
   const supportsLogs = LOGGABLE_KINDS.includes(kind) && !!resourceId?.namespace;
   const supportsTerminal = kind === 'Pod' && !!resourceId?.namespace;
 
-  // Compute hasMetadata early (needed for tab validation)
-  const hiddenLabels = new Set([
-    'pod-template-hash',
-    'controller-revision-hash',
-    'pod-template-generation',
-  ]);
-  const hiddenAnnotations = new Set([
-    'kubectl.kubernetes.io/last-applied-configuration',
-    'deployment.kubernetes.io/revision',
-    'control-plane.alpha.kubernetes.io/leader',
-    'deprecated.daemonset.template.generation',
-    'kubernetes.io/description',
-  ]);
-  const rawMetadata = fullObject?.metadata as Record<string, unknown> | undefined;
-  const rawLabels = rawMetadata?.labels as Record<string, string> | undefined;
-  const rawAnnotations = rawMetadata?.annotations as Record<string, string> | undefined;
-  const filteredLabelsCount = rawLabels
-    ? Object.keys(rawLabels).filter((key) => !hiddenLabels.has(key)).length
-    : 0;
-  const filteredAnnotationsCount = rawAnnotations
-    ? Object.keys(rawAnnotations).filter((key) => !hiddenAnnotations.has(key)).length
-    : 0;
-  const hasMetadataNow = filteredLabelsCount > 0 || filteredAnnotationsCount > 0;
-  const hasEventsNow = events.length > 0;
-
-  // Sticky per-resource capability flags. Once metadata/events have been seen
-  // for this resource, their tabs stay available even if a background refetch
-  // briefly (or permanently, e.g. events expiring) drops them — otherwise the
-  // user would be yanked off the tab they are reading. Reset when the resource
-  // itself changes, via state adjustment during render (not an effect).
-  const resourceIdentity = `${resourceId?.kind ?? ''}/${resourceId?.namespace ?? ''}/${resourceId?.name ?? ''}`;
-  const [caps, setCaps] = useState({
-    identity: resourceIdentity,
-    sawMetadata: false,
-    sawEvents: false,
-  });
-  if (caps.identity !== resourceIdentity) {
-    setCaps({ identity: resourceIdentity, sawMetadata: false, sawEvents: false });
-    setLocalTab(undefined);
-  } else if ((hasMetadataNow && !caps.sawMetadata) || (hasEventsNow && !caps.sawEvents)) {
-    setCaps({
-      identity: resourceIdentity,
-      sawMetadata: caps.sawMetadata || hasMetadataNow,
-      sawEvents: caps.sawEvents || hasEventsNow,
-    });
-  }
-  const sameResource = caps.identity === resourceIdentity;
-  const hasMetadata = hasMetadataNow || (sameResource && caps.sawMetadata);
-  const hasEvents = hasEventsNow || (sameResource && caps.sawEvents);
-
-  // Derive the active tab. The requested tab (URL or local fallback) wins when
-  // it is available. While the resource/events queries are still loading we
-  // honor the request optimistically so deep links like ?tab=events survive a
-  // page reload instead of being reset before the data arrives; only once the
-  // queries have settled do we fall back to the default tab.
+  const tabs: DetailTab<TabType>[] = [
+    ...(hasCustomAdapter
+      ? [{ id: 'overview' as const, label: 'Overview', icon: LayoutDashboard }]
+      : []),
+    { id: 'metadata', label: 'Metadata', icon: Tags },
+    { id: 'yaml', label: 'Manifest', icon: FileCode2 },
+    { id: 'events', label: 'Events', icon: Activity, count: events.length },
+    ...(supportsLogs ? [{ id: 'logs' as const, label: 'Logs', icon: ScrollText }] : []),
+    ...(supportsTerminal
+      ? [{ id: 'terminal' as const, label: 'Terminal', icon: SquareTerminal }]
+      : []),
+  ];
   const defaultTab: TabType = hasCustomAdapter ? 'overview' : 'yaml';
   const requestedTab = onTabChange ? urlTab : localTab;
-  const isTabAvailable = (tab: TabType): boolean => {
-    switch (tab) {
-      case 'overview':
-        return hasCustomAdapter;
-      case 'metadata':
-        return hasMetadata;
-      case 'yaml':
-        return true;
-      case 'events':
-        return hasEvents;
-      case 'logs':
-        return supportsLogs;
-      case 'terminal':
-        return supportsTerminal;
-      default:
-        return false;
-    }
-  };
-  // Data-dependent tabs may still prove available while their query loads.
-  const isTabPending = (tab: TabType): boolean =>
-    (tab === 'metadata' && loading) || (tab === 'events' && eventsLoading);
-  const activeTab: TabType = requestedTab
-    ? isTabAvailable(requestedTab) || isTabPending(requestedTab)
-      ? requestedTab
-      : defaultTab
-    : defaultTab;
+  const activeTab = tabs.some((tab) => tab.id === requestedTab) ? requestedTab! : defaultTab;
 
   if (!isOpen || !resourceId || !resourceId.name) return null;
 
@@ -306,115 +256,18 @@ export function ResourcePanel({
   const resourceName = resourceId.name;
 
   return (
-    <aside
-      className="fixed top-0 h-screen bg-white border-l border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 flex flex-col z-20 shadow-xl transition-all duration-300"
-      style={{
-        right: otherPanelOpen ? '28rem' : '0',
-        width: otherPanelOpen ? '28rem' : '40rem',
-      }}
-    >
-      {' '}
-      {/* Header */}
-      <header className="shrink-0 h-16 flex items-center justify-between pl-5 pr-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <h3
-              className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 truncate"
-              title={resourceName}
-            >
-              {resourceName}
-            </h3>
-            <p className="text-xs text-neutral-500 dark:text-neutral-500">
-              {resourceId.namespace || 'cluster-scoped'}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-800 rounded-md transition-colors"
-          title="Close"
-        >
-          <X size={18} />
-        </button>
-      </header>
-      {/* Tab Bar */}
-      <div className="shrink-0 flex items-center border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50">
-        <div className="flex">
-          {hasCustomAdapter && (
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-                activeTab === 'overview'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
-              }`}
-            >
-              Overview
-            </button>
-          )}
-          {hasMetadata && (
-            <button
-              onClick={() => setActiveTab('metadata')}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-                activeTab === 'metadata'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
-              }`}
-            >
-              Metadata
-            </button>
-          )}
-          <button
-            onClick={() => setActiveTab('yaml')}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-              activeTab === 'yaml'
-                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
-            }`}
-          >
-            Manifest
-          </button>
-          {hasEvents && (
-            <button
-              onClick={() => setActiveTab('events')}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-                activeTab === 'events'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
-              }`}
-            >
-              Events
-            </button>
-          )}
-          {supportsLogs && (
-            <button
-              onClick={() => setActiveTab('logs')}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-                activeTab === 'logs'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
-              }`}
-            >
-              Logs
-            </button>
-          )}
-          {supportsTerminal && (
-            <button
-              onClick={() => setActiveTab('terminal')}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-                activeTab === 'terminal'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-px'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200'
-              }`}
-            >
-              Terminal
-            </button>
-          )}
-        </div>
-        {/* Tab-specific action buttons - portal target for child components + overview actions */}
-        <div className="ml-auto pr-4 flex items-center gap-1">
-          {/* Portal target for child component toolbar actions */}
-          <div ref={toolbarRef} className="flex items-center gap-1" />
+    <DetailPanel
+      name={resourceName}
+      kind={kind}
+      context={context}
+      scope={resourceId.namespace || 'Cluster-scoped'}
+      onClose={onClose}
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      toolbar={<div ref={toolbarRef} className="flex items-center gap-1" />}
+      actions={
+        <>
           {activeTab === 'overview' && resourceActions.length > 0 && (
             <>
               {resourceActions.map((action) => {
@@ -429,10 +282,11 @@ export function ResourcePanel({
                   <div key={action.id} className="relative">
                     <button
                       onClick={() => handleActionClick(action)}
-                      disabled={isDisabled || isLoading}
+                      disabled={isDisabled || loadingAction !== null}
                       title={disabledReason || action.label}
+                      aria-label={action.label}
                       className={`
-                        flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors
+                        flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors [&>svg]:size-4 focus-visible:outline-2 focus-visible:outline-blue-500
                         ${isDisabled || isLoading ? 'opacity-50 cursor-not-allowed' : ''}
                         ${isSliderOpen ? 'bg-neutral-200 dark:bg-neutral-700' : ''}
                         ${
@@ -494,8 +348,9 @@ export function ResourcePanel({
               })}
             </>
           )}
-        </div>
-      </div>
+        </>
+      }
+    >
       {/* Action Error */}
       {actionError && (
         <div className="shrink-0 mx-4 mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded text-red-600 dark:text-red-400 text-xs">
@@ -624,16 +479,39 @@ export function ResourcePanel({
           </div>
         </div>
       )}
+      {error && activeTab !== 'yaml' && (
+        <div
+          role="alert"
+          className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+        >
+          <p className="break-words">
+            {fullObject ? 'Could not refresh resource. Showing the last loaded data. ' : ''}
+            {error}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetchResource()}
+            className="mt-1 font-medium underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {/* Content */}
+      {loading && ['metadata', 'logs', 'terminal'].includes(activeTab) && (
+        <div role="status" className="flex items-center gap-2 p-5 text-sm text-neutral-500">
+          <Loader2 size={14} className="animate-spin" />
+          Loading resource...
+        </div>
+      )}
       {activeTab === 'overview' && hasCustomAdapter && (
-        <div className="flex-1 overflow-auto p-4">
+        <div className="@container min-h-0 flex-1 overflow-auto p-5">
           {loading && (
             <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-400 text-sm mb-4">
               <Loader2 size={14} className="animate-spin" />
               Loading full resource...
             </div>
           )}
-          {error && <div className="text-xs text-red-600 dark:text-red-400 mb-4">{error}</div>}
 
           {fullObject && !loading && (
             <ResourceVisualizer context={context} resource={fullObject} hideActions />
@@ -641,7 +519,7 @@ export function ResourcePanel({
         </div>
       )}
       {activeTab === 'yaml' && (
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
           <ManifestEditor
             resource={fullObject ?? null}
             loading={loading}
@@ -652,27 +530,32 @@ export function ResourcePanel({
         </div>
       )}
       {activeTab === 'metadata' && (
-        <div className="flex-1 overflow-auto p-5">
+        <div className="min-h-0 flex-1 overflow-auto p-5">
           {displayObject && (
             <MetadataView metadata={displayObject.metadata as Record<string, unknown>} />
           )}
         </div>
       )}
       {activeTab === 'events' && (
-        <div className="flex-1 overflow-auto p-5">
-          <EventsView events={events} loading={eventsLoading} />
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          <EventsView
+            events={events}
+            loading={eventsLoading}
+            error={eventsError}
+            onRetry={() => void refetchEvents()}
+          />
         </div>
       )}
       {activeTab === 'logs' && supportsLogs && fullObject && (
-        <div className="flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <KubernetesLogViewer context={context} resource={fullObject} toolbarRef={toolbarRef} />
         </div>
       )}
       {activeTab === 'terminal' && supportsTerminal && fullObject && (
-        <div className="flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <TerminalViewer context={context} resource={fullObject} toolbarRef={toolbarRef} />
         </div>
       )}
-    </aside>
+    </DetailPanel>
   );
 }

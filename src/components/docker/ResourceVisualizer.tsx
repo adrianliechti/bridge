@@ -73,7 +73,7 @@ export function ResourceVisualizer({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {!hideActions && actions.length > 0 && (
         <ActionBar
           context={context}

@@ -8,16 +8,17 @@ export interface DockerLogViewerProps {
   toolbarRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-// Inner component that handles log streaming - use key={container.Id} to reset state
+// Inner component that handles log streaming - use key={`${context}/${container.Id}`} to reset state
 function DockerLogViewerInner({
   context: dockerContext,
   container,
   toolbarRef,
 }: DockerLogViewerProps) {
-  const { logs, sources, isLoading, error, unavailableMessage } = useDockerLogs({
-    context: dockerContext,
-    container,
-  });
+  const { logs, sources, isLoading, error, unavailableMessage, droppedLines, retry } =
+    useDockerLogs({
+      context: dockerContext,
+      container,
+    });
 
   return (
     <LogViewer
@@ -25,7 +26,13 @@ function DockerLogViewerInner({
       sources={sources}
       isLoading={isLoading}
       error={error}
-      emptyMessage="Waiting for logs..."
+      onRetry={retry}
+      droppedLines={droppedLines}
+      emptyMessage={
+        container.State === 'running'
+          ? 'Waiting for logs...'
+          : 'No logs recorded for this container.'
+      }
       unavailableMessage={unavailableMessage}
       toolbarRef={toolbarRef}
     />
@@ -36,7 +43,7 @@ function DockerLogViewerInner({
 export function DockerLogViewer({ context, container, toolbarRef }: DockerLogViewerProps) {
   return (
     <DockerLogViewerInner
-      key={container.Id}
+      key={`${context}/${container.Id}`}
       context={context}
       container={container}
       toolbarRef={toolbarRef}

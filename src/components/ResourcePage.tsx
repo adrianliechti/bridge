@@ -9,6 +9,7 @@ import type {
 import { getObjectId } from '../types/table';
 import { useColumnVisibility } from '../hooks/useColumnVisibility';
 import { ResourceTable } from './ResourceTable';
+import { ResourceSplit } from './ResourceSplit';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface ResourcePageProps<T = any> {
@@ -24,14 +25,10 @@ interface ResourcePageProps<T = any> {
   isRefetching?: boolean;
   // Optional detail panel props
   showDetailPanel?: boolean;
-  renderDetailPanel?: (
-    item: TableRow<T>,
-    onClose: () => void,
-    otherPanelOpen: boolean,
-  ) => React.ReactNode;
+  renderDetailPanel?: (item: TableRow<T>, onClose: () => void) => React.ReactNode;
   // Optional header actions (e.g., AI button), rendered left of the search button
   renderHeaderActions?: (columns: TableColumnDefinition[]) => React.ReactNode;
-  // Chat panel state (for header padding calculation)
+  // Leave room for the assistant beside the resizable workspace.
   isChatPanelOpen?: boolean;
   // URL-driven selection
   selectedItemName?: string;
@@ -106,25 +103,27 @@ export function ResourcePage<T = any>({
     setColumns(cols);
   }, []);
 
-  // Calculate right padding for header actions based on which panels are open
-  const getHeaderActionsPadding = () => {
-    if (isDetailPanelOpen && isChatPanelOpen) return 'pr-[68rem]'; // Both panels: 40rem + 28rem
-    if (isDetailPanelOpen) return 'pr-[40rem]';
-    if (isChatPanelOpen) return 'pr-[28rem]';
-    return '';
-  };
-
   return (
-    <>
-      <main className="flex-1 flex flex-col h-full min-w-0">
-        <header
-          className={`shrink-0 h-14 flex items-center justify-between px-5 mt-2 transition-all duration-300 ${getHeaderActionsPadding()}`}
-        >
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-100">{title}</h2>
+    <ResourceSplit
+      isChatPanelOpen={isChatPanelOpen}
+      details={
+        renderDetailPanel && isDetailPanelOpen && selectedItem
+          ? renderDetailPanel(selectedItem, handleCloseDetailPanel)
+          : undefined
+      }
+    >
+      <main className="resource-workspace flex flex-col h-full min-w-0">
+        <header className="shrink-0 h-14 flex items-center justify-between gap-3 px-5 mt-2">
+          <div className="min-w-0 flex-1">
+            <h2
+              className="truncate text-lg font-medium text-neutral-900 dark:text-neutral-100"
+              title={title}
+            >
+              {title}
+            </h2>
           </div>
           {/* Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {renderHeaderActions?.(columns)}
             <div ref={toolbarRef} />
             <button
@@ -162,11 +161,6 @@ export function ResourcePage<T = any>({
           />
         </section>
       </main>
-      {/* Detail panel */}
-      {renderDetailPanel &&
-        isDetailPanelOpen &&
-        selectedItem &&
-        renderDetailPanel(selectedItem, handleCloseDetailPanel, isChatPanelOpen)}
-    </>
+    </ResourceSplit>
   );
 }

@@ -240,20 +240,20 @@ export function ResourcePage({
   const renderDetailPanel = useMemo(
     () =>
       showDetailPanel
-        ? (item: TableRow<DockerResourceObject>, onClose: () => void, otherPanelOpen: boolean) => {
+        ? (item: TableRow<DockerResourceObject>, onClose: () => void) => {
             return (
               <ResourcePanel
+                key={`${dockerContext}/${resourceType}/${getResourceSortKey(item.object, resourceType)}`}
                 context={dockerContext}
                 isOpen={true}
                 onClose={onClose}
-                otherPanelOpen={otherPanelOpen || isChatPanelOpen}
                 resource={item.object}
                 resourceType={resourceType}
               />
             );
           }
         : undefined,
-    [showDetailPanel, resourceType, isChatPanelOpen, dockerContext],
+    [showDetailPanel, resourceType, dockerContext],
   );
 
   // Get item name for URL sync

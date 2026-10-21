@@ -10,30 +10,29 @@ export function InfoGridSection({
 }) {
   const filteredItems = items.filter((item) => item.value !== undefined && item.value !== null);
 
-  const gridClass = columns === 3 ? 'grid-cols-3' : columns === 2 ? 'grid-cols-2' : 'grid-cols-1';
-
-  // For 3 columns: left, center, right alignment
-  const getAlignment = (index: number): string => {
-    if (columns !== 3) return '';
-    const position = index % 3;
-    if (position === 0) return 'text-left';
-    if (position === 1) return 'text-center';
-    return 'text-right';
-  };
+  const gridClass =
+    columns === 3
+      ? 'grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-3'
+      : columns === 2
+        ? 'grid-cols-1 @sm:grid-cols-2'
+        : 'grid-cols-1';
+  if (filteredItems.length === 0) return null;
 
   return (
-    <div
-      className={`bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-3 grid gap-2 text-xs ${gridClass}`}
+    <dl
+      className={`rounded-lg border border-neutral-200 bg-neutral-50/70 p-4 grid gap-x-6 gap-y-4 text-xs dark:border-neutral-800 dark:bg-neutral-950/30 ${gridClass}`}
     >
       {filteredItems.map((item, i) => (
-        <div key={i} className={`overflow-hidden ${getAlignment(i)}`}>
-          <span className="text-neutral-500 dark:text-neutral-500">{item.label}:</span>{' '}
-          <span className={item.color || 'text-neutral-900 dark:text-neutral-300'}>
+        <div key={i} className="min-w-0">
+          <dt className="mb-1 text-neutral-500 dark:text-neutral-400">{item.label}</dt>
+          <dd
+            className={`break-words [overflow-wrap:anywhere] font-medium leading-relaxed ${item.color || 'text-neutral-900 dark:text-neutral-200'}`}
+          >
             {item.value}
-          </span>
+          </dd>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }
 
@@ -45,7 +44,12 @@ export function LabelsSection({
   title?: string;
 }) {
   const entries = Object.entries(labels);
-  if (entries.length === 0) return null;
+  if (entries.length === 0)
+    return (
+      <div className="rounded-lg border border-dashed border-neutral-200 px-5 py-8 text-center text-sm text-neutral-500 dark:border-neutral-700">
+        No {title.toLowerCase()} to display
+      </div>
+    );
 
   // Sort important labels first
   const importantPrefixes = [
@@ -66,11 +70,11 @@ export function LabelsSection({
 
   return (
     <div>
-      <h5 className="flex items-center gap-2 text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+      <h5 className="flex items-center gap-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-3">
         <Tag size={12} />
         {title}
       </h5>
-      <table className="w-full text-xs">
+      <table className="w-full table-fixed text-xs">
         <tbody>
           {sortedEntries.map(([key, value], index) => {
             const isImportant = importantPrefixes.some((p) => key.startsWith(p));
@@ -80,13 +84,13 @@ export function LabelsSection({
                 className={index % 2 === 0 ? 'bg-neutral-50 dark:bg-neutral-800/30' : ''}
               >
                 <td
-                  className={`py-1.5 px-2 whitespace-nowrap w-[1%] ${isImportant ? 'text-blue-600 dark:text-blue-400' : 'text-sky-600 dark:text-sky-400'}`}
+                  className={`py-2.5 px-3 align-top w-[45%] [overflow-wrap:anywhere] ${isImportant ? 'text-blue-700 dark:text-blue-400' : 'text-neutral-600 dark:text-neutral-400'}`}
                   title={key}
                 >
                   {key}
                 </td>
                 <td
-                  className="py-1.5 px-2 text-emerald-600 dark:text-emerald-400 break-all"
+                  className="py-2.5 px-3 align-top text-neutral-900 dark:text-neutral-200 [overflow-wrap:anywhere] whitespace-pre-wrap"
                   title={value}
                 >
                   {value}
@@ -110,11 +114,16 @@ export function ContainerImagesSection({
       {containers.map((container) => (
         <div
           key={container.name}
-          className="text-xs bg-neutral-100 dark:bg-neutral-900/50 px-2 py-1.5 rounded flex items-center gap-2"
+          className="text-xs bg-neutral-100 dark:bg-neutral-900/50 px-3 py-2 rounded flex items-start gap-2"
         >
-          <Box size={12} className="text-blue-400" />
-          <span className="text-neutral-900 dark:text-neutral-300">{container.name}:</span>
-          <span className="text-cyan-400 truncate" title={container.image}>
+          <Box size={12} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
+          <span className="text-neutral-900 dark:text-neutral-300 break-all">
+            {container.name}:
+          </span>
+          <span
+            className="min-w-0 [overflow-wrap:anywhere] text-cyan-700 dark:text-cyan-400"
+            title={container.image}
+          >
             {container.image}
           </span>
         </div>
@@ -129,11 +138,13 @@ export function AddressesSection({
   addresses: Array<{ type: string; address: string }>;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-1 @sm:grid-cols-2 gap-2">
       {addresses.map((addr, i) => (
         <div key={i} className="bg-neutral-100 dark:bg-neutral-900/50 rounded-lg p-2">
           <div className="text-xs text-neutral-600 dark:text-neutral-500">{addr.type}</div>
-          <div className="text-sm text-cyan-600 dark:text-cyan-400 font-mono">{addr.address}</div>
+          <div className="text-sm text-cyan-600 dark:text-cyan-400 font-mono break-all">
+            {addr.address}
+          </div>
         </div>
       ))}
     </div>

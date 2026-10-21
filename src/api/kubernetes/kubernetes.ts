@@ -1,3 +1,4 @@
+import { responseError } from '../errors.ts';
 import type {
   CoreV1Event,
   CoreV1EventList,
@@ -38,7 +39,7 @@ export async function fetchApi<T>(url: string, context?: string): Promise<T> {
   const finalUrl = context ? `/contexts/${context}${url}` : url;
   const response = await fetch(finalUrl);
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    throw new Error(await responseError(response, 'API request failed'));
   }
   return response.json();
 }
@@ -106,17 +107,7 @@ export async function updateResource(
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    let message = `API request failed: ${response.status} ${response.statusText}`;
-    try {
-      const errorJson = JSON.parse(errorBody);
-      if (errorJson.message) {
-        message = errorJson.message;
-      }
-    } catch {
-      // Use default message
-    }
-    throw new Error(message);
+    throw new Error(await responseError(response, 'API request failed'));
   }
 
   return response.json();
@@ -186,17 +177,7 @@ export async function deleteResource(
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    let message = `Delete failed: ${response.status} ${response.statusText}`;
-    try {
-      const errorJson = JSON.parse(errorBody);
-      if (errorJson.message) {
-        message = errorJson.message;
-      }
-    } catch {
-      // Use default message
-    }
-    throw new Error(message);
+    throw new Error(await responseError(response, 'Delete failed'));
   }
 }
 
@@ -288,16 +269,6 @@ export async function restartWorkload(
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    let message = `Restart failed: ${response.status} ${response.statusText}`;
-    try {
-      const errorJson = JSON.parse(errorBody);
-      if (errorJson.message) {
-        message = errorJson.message;
-      }
-    } catch {
-      // Use default message
-    }
-    throw new Error(message);
+    throw new Error(await responseError(response, 'Restart failed'));
   }
 }

@@ -23,6 +23,7 @@ import {
   getObjectNamespace as getNamespaceHelper,
 } from '../types/table';
 import { ColumnFilter } from './ColumnFilter';
+import { getResourceStatus } from './resourceStatus';
 import { ToolbarPortal } from './ToolbarPortal';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,17 +42,13 @@ function isStatusColumn(name: string): boolean {
 
 // Get status color classes based on value
 function getStatusClasses(value: string): { text: string; dot: string } {
-  const lower = value.toLowerCase();
-  if (lower.match(/running|active|ready|available|bound|succeeded|complete|healthy|true/)) {
-    return { text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' };
-  }
-  if (lower.match(/pending|creating|waiting|progressing|scheduled/)) {
-    return { text: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' };
-  }
-  if (lower.match(/failed|error|crashloopbackoff|terminated|unknown|lost|false/)) {
-    return { text: 'text-red-600 dark:text-red-400', dot: 'bg-red-500' };
-  }
-  return { text: 'text-neutral-500 dark:text-neutral-400', dot: 'bg-neutral-400' };
+  const colors = {
+    success: { text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    warning: { text: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' },
+    error: { text: 'text-red-600 dark:text-red-400', dot: 'bg-red-500' },
+    neutral: { text: 'text-neutral-500 dark:text-neutral-400', dot: 'bg-neutral-400' },
+  };
+  return colors[getResourceStatus(value)];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -262,7 +259,7 @@ export function ResourceTable<T = any>({
     );
   }
 
-  if (error) {
+  if (error && !data?.rows.length) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="flex items-center gap-3 text-red-500 dark:text-red-400">
@@ -303,14 +300,26 @@ export function ResourceTable<T = any>({
   }
 
   return (
-    <div className="pl-2 h-full relative">
+    <div className="pl-2 h-full relative flex flex-col">
+      {error && (
+        <div role="alert" className="shrink-0 px-4 py-2 text-sm text-amber-700 dark:text-amber-400">
+          Refresh failed. Showing the last loaded data. {error.message}
+          <button
+            onClick={refetch}
+            disabled={isRefetching}
+            className="ml-3 underline disabled:opacity-50"
+          >
+            {isRefetching ? 'Retrying...' : 'Retry'}
+          </button>
+        </div>
+      )}
       {/* Refetch indicator */}
       {isRefetching && (
         <div className="absolute top-2 right-4 z-20">
           <RefreshCw size={14} className="text-neutral-400 dark:text-neutral-500 animate-spin" />
         </div>
       )}
-      <div className="overflow-auto h-full">
+      <div className="overflow-auto flex-1 min-h-0">
         <table className="w-full text-[13px]">
           <thead className="sticky top-0 z-10 bg-neutral-100 dark:bg-neutral-950">
             {table.getHeaderGroups().map((headerGroup) => (

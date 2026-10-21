@@ -13,6 +13,9 @@ function normalizeForSearch(str: string): string {
   return str.toLowerCase().replace(/[-_.]/g, '');
 }
 
+const EMPTY_RESULTS: SearchResult[] = [];
+const EMPTY_RESOURCE_TYPES: ResourceTypeItem[] = [];
+
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
@@ -22,60 +25,58 @@ interface CommandPaletteProps {
 export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(0);
-  const [asyncResults, setAsyncResults] = useState<SearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [searchState, setSearchState] = useState<{
+    adapter: CommandPaletteAdapter;
+    key: string;
+    results: SearchResult[];
+    error?: string;
+  } | null>(null);
+  const [initialization, setInitialization] = useState<{
+    adapter: CommandPaletteAdapter;
+    types: ResourceTypeItem[];
+    error?: string;
+  } | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
 
   // Track pre-completion input for escape revert behavior
   const [preCompletionInput, setPreCompletionInput] = useState<string | null>(null);
 
   // Track the adapter and isOpen in state to detect changes during render
-  const [trackedAdapter, setTrackedAdapter] = useState(adapter);
   const [wasOpen, setWasOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialized = initialization?.adapter === adapter && !initialization.error;
+  const availableResourceTypes = isInitialized ? initialization.types : EMPTY_RESOURCE_TYPES;
+  const initializationError =
+    initialization?.adapter === adapter ? initialization.error : undefined;
 
-  // Resource types for browse mode, captured in state when the adapter
-  // finishes initializing. getAvailableResourceTypes() reads the adapter's
-  // mutable internals, so its result must be snapshotted at a known-good
-  // moment rather than derived in a memo — a memo can cache a pre-init
-  // (empty) snapshot against deps that never change again.
-  const [availableResourceTypes, setAvailableResourceTypes] = useState<ResourceTypeItem[]>([]);
-
-  // Detect adapter change during render and reset initialization state.
-  // Compare by object identity, not adapter.id: the layouts recreate the
-  // adapter (same id, empty caches) whenever context/namespace changes, and
-  // missing that swap here leaves the resource-type browse list permanently
-  // empty after the first switch.
-  if (adapter !== trackedAdapter) {
-    setTrackedAdapter(adapter);
-    setIsInitialized(false);
-    setAvailableResourceTypes([]);
-  }
-
-  // Initialize adapter when it changes
   useEffect(() => {
     let cancelled = false;
-    adapter.initialize().then(() => {
-      if (!cancelled) {
-        setIsInitialized(true);
-        setAvailableResourceTypes(adapter.getAvailableResourceTypes());
-      }
-    });
+    adapter.initialize().then(
+      () => {
+        if (!cancelled) setInitialization({ adapter, types: adapter.getAvailableResourceTypes() });
+      },
+      (error) => {
+        if (!cancelled)
+          setInitialization({
+            adapter,
+            types: [],
+            error: error instanceof Error ? error.message : 'Unable to load search',
+          });
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [adapter]);
+  }, [adapter, retryAttempt]);
 
   // Detect palette opening during render and reset state
   if (isOpen && !wasOpen) {
     setWasOpen(true);
     setQuery('');
     setFocusedIndex(0);
-    setAsyncResults([]);
-    setIsSearching(false);
+    setSearchState(null);
     setPreCompletionInput(null);
   } else if (!isOpen && wasOpen) {
     setWasOpen(false);
@@ -123,7 +124,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     if (spaceIndex === -1) {
       // No space: either typing resource type or exact match
       // Check if it matches a known resource type
-      const resourceType = adapter.findResourceType?.(afterPrefix);
+      const resourceType = isInitialized ? adapter.findResourceType?.(afterPrefix) : undefined;
 
       if (resourceType) {
         // Check for special types
@@ -151,7 +152,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     const firstWord = afterPrefix.slice(0, spaceIndex);
     const searchQuery = afterPrefix.slice(spaceIndex + 1).trim();
 
-    const resourceType = adapter.findResourceType?.(firstWord);
+    const resourceType = isInitialized ? adapter.findResourceType?.(firstWord) : undefined;
 
     if (resourceType) {
       // Check for special types with query
@@ -173,7 +174,7 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
 
     // Unknown resource type, treat as plain search
     return { mode: 'search', query: afterPrefix, allNamespaces, prefix };
-  }, [query, adapter]);
+  }, [query, adapter, isInitialized]);
 
   const { mode: searchMode, resourceKind, query: searchQuery, allNamespaces } = parsedQuery;
 
@@ -237,16 +238,26 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
   }, [searchMode, filteredResourceTypes, filteredNamespaces, filteredContexts, adapter]);
 
   // Final results: sync results or async results depending on mode
-  const results =
-    searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter'
-      ? asyncResults
-      : syncResults;
-
-  // Compute isSearching synchronously based on search state changes
-  const shouldStartSearching =
-    (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') &&
-    searchQuery.length >= 2 &&
-    isInitialized;
+  const isAsyncSearch =
+    searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter';
+  const shouldStartSearching = isOpen && isAsyncSearch && searchQuery.length >= 2 && isInitialized;
+  const searchKey = JSON.stringify([
+    searchMode,
+    searchQuery,
+    allNamespaces,
+    resourceKind,
+    retryAttempt,
+  ]);
+  const currentSearch =
+    searchState?.adapter === adapter && searchState.key === searchKey ? searchState : null;
+  const results = isAsyncSearch
+    ? shouldStartSearching
+      ? (currentSearch?.results ?? EMPTY_RESULTS)
+      : EMPTY_RESULTS
+    : syncResults;
+  const isSearching = shouldStartSearching && !currentSearch;
+  const searchError =
+    initializationError ?? (shouldStartSearching ? currentSearch?.error : undefined);
 
   // Track previous searchMode and syncResults for focusedIndex reset using state
   const [trackedSearchMode, setTrackedSearchMode] = useState(searchMode);
@@ -269,54 +280,30 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
     setFocusedIndex(0);
   }
 
-  // Track whether we're starting a new search to set isSearching during render
-  const [trackedShouldSearch, setTrackedShouldSearch] = useState(shouldStartSearching);
-  if (shouldStartSearching && !trackedShouldSearch) {
-    setTrackedShouldSearch(true);
-    setIsSearching(true);
-  } else if (!shouldStartSearching && trackedShouldSearch) {
-    setTrackedShouldSearch(false);
-  }
-
-  // Trigger async search when in search mode
   useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Ignore results from a superseded query: the cleanup only clears the
-    // debounce timer, so an in-flight searchResources from a previous query
-    // could otherwise resolve late and overwrite the newer results.
+    if (!shouldStartSearching) return;
     let cancelled = false;
-
-    if (shouldStartSearching) {
-      // isSearching is set during render, not here
-      searchTimeoutRef.current = setTimeout(async () => {
+    const timer = setTimeout(async () => {
+      try {
         const results = await adapter.searchResources(searchQuery, allNamespaces, resourceKind);
         if (cancelled) return;
-        setAsyncResults(results);
+        setSearchState({ adapter, key: searchKey, results });
         setFocusedIndex(0);
-        setIsSearching(false);
-      }, 300);
-    }
-
+      } catch (error) {
+        if (cancelled) return;
+        setSearchState({
+          adapter,
+          key: searchKey,
+          results: [],
+          error: error instanceof Error ? error.message : 'Search failed',
+        });
+      }
+    }, 300);
     return () => {
       cancelled = true;
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      clearTimeout(timer);
     };
-  }, [shouldStartSearching, searchMode, searchQuery, allNamespaces, resourceKind, adapter]);
-
-  // Clear async state synchronously when search mode changes or query is too short
-  const shouldClearSearch =
-    (searchMode === 'search' || searchMode === 'searchAll' || searchMode === 'filter') &&
-    searchQuery.length < 2 &&
-    asyncResults.length > 0;
-  if (shouldClearSearch) {
-    setAsyncResults([]);
-    setIsSearching(false);
-  }
+  }, [shouldStartSearching, searchKey, searchQuery, allNamespaces, resourceKind, adapter]);
 
   // Handle selection
   const handleSelect = useCallback(
@@ -456,6 +443,9 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
 
   return createPortal(
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search resources"
       className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -489,7 +479,17 @@ export function CommandPalette({ isOpen, onClose, adapter }: CommandPaletteProps
 
         {/* Results */}
         <div ref={listRef} className="max-h-[60vh] overflow-y-auto">
-          {results.length === 0 ? (
+          {searchError ? (
+            <div role="alert" className="px-4 py-6 text-sm text-red-600 dark:text-red-400">
+              {searchError}
+              <button
+                onClick={() => setRetryAttempt((attempt) => attempt + 1)}
+                className="ml-3 underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : results.length === 0 ? (
             <div className="px-4 py-8 text-center text-neutral-500 dark:text-neutral-400">
               {isSearching ? (
                 'Searching...'

@@ -2,7 +2,31 @@ import { Loader2 } from 'lucide-react';
 import type { CoreV1Event } from '../../api/kubernetes/kubernetes';
 
 // Events tab component (full page, no collapse)
-export function EventsView({ events, loading }: { events: CoreV1Event[]; loading: boolean }) {
+export function EventsView({
+  events,
+  loading,
+  error,
+  onRetry,
+}: {
+  events: CoreV1Event[];
+  loading: boolean;
+  error?: Error | null;
+  onRetry?: () => void;
+}) {
+  if (error && events.length === 0) {
+    return (
+      <div
+        role="alert"
+        className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+      >
+        <p className="font-medium">Could not load events</p>
+        <p className="mt-1 break-words">{error.message}</p>
+        <button type="button" onClick={onRetry} className="mt-3 underline">
+          Retry
+        </button>
+      </div>
+    );
+  }
   if (loading && events.length === 0) {
     return (
       <div className="flex items-center gap-2 text-neutral-600 dark:text-neutral-500 text-sm">
@@ -14,14 +38,27 @@ export function EventsView({ events, loading }: { events: CoreV1Event[]; loading
 
   if (events.length === 0) {
     return (
-      <div className="text-neutral-600 dark:text-neutral-500 text-sm italic">
-        No events found for this resource
+      <div className="rounded-lg border border-dashed border-neutral-200 px-5 py-8 text-center dark:border-neutral-700">
+        <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          No events recorded
+        </p>
+        <p className="mt-1 text-xs text-neutral-500">
+          Events appear here when Kubernetes reports activity for this resource.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
+      {error && (
+        <div role="alert" className="text-xs text-amber-700 dark:text-amber-400">
+          Could not refresh events. Showing the last loaded events.{' '}
+          <button type="button" onClick={onRetry} className="underline">
+            Retry
+          </button>
+        </div>
+      )}
       {events.map((event) => (
         <EventItem
           key={event.metadata?.uid || `${event.reason}-${event.lastTimestamp}`}
@@ -49,7 +86,7 @@ function EventItem({ event }: { event: CoreV1Event }) {
         ? event.metadata.creationTimestamp.toISOString()
         : String(event.metadata.creationTimestamp);
     }
-    return new Date().toISOString();
+    return '';
   };
 
   const timestamp = getTimestamp();
@@ -94,7 +131,9 @@ function EventItem({ event }: { event: CoreV1Event }) {
 
 // Format event timestamp
 function formatEventTime(timestamp: string): string {
+  if (!timestamp) return 'Unknown time';
   const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'Unknown time';
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
 

@@ -25,7 +25,6 @@ export class ExecSession {
   private ws: WebSocket | null = null;
   private options: ExecSessionOptions;
   private isClosing = false;
-  private hasConnected = false;
 
   constructor(options: ExecSessionOptions) {
     this.options = options;
@@ -33,26 +32,22 @@ export class ExecSession {
 
   // Try to connect with different shells until one works
   async connect(): Promise<void> {
-    const shells = this.options.command || DEFAULT_SHELLS;
+    const commands = this.options.command
+      ? [this.options.command]
+      : DEFAULT_SHELLS.map((shell) => [shell]);
 
-    for (const shell of shells) {
+    for (const [index, command] of commands.entries()) {
       if (this.isClosing) return;
       try {
-        await this.tryConnect([shell]);
-        if (this.isClosing) {
-          this.ws?.close();
-          this.ws = null;
-          return;
-        }
-        this.hasConnected = true; // Mark as connected only after successful shell
-        return; // Success!
-      } catch {
+        await this.tryConnect(command);
+        return;
+      } catch (error) {
         if (this.isClosing) return;
-        // If this is the last shell, throw the error
-        if (shell === shells[shells.length - 1]) {
-          throw new Error(`No shell available (tried: ${shells.join(', ')})`);
+        if (index === commands.length - 1) {
+          // Preserve permission/transport errors instead of reporting every
+          // failure as a missing shell.
+          throw error;
         }
-        // Otherwise try the next shell
       }
     }
   }
@@ -75,27 +70,36 @@ export class ExecSession {
 
       // Connect through the proxy to Kubernetes exec API
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const url = `${protocol}//${window.location.host}/contexts/${context}/api/v1/namespaces/${namespace}/pods/${pod}/exec?${params.toString()}`;
+      const url = `${protocol}//${window.location.host}/contexts/${encodeURIComponent(context)}/api/v1/namespaces/${encodeURIComponent(namespace)}/pods/${encodeURIComponent(pod)}/exec?${params.toString()}`;
 
-      this.ws = new WebSocket(url, ['v4.channel.k8s.io']);
+      const ws = new WebSocket(url, ['v4.channel.k8s.io']);
+      this.ws = ws;
 
       let resolved = false;
+      let connected = false;
+      let readyTimeout: ReturnType<typeof setTimeout> | undefined;
+      // stdout and stderr are independent byte streams; UTF-8 characters may
+      // span multiple WebSocket messages.
+      const decoders = new Map([
+        [CHANNEL_STDOUT, new TextDecoder()],
+        [CHANNEL_STDERR, new TextDecoder()],
+      ]);
 
       // Set a connection timeout
       const connectionTimeout = setTimeout(() => {
         if (!resolved) {
           resolved = true;
-          this.ws?.close();
+          ws.close();
           reject(new Error('Connection timeout'));
         }
       }, 5000);
 
-      this.ws.binaryType = 'arraybuffer';
+      ws.binaryType = 'arraybuffer';
 
-      this.ws.onopen = () => {
+      ws.onopen = () => {
         // Don't resolve immediately - wait for first data or a short delay
         // to confirm the shell actually started
-        setTimeout(() => {
+        readyTimeout = setTimeout(() => {
           if (resolved) return;
           if (this.isClosing) {
             clearTimeout(connectionTimeout);
@@ -103,21 +107,26 @@ export class ExecSession {
             reject(new Error('Connection cancelled'));
             return;
           }
-          if (this.ws?.readyState === WebSocket.OPEN) {
+          if (ws.readyState === WebSocket.OPEN) {
             clearTimeout(connectionTimeout);
             resolved = true;
+            connected = true;
             resolve();
           }
         }, 200);
       };
 
-      this.ws.onmessage = (event) => {
+      ws.onmessage = (event) => {
+        if (this.isClosing || this.ws !== ws) return;
         if (event.data instanceof ArrayBuffer) {
           const data = new Uint8Array(event.data);
           if (data.length < 1) return;
 
           const channel = data[0];
-          const content = new TextDecoder().decode(data.slice(1));
+          const decoder = decoders.get(channel);
+          const content = decoder
+            ? decoder.decode(data.subarray(1), { stream: true })
+            : new TextDecoder().decode(data.subarray(1));
 
           switch (channel) {
             case CHANNEL_STDOUT:
@@ -145,7 +154,7 @@ export class ExecSession {
               if (!resolved) {
                 resolved = true;
                 clearTimeout(connectionTimeout);
-                this.ws?.close();
+                ws.close();
                 reject(new Error(failureMessage));
               } else if (!this.isClosing) {
                 this.options.onError?.(failureMessage);
@@ -156,22 +165,27 @@ export class ExecSession {
         }
       };
 
-      this.ws.onerror = () => {
+      ws.onerror = () => {
         clearTimeout(connectionTimeout);
         if (!resolved) {
           resolved = true;
-          this.ws?.close();
+          ws.close();
           reject(new Error('WebSocket connection failed'));
         }
       };
 
-      this.ws.onclose = (event) => {
+      ws.onclose = (event) => {
         clearTimeout(connectionTimeout);
+        clearTimeout(readyTimeout);
         if (!resolved) {
           resolved = true;
           reject(new Error(event.reason || `Connection closed (code: ${event.code})`));
-        } else if (!this.isClosing && this.hasConnected) {
+        } else if (!this.isClosing && connected && this.ws === ws) {
           // Only call onClose if we had a successful connection (not during shell detection)
+          for (const decoder of decoders.values()) {
+            const remaining = decoder.decode();
+            if (remaining) this.options.onData(remaining);
+          }
           this.options.onClose?.();
         }
       };

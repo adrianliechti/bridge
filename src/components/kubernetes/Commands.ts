@@ -1,9 +1,5 @@
 import { MonitorCog, FolderOpen } from 'lucide-react';
-import {
-  getResourceConfig,
-  discoverResources,
-  getResourceTypeSlug,
-} from '../../api/kubernetes/kubernetesDiscovery';
+import { discoverResources, getResourceTypeSlug } from '../../api/kubernetes/kubernetesDiscovery';
 import { getResourceTable, type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import type {
   CommandPaletteAdapter,
@@ -134,39 +130,27 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
       const builtInItems: ResourceTypeItem[] = [];
       const crdItems: ResourceTypeItem[] = [];
 
-      // Fetch configs for built-in resource types
+      const allResources = await discoverResources(context);
+
       for (const rt of builtInResourceTypes) {
-        try {
-          const config = await getResourceConfig(context, rt.kind);
-          if (config) {
-            configs.set(rt.kind, config);
-            builtInItems.push(buildResourceTypeItem(config, rt));
-          }
-        } catch {
-          // Resource type not available in cluster
+        const config = allResources.get(rt.kind);
+        if (config) {
+          configs.set(rt.kind, config);
+          builtInItems.push(buildResourceTypeItem(config, rt));
         }
       }
 
-      // Discover all API resources (including CRDs) - metadata only, not instances
-      try {
-        const allResources = await discoverResources(context);
-        for (const [, config] of allResources) {
-          // Skip if already loaded as built-in
-          if (configs.has(config.name)) continue;
-
-          // Add CRD to cache and items
-          configs.set(config.name, config);
-          const aliases = getResourceAliases(config);
-          crdItems.push({
-            kind: config.name,
-            label: config.kind,
-            icon: defaultResourceIcon,
-            category: 'Custom Resources',
-            aliases: aliases.length > 0 ? aliases : undefined,
-          });
-        }
-      } catch {
-        // Discovery failed, continue with built-in types only
+      for (const [, config] of allResources) {
+        if (configs.has(config.name)) continue;
+        configs.set(config.name, config);
+        const aliases = getResourceAliases(config);
+        crdItems.push({
+          kind: config.name,
+          label: config.kind,
+          icon: defaultResourceIcon,
+          category: 'Custom Resources',
+          aliases: aliases.length > 0 ? aliases : undefined,
+        });
       }
 
       // Sort CRDs alphabetically by label
@@ -278,6 +262,7 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
         }
       }
 
+      const failures: unknown[] = [];
       const searchPromises = resourcesToSearch.map(async (rt: ResourceTypeItem) => {
         const config = resourceConfigCache.get(rt.kind);
         if (!config) return [];
@@ -310,13 +295,16 @@ export function createKubernetesAdapter(options: KubernetesAdapterOptions): Comm
           }
 
           return matches;
-        } catch {
-          // Resource type may not be available or permission denied
+        } catch (error) {
+          failures.push(error);
           return [];
         }
       });
 
       const allResults = await Promise.all(searchPromises);
+      if (failures.length > 0 && (resourceKind || failures.length === resourcesToSearch.length)) {
+        throw failures[0];
+      }
       for (const matches of allResults) {
         searchResults.push(...matches);
       }

@@ -3,22 +3,25 @@ import type { StatusCardData, GaugeData, GridData } from './types';
 
 export function StatusCardsSection({ items }: { items: StatusCardData[] }) {
   const statusColors = {
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
-    error: 'text-red-400',
+    success: 'text-emerald-700 dark:text-emerald-400',
+    warning: 'text-amber-700 dark:text-amber-400',
+    error: 'text-red-700 dark:text-red-400',
     neutral: 'text-neutral-900 dark:text-neutral-100',
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 @sm:grid-cols-2 gap-3">
       {items.map((item, i) => (
-        <div key={i} className="bg-neutral-100 dark:bg-neutral-800 rounded-lg p-3">
+        <div
+          key={i}
+          className="min-w-0 rounded-lg border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-800 dark:bg-neutral-950/30"
+        >
           <div className="text-xs text-neutral-500 mb-1">{item.label}</div>
           <div
-            className={`text-sm font-medium flex items-center gap-2 ${statusColors[item.status || 'neutral']}`}
+            className={`text-sm font-semibold flex items-center gap-2 [overflow-wrap:anywhere] ${statusColors[item.status || 'neutral']}`}
           >
             {item.icon}
-            {item.value}
+            <span className="min-w-0">{item.value}</span>
           </div>
           {item.description && (
             <div className="text-xs text-neutral-500 mt-1">{item.description}</div>
@@ -31,11 +34,11 @@ export function StatusCardsSection({ items }: { items: StatusCardData[] }) {
 
 export function GaugesSection({ items, podGrid }: { items: GaugeData[]; podGrid?: GridData }) {
   const colorClasses: Record<string, string> = {
-    emerald: 'text-emerald-400',
-    blue: 'text-blue-400',
-    cyan: 'text-cyan-400',
-    purple: 'text-purple-400',
-    amber: 'text-amber-400',
+    emerald: 'text-emerald-700 dark:text-emerald-400',
+    blue: 'text-blue-700 dark:text-blue-400',
+    cyan: 'text-cyan-700 dark:text-cyan-400',
+    purple: 'text-purple-700 dark:text-purple-400',
+    amber: 'text-amber-700 dark:text-amber-400',
   };
   const bgClasses: Record<string, string> = {
     emerald: 'bg-emerald-500',

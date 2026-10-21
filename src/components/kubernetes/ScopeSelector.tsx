@@ -176,6 +176,13 @@ export function ScopeSelector({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) {
+        event.preventDefault();
+        openDropdown();
+      }
+      return;
+    }
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
@@ -214,10 +221,15 @@ export function ScopeSelector({
         <input
           ref={inputRef}
           type="text"
+          aria-label="Namespace"
           className="w-full px-3 py-1.5 pr-8 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg text-sm text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-neutral-400/50 dark:focus:ring-neutral-500/50 cursor-default placeholder:text-neutral-400"
           value={isOpen ? query : selectedNamespace || 'All Namespaces'}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setFocusedIndex(0);
+          }}
           onFocus={openDropdown}
+          onClick={openDropdown}
           onKeyDown={handleKeyDown}
           placeholder={isOpen ? 'Search...' : undefined}
           disabled={disabled}
@@ -226,7 +238,15 @@ export function ScopeSelector({
         />
         <button
           type="button"
-          onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
+          aria-label="Toggle namespaces"
+          onClick={() => {
+            if (isOpen) {
+              setIsOpen(false);
+              setQuery('');
+            } else {
+              openDropdown();
+            }
+          }}
           className="absolute inset-y-0 right-0 flex items-center pr-2"
           disabled={disabled}
         >
