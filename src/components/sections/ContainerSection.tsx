@@ -8,8 +8,8 @@ function getContainerStateInfo(state?: string, reason?: string) {
     return {
       label: 'Running',
       borderClass: 'border-emerald-500/30 bg-emerald-500/5',
-      badgeClass: 'bg-emerald-500/20 text-emerald-400',
-      iconClass: 'text-emerald-400',
+      badgeClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+      iconClass: 'text-emerald-700 dark:text-emerald-400',
     };
   }
   if (state === 'waiting') {
@@ -19,8 +19,10 @@ function getContainerStateInfo(state?: string, reason?: string) {
       borderClass: isError
         ? 'border-red-500/30 bg-red-500/5'
         : 'border-amber-500/30 bg-amber-500/5',
-      badgeClass: isError ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400',
-      iconClass: isError ? 'text-red-400' : 'text-amber-400',
+      badgeClass: isError
+        ? 'bg-red-500/10 text-red-700 dark:text-red-400'
+        : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+      iconClass: isError ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400',
     };
   }
   if (state === 'terminated') {

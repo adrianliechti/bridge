@@ -16,6 +16,8 @@ export interface LogViewerProps {
   sources: string[]; // List of unique sources for color coding
   isLoading?: boolean;
   error?: string | null;
+  onRetry?: () => void;
+  droppedLines?: number;
   emptyMessage?: string;
   unavailableMessage?: string;
   toolbarRef?: React.RefObject<HTMLDivElement | null>;
@@ -394,12 +396,15 @@ export function LogViewer({
   sources,
   isLoading = false,
   error,
+  onRetry,
+  droppedLines = 0,
   emptyMessage = 'Waiting for logs...',
   unavailableMessage,
   toolbarRef,
 }: LogViewerProps) {
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [showOnlyIssues, setShowOnlyIssues] = useState(false);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -412,9 +417,14 @@ export function LogViewer({
           `${log.timestamp ?? ''} [${log.source}]${log.container ? ` [${log.container}]` : ''} ${log.message}`,
       )
       .join('\n');
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyError(null);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError('Could not copy logs. Allow clipboard access or select and copy the text.');
+    }
   };
 
   // Detect manual scroll to disable auto-scroll
@@ -477,6 +487,20 @@ export function LogViewer({
       )}
 
       {/* Logs content */}
+      {droppedLines > 0 && (
+        <div
+          role="status"
+          className="shrink-0 px-4 py-2 text-xs text-neutral-500 border-b border-neutral-200 dark:border-neutral-800"
+        >
+          Showing the latest {logs.length.toLocaleString()} lines. {droppedLines.toLocaleString()}{' '}
+          older lines have been discarded.
+        </div>
+      )}
+      {copyError && (
+        <div role="alert" className="shrink-0 px-4 py-2 text-xs text-red-600 dark:text-red-400">
+          {copyError}
+        </div>
+      )}
       <div
         ref={logsContainerRef}
         onScroll={handleScroll}
@@ -485,12 +509,25 @@ export function LogViewer({
         {isLoading && <div className="p-4 text-neutral-500 dark:text-neutral-500">Loading...</div>}
 
         {error && (
-          <div className="p-4 text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/10 border-b border-red-300 dark:border-red-500/30">
+          <div
+            role="alert"
+            className="p-4 text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/10 border-b border-red-300 dark:border-red-500/30"
+          >
             {error}
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                disabled={isLoading}
+                className="ml-3 underline disabled:opacity-50"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 
-        {!isLoading && sources.length === 0 && !unavailableMessage && (
+        {!isLoading && !error && sources.length === 0 && !unavailableMessage && (
           <div className="p-4 text-neutral-500 dark:text-neutral-500">No sources found</div>
         )}
 

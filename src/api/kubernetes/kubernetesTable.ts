@@ -1,3 +1,4 @@
+import { responseError } from '../errors.ts';
 // Kubernetes API client using Table format
 // This leverages the native kubectl-style table output from the API
 
@@ -13,7 +14,7 @@ async function fetchTable(url: string, context: string): Promise<KubernetesTable
     },
   });
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    throw new Error(await responseError(response, 'API request failed'));
   }
   return response.json();
 }

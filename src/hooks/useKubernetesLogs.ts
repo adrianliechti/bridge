@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createLogBuffer } from './logBuffer.ts';
 import {
   streamCombinedLogs,
   getWorkloadPods,
@@ -19,6 +20,8 @@ export interface UseKubernetesLogsResult {
   sources: string[];
   isLoading: boolean;
   error: string | null;
+  droppedLines: number;
+  retry: () => void;
 }
 
 const DEFAULT_TAIL_LINES = 4000;
@@ -28,6 +31,8 @@ export function useKubernetesLogs({
   resource,
   tailLines = DEFAULT_TAIL_LINES,
 }: UseKubernetesLogsOptions): UseKubernetesLogsResult {
+  const [attempt, setAttempt] = useState(0);
+  const [droppedLines, setDroppedLines] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [fetchedPods, setFetchedPods] = useState<string[]>([]);
   const [podContainers, setPodContainers] = useState<string[]>([]);
@@ -43,7 +48,7 @@ export function useKubernetesLogs({
   const kind = resource.kind;
   const name = resource.metadata?.name;
   const namespace = resource.metadata?.namespace;
-  const identity = `${context}/${namespace ?? ''}/${kind ?? ''}/${name ?? ''}`;
+  const identity = `${context}/${namespace ?? ''}/${kind ?? ''}/${name ?? ''}/${attempt}`;
 
   const sources = useMemo(() => {
     if (kind === 'Pod' && name) return [name];
@@ -97,6 +102,11 @@ export function useKubernetesLogs({
 
     let cancelled = false;
     const controllers: AbortController[] = [];
+    const buffer = createLogBuffer<LogEntry>((snapshot) => {
+      if (cancelled) return;
+      setLogs(snapshot.entries);
+      setDroppedLines(snapshot.dropped);
+    });
     const isPodWithMultipleContainers = kind === 'Pod' && podContainers.length > 1;
 
     // Reset the log buffer for the new source set. setLogs is wrapped in a
@@ -106,6 +116,7 @@ export function useKubernetesLogs({
     queueMicrotask(() => {
       if (cancelled) return;
       setLogs([]);
+      setDroppedLines(0);
     });
 
     if (isPodWithMultipleContainers) {
@@ -122,15 +133,12 @@ export function useKubernetesLogs({
             timestamps: true,
             onLog: (log: KubeLogEntry) => {
               if (cancelled) return;
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: log.timestamp,
-                  message: log.message,
-                  source: log.podName,
-                  container,
-                },
-              ]);
+              buffer.push({
+                timestamp: log.timestamp,
+                message: log.message,
+                source: log.podName,
+                container,
+              });
             },
             onError: (err) => {
               if (cancelled) return;
@@ -151,15 +159,12 @@ export function useKubernetesLogs({
           timestamps: true,
           onLog: (log: KubeLogEntry) => {
             if (cancelled) return;
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: log.timestamp,
-                message: log.message,
-                source: log.podName,
-                container: log.container,
-              },
-            ]);
+            buffer.push({
+              timestamp: log.timestamp,
+              message: log.message,
+              source: log.podName,
+              container: log.container,
+            });
           },
           onError: (err) => {
             if (cancelled) return;
@@ -171,9 +176,17 @@ export function useKubernetesLogs({
 
     return () => {
       cancelled = true;
+      buffer.dispose();
       for (const c of controllers) c.abort();
     };
   }, [resolvedFor, identity, context, namespace, kind, sources, podContainers, tailLines]);
 
-  return { logs, sources, isLoading, error };
+  return {
+    logs,
+    sources,
+    isLoading,
+    error,
+    droppedLines,
+    retry: () => setAttempt((value) => value + 1),
+  };
 }

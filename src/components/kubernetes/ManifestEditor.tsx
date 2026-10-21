@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useBlocker } from '@tanstack/react-router';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Editor, { type OnMount, type Monaco } from '@monaco-editor/react';
 import { Loader2, AlertCircle, X, Save, RotateCcw } from 'lucide-react';
 import { stringify as toYaml, parse as parseYaml } from 'yaml';
 import type { KubernetesResource } from '../../api/kubernetes/kubernetes';
 import type { editor } from 'monaco-editor';
 import { ToolbarPortal } from '../ToolbarPortal';
+import { parseResourceManifest } from './manifest';
 
 interface ManifestEditorProps {
   resource: KubernetesResource | null;
@@ -115,6 +118,11 @@ export function ManifestEditor({
   const yaml = useMemo(() => (resource ? toYaml(resource, { lineWidth: 0 }) : ''), [resource]);
 
   const isDirty = value !== tracked.baseline;
+  const blocker = useBlocker({
+    shouldBlockFn: () => isDirty || saving,
+    enableBeforeUnload: isDirty || saving,
+    withResolver: true,
+  });
 
   // Sync editor content with the incoming resource via state adjustment
   // during render (not an effect).
@@ -137,14 +145,14 @@ export function ManifestEditor({
 
   // YAML validity is derived from the current editor content.
   const parseError = useMemo(() => {
-    if (!value) return null;
+    if (!resource) return null;
     try {
-      parseYaml(value);
+      parseResourceManifest(value, resource);
       return null;
     } catch (err) {
       return err instanceof Error ? err.message : 'Invalid YAML';
     }
-  }, [value]);
+  }, [value, resource]);
 
   // Collapse noisy sections (and reset the cursor) whenever the editor shows
   // a different resource — including the very first mount.
@@ -198,12 +206,12 @@ export function ManifestEditor({
   }, [tracked.baseline]);
 
   const handleSave = useCallback(async () => {
-    if (parseError || !isDirty) return;
+    if (parseError || !isDirty || saving || !resource) return;
 
     try {
       setSaving(true);
       setSaveError(null);
-      const parsed = parseYaml(value) as KubernetesResource;
+      const parsed = parseResourceManifest(value, resource);
       await onSave(parsed);
       setTracked((prev) => ({ ...prev, baseline: value }));
     } catch (err) {
@@ -211,7 +219,7 @@ export function ManifestEditor({
     } finally {
       setSaving(false);
     }
-  }, [parseError, isDirty, value, onSave]);
+  }, [parseError, isDirty, saving, resource, value, onSave]);
 
   if (loading) {
     return (
@@ -224,7 +232,7 @@ export function ManifestEditor({
     );
   }
 
-  if (error) {
+  if (error && !resource) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
@@ -242,6 +250,45 @@ export function ManifestEditor({
 
   return (
     <div className="flex flex-col h-full">
+      <Dialog
+        open={blocker.status === 'blocked'}
+        onClose={() => blocker.reset?.()}
+        className="relative z-50"
+      >
+        <DialogBackdrop className="fixed inset-0 bg-black/50" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="max-w-sm rounded-lg bg-white dark:bg-neutral-900 p-5 shadow-xl">
+            <DialogTitle className="font-semibold text-neutral-900 dark:text-neutral-100">
+              Unsaved manifest changes
+            </DialogTitle>
+            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+              {saving
+                ? 'Wait for the save to finish before leaving.'
+                : 'Leaving this view will discard your edits.'}
+            </p>
+            <div className="mt-4 flex justify-end gap-3 text-sm">
+              <button
+                onClick={() => blocker.reset?.()}
+                className="px-3 py-2 text-neutral-700 dark:text-neutral-300"
+              >
+                Keep editing
+              </button>
+              <button
+                disabled={saving}
+                onClick={() => blocker.proceed?.()}
+                className="px-3 py-2 rounded bg-red-600 text-white disabled:opacity-50"
+              >
+                Discard changes
+              </button>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
+      {error && (
+        <div role="alert" className="px-4 py-2 text-xs text-amber-700 dark:text-amber-400">
+          Refresh failed. Your edits are preserved. {error}
+        </div>
+      )}
       {/* Toolbar actions rendered via portal to parent */}
       {toolbarRef && (
         <ToolbarPortal toolbarRef={toolbarRef}>

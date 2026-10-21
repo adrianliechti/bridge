@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, Hexagon, Network } from 'lucide-react';
 import { getCustomResourceDefinitions, crdToResourceConfig } from '../../api/kubernetes/kubernetes';
-import { getResourceConfig } from '../../api/kubernetes/kubernetesDiscovery';
+import { discoverResources } from '../../api/kubernetes/kubernetesDiscovery';
 import { ScopeSelector } from './ScopeSelector';
 import { type V1APIResource } from '../../api/kubernetes/kubernetesTable';
 import { getConfig } from '../../config';
@@ -33,8 +34,6 @@ export function Nav({
   isOverviewSelected,
   isWelcome,
 }: NavProps) {
-  const [builtInConfigs, setBuiltInConfigs] = useState<Map<string, V1APIResource>>(new Map());
-  const [crdConfigs, setCrdConfigs] = useState<V1APIResource[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     workloads: true,
     config: true,
@@ -45,33 +44,24 @@ export function Nav({
     crd: false,
   });
 
-  // Load built-in resource configs from discovery
-  useEffect(() => {
-    const loadBuiltInConfigs = async () => {
-      const configs = new Map<string, V1APIResource>();
-      for (const item of builtInResourceTypes) {
-        const config = await getResourceConfig(context, item.kind);
-        if (config) {
-          configs.set(item.kind, config);
-        }
-      }
-      setBuiltInConfigs(configs);
-    };
-    loadBuiltInConfigs();
-  }, [context]);
-
-  // Load CRDs
-  useEffect(() => {
-    getCustomResourceDefinitions(context)
-      .then((crds) => {
-        const configs = crds.map(crdToResourceConfig);
-        configs.sort((a, b) => a.kind.localeCompare(b.kind));
-        setCrdConfigs(configs);
-      })
-      .catch((err) => {
-        console.error('Failed to load CRDs:', err);
-      });
-  }, [context]);
+  const {
+    data: builtInConfigs = new Map<string, V1APIResource>(),
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['kubernetes', 'navigation', context],
+    queryFn: () => discoverResources(context),
+    enabled: !!context,
+  });
+  const { data: crdConfigs = [] } = useQuery({
+    queryKey: ['kubernetes', 'crds', context],
+    queryFn: async () => {
+      const crds = await getCustomResourceDefinitions(context);
+      return crds.map(crdToResourceConfig).sort((a, b) => a.kind.localeCompare(b.kind));
+    },
+    enabled: !!context,
+    refetchInterval: 30000,
+  });
 
   const toggleCategory = useCallback((category: string) => {
     setExpandedCategories((prev) => ({
@@ -110,6 +100,14 @@ export function Nav({
 
   return (
     <>
+      {error && (
+        <div role="alert" className="px-3 py-2 text-xs text-red-600 dark:text-red-400">
+          Navigation unavailable: {error.message}
+          <button onClick={() => void refetch()} className="ml-2 underline">
+            Retry
+          </button>
+        </div>
+      )}
       {/* Namespace Selector */}
       <div className="shrink-0 px-3 pb-2">
         <ScopeSelector

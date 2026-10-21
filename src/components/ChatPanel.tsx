@@ -145,7 +145,7 @@ export function ChatPanel<T extends ChatEnvironment>({
         isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
       }`}
       style={{
-        width: otherPanelOpen ? '28rem' : '40rem',
+        width: otherPanelOpen ? 'min(28rem, 100vw)' : 'min(40rem, 100vw)',
       }}
     >
       {/* Header */}
@@ -163,6 +163,7 @@ export function ChatPanel<T extends ChatEnvironment>({
           </button>
           <button
             onClick={onClose}
+            aria-label="Close assistant"
             className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 rounded-md transition-colors"
           >
             <X size={18} />

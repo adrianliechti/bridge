@@ -27,7 +27,6 @@ export class ShellSession {
   private ws: WebSocket | null = null;
   private options: ShellSessionOptions;
   private isClosing = false;
-  private hasConnected = false;
 
   constructor(options: ShellSessionOptions) {
     this.options = options;
@@ -43,25 +42,34 @@ export class ShellSession {
       }
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const url = `${protocol}//${window.location.host}/contexts/${context}/shell/${container}?${params.toString()}`;
+      const url = `${protocol}//${window.location.host}/contexts/${encodeURIComponent(context)}/shell/${encodeURIComponent(container)}?${params.toString()}`;
 
-      this.ws = new WebSocket(url);
+      const ws = new WebSocket(url);
+      this.ws = ws;
 
       let resolved = false;
+      let connected = false;
+      let readyTimeout: ReturnType<typeof setTimeout> | undefined;
+      // stdout and stderr are independent byte streams; UTF-8 characters may
+      // span multiple WebSocket messages.
+      const decoders = new Map([
+        [CHANNEL_STDOUT, new TextDecoder()],
+        [CHANNEL_STDERR, new TextDecoder()],
+      ]);
 
       const connectionTimeout = setTimeout(() => {
         if (!resolved) {
           resolved = true;
-          this.ws?.close();
+          ws.close();
           reject(new Error('Connection timeout'));
         }
       }, 5000);
 
-      this.ws.binaryType = 'arraybuffer';
+      ws.binaryType = 'arraybuffer';
 
-      this.ws.onopen = () => {
+      ws.onopen = () => {
         // Wait briefly to let an immediate error (channel 3) reject first
-        setTimeout(() => {
+        readyTimeout = setTimeout(() => {
           if (resolved) return;
           if (this.isClosing) {
             clearTimeout(connectionTimeout);
@@ -69,23 +77,26 @@ export class ShellSession {
             reject(new Error('Connection cancelled'));
             return;
           }
-          if (this.ws?.readyState === WebSocket.OPEN) {
+          if (ws.readyState === WebSocket.OPEN) {
             clearTimeout(connectionTimeout);
             resolved = true;
-            this.hasConnected = true;
+            connected = true;
             resolve();
           }
         }, 200);
       };
 
-      this.ws.onmessage = (event) => {
-        if (!(event.data instanceof ArrayBuffer)) return;
+      ws.onmessage = (event) => {
+        if (this.isClosing || this.ws !== ws || !(event.data instanceof ArrayBuffer)) return;
 
         const data = new Uint8Array(event.data);
         if (data.length < 1) return;
 
         const channel = data[0];
-        const content = new TextDecoder().decode(data.slice(1));
+        const decoder = decoders.get(channel);
+        const content = decoder
+          ? decoder.decode(data.subarray(1), { stream: true })
+          : new TextDecoder().decode(data.subarray(1));
 
         switch (channel) {
           case CHANNEL_STDOUT:
@@ -99,7 +110,7 @@ export class ShellSession {
             if (!resolved) {
               resolved = true;
               clearTimeout(connectionTimeout);
-              this.ws?.close();
+              ws.close();
               reject(new Error(content));
             } else if (!this.isClosing) {
               this.options.onError?.(content);
@@ -108,21 +119,26 @@ export class ShellSession {
         }
       };
 
-      this.ws.onerror = () => {
+      ws.onerror = () => {
         clearTimeout(connectionTimeout);
         if (!resolved) {
           resolved = true;
-          this.ws?.close();
+          ws.close();
           reject(new Error('WebSocket connection failed'));
         }
       };
 
-      this.ws.onclose = (event) => {
+      ws.onclose = (event) => {
         clearTimeout(connectionTimeout);
+        clearTimeout(readyTimeout);
         if (!resolved) {
           resolved = true;
           reject(new Error(event.reason || `Connection closed (code: ${event.code})`));
-        } else if (!this.isClosing && this.hasConnected) {
+        } else if (!this.isClosing && connected && this.ws === ws) {
+          for (const decoder of decoders.values()) {
+            const remaining = decoder.decode();
+            if (remaining) this.options.onData(remaining);
+          }
           this.options.onClose?.();
         }
       };

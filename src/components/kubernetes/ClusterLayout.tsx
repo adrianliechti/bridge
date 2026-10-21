@@ -1,12 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useSearch, useNavigate } from '@tanstack/react-router';
 import { Search, Sparkles } from 'lucide-react';
 import { clusterRoute, type ClusterSearch } from '../../router';
-import {
-  getResourceConfig,
-  getResourceConfigByQualifiedName,
-  getResourceTypeSlug,
-} from '../../api/kubernetes/kubernetesDiscovery';
+import { getResourceConfig, getResourceTypeSlug } from '../../api/kubernetes/kubernetesDiscovery';
 import { usePanels } from '../../hooks/usePanelState';
 import { ChatPanel } from '../ChatPanel';
 import {
@@ -35,8 +32,6 @@ export function ClusterLayout() {
   const config = getConfig();
 
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [resourceConfig, setResourceConfig] = useState<V1APIResource | null>(null);
-  const [resourceNotFound, setResourceNotFound] = useState(false);
 
   const { isOpen: isPanelOpen, toggle: togglePanel, close: closePanel } = usePanels();
   const isChatPanelOpen = isPanelOpen('ai');
@@ -62,51 +57,21 @@ export function ClusterLayout() {
     }
   }, [context]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      if (!context || !resourceType) {
-        if (!cancelled) {
-          setResourceConfig(null);
-          setResourceNotFound(false);
-        }
-        return;
-      }
-      try {
-        const config = await getResourceConfig(context, resourceType);
-        if (cancelled) return;
-        if (config) {
-          setResourceConfig(config);
-          setResourceNotFound(false);
-          return;
-        }
-        if (resourceType.includes('.')) {
-          const crdConfig = await getResourceConfigByQualifiedName(context, resourceType);
-          if (cancelled) return;
-          if (crdConfig) {
-            setResourceConfig(crdConfig);
-            setResourceNotFound(false);
-            return;
-          }
-        }
-        // Discovery finished but the URL's resource type is unknown in this
-        // cluster — clear any config left over from the previous route so we
-        // don't keep rendering the old resource under the new URL.
-        setResourceConfig(null);
-        setResourceNotFound(true);
-      } catch {
-        if (cancelled) return;
-        setResourceConfig(null);
-        setResourceNotFound(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [context, resourceType]);
-
+  const {
+    data: resourceConfig,
+    error: discoveryError,
+    isSuccess: discoveryComplete,
+    isFetching: discovering,
+    refetch: retryDiscovery,
+  } = useQuery({
+    queryKey: ['kubernetes', 'discovery', context, resourceType],
+    queryFn: async () => {
+      const config = await getResourceConfig(context!, resourceType!);
+      return config ?? null;
+    },
+    enabled: !!context && !!resourceType && resourceType !== 'overview',
+    refetchInterval: false,
+  });
   const currentResourceConfig = resourceType && resourceType !== 'overview' ? resourceConfig : null;
 
   const chatEnvironment = useMemo(
@@ -153,9 +118,9 @@ export function ClusterLayout() {
         return;
       }
 
-      getResourceConfig(newContext, resourceType)
-        .then((config) => navigateTo(config ? resourceType : undefined))
-        .catch(() => navigateTo(undefined));
+      // Navigate immediately; the destination resolves its own discovery state.
+      // Waiting here lets an older context selection win a later click.
+      navigateTo(resourceType);
     },
     [context, resourceType, search.namespace, navigate],
   );
@@ -328,7 +293,7 @@ export function ClusterLayout() {
             context={context || ''}
             namespace={search.namespace}
             namespaces={namespaces}
-            selectedResource={resourceConfig}
+            selectedResource={currentResourceConfig ?? null}
             onSelectResource={setResource}
             onSelectNamespace={setNamespace}
             isOverviewSelected={isOverview}
@@ -383,12 +348,16 @@ export function ClusterLayout() {
             </div>
           </header>
           <section className="flex-1 overflow-hidden min-h-0">
-            <ResourceOverview context={context || ''} namespace={search.namespace} />
+            <ResourceOverview
+              context={context || ''}
+              namespace={search.namespace}
+              isChatPanelOpen={isChatPanelOpen}
+            />
           </section>
         </main>
       ) : currentResourceConfig ? (
         <ResourcePage
-          key={`${currentResourceConfig.group || ''}/${currentResourceConfig.name}`}
+          key={`${context}/${currentResourceConfig.group || ''}/${currentResourceConfig.name}`}
           context={context || ''}
           namespace={search.namespace}
           resource={currentResourceConfig}
@@ -399,9 +368,22 @@ export function ClusterLayout() {
           isChatPanelOpen={isChatPanelOpen}
           onToggleChatPanel={toggleChatPanel}
         />
-      ) : resourceNotFound ? (
+      ) : discoveryError || discoveryComplete ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-neutral-500">
-          <span>Unknown resource type “{resourceType}” in this cluster.</span>
+          <span role="alert">
+            {discoveryError?.message ?? `Unknown resource type “${resourceType}” in this cluster.`}
+          </span>
+          <button
+            type="button"
+            disabled={discovering}
+            onClick={() => {
+              clearDiscoveryCache(context);
+              void retryDiscovery();
+            }}
+            className="text-sm underline disabled:opacity-50"
+          >
+            {discovering ? 'Retrying...' : 'Retry'}
+          </button>
           <button
             onClick={() => setResource(null)}
             className="px-3 py-1.5 text-sm rounded-md bg-neutral-200 hover:bg-neutral-300 text-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-neutral-300 transition-colors"

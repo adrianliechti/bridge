@@ -109,64 +109,59 @@ export function createDockerAdapter(options: DockerAdapterOptions): CommandPalet
       const searchContainers = !resourceKind || resourceKind === 'containers';
       const searchImages = !resourceKind || resourceKind === 'images';
 
-      try {
-        const [containers, images] = await Promise.all([
-          searchContainers ? listContainers(context, true) : Promise.resolve([]),
-          searchImages ? listImages(context) : Promise.resolve([]),
-        ]);
+      const [containers, images] = await Promise.all([
+        searchContainers ? listContainers(context, true) : Promise.resolve([]),
+        searchImages ? listImages(context) : Promise.resolve([]),
+      ]);
 
-        // Search containers
-        if (searchContainers) {
-          for (const container of containers) {
-            const names = container.Names || [];
-            const displayName =
-              names[0]?.replace(/^\//, '') || container.Id?.substring(0, 12) || '';
-            // URL-friendly name (same as getResourceName in ResourcePage)
-            const urlName = displayName;
-            if (normalizeForSearch(displayName).includes(searchNormalized)) {
-              searchResults.push({
-                id: `container/${container.Id}`,
-                type: 'resource',
-                label: displayName,
-                sublabel: `Container · ${container.State || 'unknown'}`,
-                icon: Box,
-                category: 'Docker',
-                data: {
-                  dockerResourceType: 'containers' as DockerResourceType,
-                  resourceName: urlName,
-                },
-                completionValue: displayName,
-              });
-            }
+      // Search containers
+      if (searchContainers) {
+        for (const container of containers) {
+          const names = container.Names || [];
+          const displayName = names[0]?.replace(/^\//, '') || container.Id?.substring(0, 12) || '';
+          // URL-friendly name (same as getResourceName in ResourcePage)
+          const urlName = displayName;
+          if (normalizeForSearch(displayName).includes(searchNormalized)) {
+            searchResults.push({
+              id: `container/${container.Id}`,
+              type: 'resource',
+              label: displayName,
+              sublabel: `Container · ${container.State || 'unknown'}`,
+              icon: Box,
+              category: 'Docker',
+              data: {
+                dockerResourceType: 'containers' as DockerResourceType,
+                resourceName: urlName,
+              },
+              completionValue: displayName,
+            });
           }
         }
+      }
 
-        // Search images
-        if (searchImages) {
-          for (const image of images) {
-            const tags = image.RepoTags || [];
-            const displayName = tags[0] || image.Id?.substring(7, 19) || '';
-            // URL-friendly name (same as getResourceName in ResourcePage - replace : with -)
-            const urlName = displayName.replace(/:/g, '-');
-            if (normalizeForSearch(displayName).includes(searchNormalized)) {
-              searchResults.push({
-                id: `image/${image.Id}`,
-                type: 'resource',
-                label: displayName,
-                sublabel: 'Image',
-                icon: Layers,
-                category: 'Docker',
-                data: {
-                  dockerResourceType: 'images' as DockerResourceType,
-                  resourceName: urlName,
-                },
-                completionValue: displayName,
-              });
-            }
+      // Search images
+      if (searchImages) {
+        for (const image of images) {
+          const tags = image.RepoTags || [];
+          const displayName = tags[0] || image.Id?.substring(7, 19) || '';
+          // URL-friendly name (same as getResourceName in ResourcePage - replace : with -)
+          const urlName = displayName.replace(/:/g, '-');
+          if (normalizeForSearch(displayName).includes(searchNormalized)) {
+            searchResults.push({
+              id: `image/${image.Id}`,
+              type: 'resource',
+              label: displayName,
+              sublabel: 'Image',
+              icon: Layers,
+              category: 'Docker',
+              data: {
+                dockerResourceType: 'images' as DockerResourceType,
+                resourceName: urlName,
+              },
+              completionValue: displayName,
+            });
           }
         }
-      } catch {
-        // Docker API may not be available
       }
 
       // Sort by relevance (exact match first, then alphabetically)

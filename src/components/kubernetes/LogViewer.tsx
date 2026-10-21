@@ -10,7 +10,7 @@ export interface KubernetesLogViewerProps {
 
 // Inner component that handles log streaming
 function KubernetesLogViewerInner({ context, resource, toolbarRef }: KubernetesLogViewerProps) {
-  const { logs, sources, isLoading, error } = useKubernetesLogs({
+  const { logs, sources, isLoading, error, droppedLines, retry } = useKubernetesLogs({
     context,
     resource,
   });
@@ -21,6 +21,8 @@ function KubernetesLogViewerInner({ context, resource, toolbarRef }: KubernetesL
       sources={sources}
       isLoading={isLoading}
       error={error}
+      onRetry={retry}
+      droppedLines={droppedLines}
       emptyMessage="Waiting for logs..."
       toolbarRef={toolbarRef}
     />

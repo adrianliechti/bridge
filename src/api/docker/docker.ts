@@ -1,3 +1,4 @@
+import { responseError } from '../errors.ts';
 // Docker API client
 // Using types from @docker/node-sdk (https://github.com/docker/node-sdk)
 
@@ -46,7 +47,7 @@ export type DockerNetworkInspect = NetworkInspect;
 async function fetchDockerApi<T>(path: string, context: string): Promise<T> {
   const response = await fetch(`/contexts/${context}${path}`);
   if (!response.ok) {
-    throw new Error(`Docker API request failed: ${response.status} ${response.statusText}`);
+    throw new Error(await responseError(response, 'Docker API request failed'));
   }
   return response.json();
 }
@@ -111,16 +112,14 @@ export async function removeNetwork(context: string, id: string): Promise<void> 
 async function postDockerApi(path: string, context: string): Promise<void> {
   const response = await fetch(`/contexts/${context}${path}`, { method: 'POST' });
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Docker API request failed: ${response.status} ${response.statusText}`);
+    throw new Error(await responseError(response, 'Docker API request failed'));
   }
 }
 
 async function deleteDockerApi(path: string, context: string): Promise<void> {
   const response = await fetch(`/contexts/${context}${path}`, { method: 'DELETE' });
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Docker API request failed: ${response.status} ${response.statusText}`);
+    throw new Error(await responseError(response, 'Docker API request failed'));
   }
 }
 
@@ -171,11 +170,33 @@ export async function pullImage(context: string, image: string): Promise<void> {
     { method: 'POST' },
   );
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to pull image: ${response.status} ${response.statusText}`);
+    throw new Error(await responseError(response, 'Failed to pull image'));
   }
-  // Docker streams pull progress; wait for the stream to finish
-  await response.text();
+  // A pull can fail after HTTP 200; the failure is then a JSON stream entry.
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('The image pull returned no response body');
+  const decoder = new TextDecoder();
+  let pending = '';
+  const checkLine = (line: string) => {
+    if (!line.trim()) return;
+    const progress = JSON.parse(line) as { error?: string; errorDetail?: { message?: string } };
+    const error = progress.errorDetail?.message || progress.error;
+    if (error) throw new Error(error);
+  };
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      pending += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      const lines = pending.split('\n');
+      pending = lines.pop() ?? '';
+      for (const line of lines) checkLine(line);
+      if (done) break;
+    }
+    checkLine(pending);
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 // Create a container, returns its id
@@ -223,15 +244,8 @@ export async function createContainer(
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    let message = text;
-    try {
-      message = (JSON.parse(text) as { message?: string }).message || text;
-    } catch {
-      // Not JSON — use the raw text
-    }
     throw new DockerApiError(
-      message || `Failed to create container: ${response.status} ${response.statusText}`,
+      await responseError(response, 'Failed to create container'),
       response.status,
     );
   }
@@ -242,6 +256,16 @@ export async function createContainer(
 }
 
 export type RunContainerPhase = 'creating' | 'pulling' | 'starting';
+
+export class ContainerStartError extends Error {
+  readonly containerId: string;
+
+  constructor(containerId: string, cause: unknown) {
+    const reason = cause instanceof Error ? cause.message : 'Failed to start';
+    super(`Container ${containerId} was created but could not start: ${reason}`, { cause });
+    this.containerId = containerId;
+  }
+}
 
 // Create and start a container. The docker daemon reports a missing local
 // image as 404 — pull and retry only then; other errors (name conflicts,
@@ -263,7 +287,11 @@ export async function runContainer(
     id = await createContainer(context, options);
   }
   onPhase?.('starting');
-  await startContainer(context, id);
+  try {
+    await startContainer(context, id);
+  } catch (error) {
+    throw new ContainerStartError(id, error);
+  }
   return id;
 }
 
@@ -335,12 +363,11 @@ export async function getContainerLogs(
   containerId: string,
   options: ContainerLogsOptions = {},
 ): Promise<string> {
-  const url = getContainerLogsUrl(context, containerId, { ...options, follow: false });
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch logs: ${response.status} ${response.statusText}`);
-  }
-  return response.text();
+  const lines: string[] = [];
+  await streamContainerLogs(context, containerId, { ...options, follow: false }, (line) => {
+    lines.push(line);
+  });
+  return lines.join('\n');
 }
 
 // Stream container logs with Docker multiplexed stream demuxing
@@ -352,22 +379,34 @@ export async function streamContainerLogs(
   options: ContainerLogsOptions,
   onLine: (line: string) => void,
   signal?: AbortSignal,
+  onReady?: () => void,
 ): Promise<void> {
-  const url = getContainerLogsUrl(context, containerId, { ...options, follow: true });
+  const url = getContainerLogsUrl(context, containerId, {
+    ...options,
+    follow: options.follow ?? true,
+  });
 
   const response = await fetch(url, { signal });
   if (!response.ok) {
-    throw new Error(`Failed to stream logs: ${response.status} ${response.statusText}`);
+    throw new Error(await responseError(response, 'Failed to stream logs'));
   }
 
   const reader = response.body?.getReader();
   if (!reader) {
     throw new Error('No response body');
   }
+  onReady?.();
 
-  const decoder = new TextDecoder();
   let buffer = new Uint8Array(0);
-  let textBuffer = '';
+  const streams = new Map<number, { decoder: TextDecoder; text: string }>();
+  const getStream = (channel: number) => {
+    let stream = streams.get(channel);
+    if (!stream) {
+      stream = { decoder: new TextDecoder(), text: '' };
+      streams.set(channel, stream);
+    }
+    return stream;
+  };
   let isMultiplexed: boolean | null = null; // null = unknown, true = multiplexed, false = raw
 
   // Concatenate chunks without spreading bytes as arguments — large chunks
@@ -380,10 +419,11 @@ export async function streamContainerLogs(
   };
 
   // Process text into lines
-  const processText = (text: string) => {
-    textBuffer += text;
-    const lines = textBuffer.split('\n');
-    textBuffer = lines.pop() || '';
+  const processText = (text: string, channel = 1) => {
+    const stream = getStream(channel);
+    stream.text += text;
+    const lines = stream.text.split('\n');
+    stream.text = lines.pop() || '';
     for (const line of lines) {
       if (line.trim()) {
         onLine(line);
@@ -393,7 +433,7 @@ export async function streamContainerLogs(
 
   // Process raw stream (no multiplexing - used when TTY is enabled)
   const processRawStream = (data: Uint8Array) => {
-    const text = decoder.decode(data, { stream: true });
+    const text = getStream(1).decoder.decode(data, { stream: true });
     processText(text);
   };
 
@@ -401,7 +441,7 @@ export async function streamContainerLogs(
   const processMultiplexedStream = () => {
     while (buffer.length >= 8) {
       // Read header: first byte is stream type, bytes 4-7 are big-endian size
-      const size = (buffer[4] << 24) | (buffer[5] << 16) | (buffer[6] << 8) | buffer[7];
+      const size = new DataView(buffer.buffer, buffer.byteOffset + 4, 4).getUint32(0);
 
       // Check if we have the full frame
       if (buffer.length < 8 + size) {
@@ -409,9 +449,12 @@ export async function streamContainerLogs(
       }
 
       // Extract and decode payload, then drop the consumed frame
-      const text = decoder.decode(buffer.subarray(8, 8 + size), { stream: true });
+      const channel = buffer[0];
+      const text = getStream(channel).decoder.decode(buffer.subarray(8, 8 + size), {
+        stream: true,
+      });
       buffer = buffer.slice(8 + size);
-      processText(text);
+      processText(text, channel);
     }
   };
 
@@ -454,11 +497,13 @@ export async function streamContainerLogs(
       processRawStream(buffer);
     }
 
-    // Process remaining text buffer
-    if (textBuffer.trim()) {
-      onLine(textBuffer);
+    // Finish each independent stream without merging partial stdout/stderr lines.
+    for (const [channel, stream] of streams) {
+      processText(stream.decoder.decode(), channel);
+      if (stream.text.trim()) onLine(stream.text);
     }
   } finally {
+    await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
 }

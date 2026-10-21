@@ -15,7 +15,13 @@ import {
   ListboxOptions,
 } from '@headlessui/react';
 import { Loader2, Plus, X, ArrowRight, ChevronsUpDown, ChevronDown, Check } from 'lucide-react';
-import { listImages, runContainer, type RunContainerPhase } from '../../api/docker/docker';
+import {
+  listImages,
+  runContainer,
+  startContainer,
+  ContainerStartError,
+  type RunContainerPhase,
+} from '../../api/docker/docker';
 
 // Split a command line into args, honoring single and double quotes
 function splitCommand(input: string): string[] {
@@ -131,8 +137,14 @@ export function CreateContainerDialog({ context, onClose, onCreated }: CreateCon
   const [imageSuggestions, setImageSuggestions] = useState<string[]>([]);
   const [phase, setPhase] = useState<RunContainerPhase | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [createdContainerId, setCreatedContainerId] = useState<string | null>(null);
 
   const submitting = phase !== null;
+  const handleClose = () => {
+    if (submitting) return;
+    if (createdContainerId) onCreated();
+    onClose();
+  };
 
   // Offer locally available images as autocomplete suggestions
   useEffect(() => {
@@ -178,6 +190,13 @@ export function CreateContainerDialog({ context, onClose, onCreated }: CreateCon
     setError(null);
 
     try {
+      if (createdContainerId) {
+        setPhase('starting');
+        await startContainer(context, createdContainerId);
+        onCreated();
+        onClose();
+        return;
+      }
       const commandArgs = splitCommand(command);
 
       await runContainer(
@@ -204,13 +223,17 @@ export function CreateContainerDialog({ context, onClose, onCreated }: CreateCon
       onCreated();
       onClose();
     } catch (err) {
+      if (err instanceof ContainerStartError) {
+        setCreatedContainerId(err.containerId);
+        onCreated();
+      }
       setError(err instanceof Error ? err.message : 'Failed to run container');
       setPhase(null);
     }
   };
 
   return (
-    <Dialog open onClose={onClose} className="relative z-50">
+    <Dialog open onClose={handleClose} className="relative z-50">
       <DialogBackdrop
         transition
         className="fixed inset-0 bg-black/50 duration-150 data-closed:opacity-0"
@@ -233,7 +256,9 @@ export function CreateContainerDialog({ context, onClose, onCreated }: CreateCon
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
+              disabled={submitting}
+              aria-label="Close"
               className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             >
               <X size={16} />
@@ -241,7 +266,7 @@ export function CreateContainerDialog({ context, onClose, onCreated }: CreateCon
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col min-h-0">
-            <fieldset disabled={submitting} className="contents">
+            <fieldset disabled={submitting || !!createdContainerId} className="contents">
               <div className="flex-1 overflow-y-auto px-5 pb-2 space-y-5">
                 {/* Image + Name + Command */}
                 <div className="space-y-3">
@@ -460,9 +485,17 @@ export function CreateContainerDialog({ context, onClose, onCreated }: CreateCon
                 </div>
 
                 {error && (
-                  <div className="px-3 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-600 dark:text-red-400 break-words">
+                  <div
+                    role="alert"
+                    className="px-3 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-600 dark:text-red-400 break-words"
+                  >
                     {error}
                   </div>
+                )}
+                {createdContainerId && (
+                  <p className="text-sm text-neutral-500">
+                    Retry starting this container, or close to manage it from the container list.
+                  </p>
                 )}
               </div>
             </fieldset>
@@ -471,11 +504,11 @@ export function CreateContainerDialog({ context, onClose, onCreated }: CreateCon
             <div className="shrink-0 px-5 py-4 mt-3 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={submitting}
                 className="px-3.5 py-1.5 text-sm font-medium rounded-lg text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               >
-                Cancel
+                {createdContainerId ? 'Close' : 'Cancel'}
               </button>
               <button
                 type="submit"
@@ -483,7 +516,7 @@ export function CreateContainerDialog({ context, onClose, onCreated }: CreateCon
                 className="px-3.5 py-1.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {phase ? phaseLabels[phase] : 'Run'}
+                {phase ? phaseLabels[phase] : createdContainerId ? 'Retry start' : 'Run'}
               </button>
             </div>
           </form>

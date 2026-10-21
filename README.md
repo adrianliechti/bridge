@@ -11,7 +11,8 @@ It ships as a small desktop app.
 
 - **Kubernetes** — browse the resources of any context in your kubeconfig:
   workloads, networking, storage, configuration, and more, with live logs
-  and an interactive terminal for pods.
+  and an interactive terminal for pods. Network Policies include selected-pod
+  matches and readable ingress/egress rules, selectors, ports, and IP exceptions.
 - **Docker** — containers, images, volumes, and networks for every Docker
   context (Docker Desktop, remote engines over SSH/TLS, etc.), including
   container logs, shell access, and lifecycle actions
@@ -66,6 +67,49 @@ task client             # vite dev server on http://localhost:5173
 
 The dev contexts (`local-cluster`, `local-docker`) are defined in
 `public/config.json`.
+
+Run the checks (Node.js 22.18+ is required for the frontend tests):
+
+```sh
+npm test
+npm run lint
+npm run build
+go test ./...
+```
+
+Pod and container terminals support Cmd+C/V, Ctrl+Shift+C/V, and Ctrl+V. Ctrl+C copies selected terminal text; without
+a selection it interrupts the running command. If clipboard permissions
+block a shortcut, use the terminal's right-click clipboard menu.
+Reopen the Terminal tab to start a new session after disconnecting.
+
+Docker logs remain available after a container stops. Log views keep the
+latest 5,000 lines and show when older lines have been discarded; failed
+log requests can be retried in place.
+
+To try the Network Policy inspector, apply the two self-contained examples
+to your chosen Kubernetes context:
+
+```sh
+kubectl --context YOUR_CONTEXT apply -f examples/network-policies/
+```
+
+In Bridge, choose that context, open **Network → Network Policies**, and
+select the corresponding namespace (or all namespaces):
+
+| Example                                           | Namespace               | Expected display                                                                                            |
+| ------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [Simple](examples/network-policies/simple.yaml)   | `bridge-policy-simple`  | One matching pod; ingress **Deny all by default**, egress **Not isolated here**                             |
+| [Complex](examples/network-policies/complex.yaml) | `bridge-policy-complex` | Two matching pods (`api-stable`, `api-canary`), excluding `api-debug`; both directions **Selected traffic** |
+
+The complex example includes AND/OR peers, all four selector expression
+operators, namespace selectors, IP exceptions, named ports, a port range,
+TCP/UDP DNS rules, and a rule allowing all ports. These are visual fixtures:
+the placeholder pods serve no traffic, and peer workloads are not included.
+Each example creates its own namespace. Remove the examples with:
+
+```sh
+kubectl --context YOUR_CONTEXT delete -f examples/network-policies/
+```
 
 Build and run the desktop app:
 

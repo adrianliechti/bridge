@@ -34,12 +34,10 @@ export function SectionRenderer({ section }: { section: Section }) {
   if (!title) return <div>{content}</div>;
 
   return (
-    <div>
-      <h5 className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
-        {title}
-      </h5>
+    <section>
+      <h5 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-3">{title}</h5>
       {content}
-    </div>
+    </section>
   );
 }
 

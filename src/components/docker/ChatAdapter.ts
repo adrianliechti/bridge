@@ -76,7 +76,8 @@ async function findContainer(context: string, ref: string) {
   const containers = await listContainers(context, true);
   return containers.find(
     (c) =>
-      c.Id?.startsWith(ref) || formatContainerName(c.Names ?? []).toLowerCase() === ref.toLowerCase(),
+      c.Id?.startsWith(ref) ||
+      formatContainerName(c.Names ?? []).toLowerCase() === ref.toLowerCase(),
   );
 }
 

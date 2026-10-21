@@ -71,18 +71,14 @@ export function ResourcePage({
   };
 
   // Render Kubernetes detail panel
-  const renderDetailPanel = (
-    item: TableRow<KubernetesObject>,
-    onClose: () => void,
-    otherPanelOpen: boolean,
-  ) => {
+  const renderDetailPanel = (item: TableRow<KubernetesObject>, onClose: () => void) => {
     const resourceInfo = getResourceInfo(item);
     return (
       <ResourcePanel
+        key={`${context}/${resourceInfo?.namespace ?? ''}/${resourceInfo?.uid || resourceInfo?.name}`}
         context={context}
         isOpen={true}
         onClose={onClose}
-        otherPanelOpen={otherPanelOpen || isChatPanelOpen}
         resource={resourceInfo}
         tab={tab}
         onTabChange={onTabChange}

@@ -27,6 +27,7 @@ import { fetchApi } from '../../api/kubernetes/kubernetes';
 import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
 
 import { ResourcePanel } from './ResourcePanel';
+import { ResourceSplit } from '../ResourceSplit';
 import type { V1ObjectReference, V1ObjectMeta } from '@kubernetes/client-node';
 
 // Strict resource type with required fields for this component
@@ -350,6 +351,7 @@ const APP_TITLE_HEIGHT = 36;
 const APP_GAP = 20;
 
 interface ResourceOverviewProps {
+  isChatPanelOpen?: boolean;
   context?: string;
   namespace?: string;
 }
@@ -407,6 +409,7 @@ async function fetchOverviewResources(
 export function ResourceOverview({
   context: contextProp,
   namespace: namespaceProp,
+  isChatPanelOpen = false,
 }: ResourceOverviewProps) {
   // Use props directly - they come from the router now
   const context = contextProp || '';
@@ -614,10 +617,22 @@ export function ResourceOverview({
   }
 
   return (
-    <>
-      <div
-        className={`h-full w-full relative bg-neutral-100 dark:bg-neutral-900 overflow-hidden transition-all duration-300 ${isDetailPanelOpen ? 'mr-120' : ''}`}
-      >
+    <ResourceSplit
+      overview
+      isChatPanelOpen={isChatPanelOpen}
+      details={
+        isDetailPanelOpen ? (
+          <ResourcePanel
+            key={`${context}/${selectedResource?.kind}/${selectedResource?.namespace}/${selectedResource?.uid ?? selectedResource?.name}`}
+            context={context}
+            isOpen={isDetailPanelOpen}
+            onClose={() => setSelectedNode(null)}
+            resource={selectedResource}
+          />
+        ) : undefined
+      }
+    >
+      <div className="h-full w-full relative bg-neutral-100 dark:bg-neutral-900 overflow-hidden">
         {/* Zoom controls */}
         <div className="absolute top-4 right-4 z-10 flex items-center gap-1 bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-neutral-200 dark:border-neutral-700">
           <button
@@ -905,13 +920,7 @@ export function ResourceOverview({
           </svg>
         </div>
       </div>
-      <ResourcePanel
-        context={context}
-        isOpen={isDetailPanelOpen}
-        onClose={() => setSelectedNode(null)}
-        resource={selectedResource}
-      />
-    </>
+    </ResourceSplit>
   );
 }
 

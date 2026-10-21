@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createLogBuffer } from './logBuffer.ts';
 import {
   streamContainerLogs,
   type DockerContainer,
@@ -19,6 +20,8 @@ export interface UseDockerLogsResult {
   error: string | null;
   isAvailable: boolean;
   unavailableMessage?: string;
+  droppedLines: number;
+  retry: () => void;
 }
 
 const DEFAULT_TAIL_LINES = 1000;
@@ -48,20 +51,28 @@ export function useDockerLogs({
   tailLines = DEFAULT_TAIL_LINES,
 }: UseDockerLogsOptions): UseDockerLogsResult {
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [droppedLines, setDroppedLines] = useState(0);
+  const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const containerId = container.Id;
   const containerName = formatContainerName(container.Names ?? []);
   const isRunning = container.State === 'running';
 
-  // Stream logs when container is running
+  // Stopped containers retain logs; only a running container needs follow mode.
   useEffect(() => {
-    if (!isRunning || !containerId) {
+    if (!containerId) {
       return;
     }
 
     let cancelled = false;
     const controller = new AbortController();
+    const buffer = createLogBuffer<LogEntry>((snapshot) => {
+      if (cancelled) return;
+      setLogs(snapshot.entries);
+      setDroppedLines(snapshot.dropped);
+    });
 
     // Each (re)subscription requests the last `tailLines` again — start from a
     // clean slate or the fresh tail would be appended onto the old history
@@ -70,6 +81,8 @@ export function useDockerLogs({
     queueMicrotask(() => {
       if (!cancelled) {
         setLogs([]);
+        setDroppedLines(0);
+        setIsLoading(true);
         setError(null);
       }
     });
@@ -78,7 +91,7 @@ export function useDockerLogs({
       context,
       containerId,
       {
-        follow: true,
+        follow: isRunning,
         stdout: true,
         stderr: true,
         timestamps: true,
@@ -87,39 +100,45 @@ export function useDockerLogs({
       (line) => {
         if (cancelled) return;
         const parsed = parseLine(line);
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: parsed.timestamp,
-            message: parsed.message,
-            source: containerName,
-          },
-        ]);
+        buffer.push({
+          timestamp: parsed.timestamp,
+          message: parsed.message,
+          source: containerName,
+        });
       },
       controller.signal,
-    ).catch((err) => {
-      if (cancelled) return;
-      if (err.name !== 'AbortError') {
-        setError(err.message);
-      }
-    });
+      () => {
+        if (!cancelled) setIsLoading(false);
+      },
+    )
+      .catch((err) => {
+        if (cancelled) return;
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+        }
+      })
+      .finally(() => {
+        buffer.flush();
+        if (!cancelled) setIsLoading(false);
+      });
 
     return () => {
       cancelled = true;
+      buffer.dispose();
       controller.abort();
     };
-  }, [context, containerId, containerName, isRunning, tailLines]);
+  }, [context, containerId, containerName, isRunning, tailLines, attempt]);
 
   // Determine availability
-  const isAvailable = isRunning;
-  const unavailableMessage = !isRunning
-    ? 'Container is not running. Start the container to view logs.'
-    : undefined;
+  const isAvailable = !!containerId;
+  const unavailableMessage = !containerId ? 'Container ID is not available.' : undefined;
 
   return {
     logs,
     sources: isAvailable ? [containerName] : [],
-    isLoading: false,
+    isLoading,
+    droppedLines,
+    retry: () => setAttempt((value) => value + 1),
     error,
     isAvailable,
     unavailableMessage,

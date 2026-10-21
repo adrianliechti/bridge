@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Columns3, Check } from 'lucide-react';
+import { Columns3 } from 'lucide-react';
 import type { Column } from '@tanstack/react-table';
 
 interface ColumnFilterProps {
@@ -64,20 +64,13 @@ export function ColumnFilter({ columns }: ColumnFilterProps) {
                 key={columnId}
                 className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
-                <span
-                  onClick={column.getToggleVisibilityHandler()}
-                  className={`size-4 rounded border flex items-center justify-center cursor-pointer transition-colors ${
-                    isVisible
-                      ? 'bg-neutral-500 border-neutral-500 dark:bg-neutral-600 dark:border-neutral-500'
-                      : 'border-neutral-300 bg-white dark:border-neutral-600 dark:bg-neutral-800'
-                  }`}
-                >
-                  {isVisible && <Check size={12} className="text-white dark:text-neutral-300" />}
-                </span>
-                <span
-                  onClick={column.getToggleVisibilityHandler()}
-                  className="text-sm text-neutral-700 dark:text-neutral-400 cursor-pointer"
-                >
+                <input
+                  type="checkbox"
+                  checked={isVisible}
+                  onChange={column.getToggleVisibilityHandler()}
+                  className="size-4 rounded accent-neutral-600 cursor-pointer"
+                />
+                <span className="text-sm text-neutral-700 dark:text-neutral-400 cursor-pointer">
                   {displayName}
                 </span>
               </label>

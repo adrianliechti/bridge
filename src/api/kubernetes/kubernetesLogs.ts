@@ -1,3 +1,4 @@
+import { responseError } from '../errors.ts';
 // Kubernetes pod log streaming API
 
 export interface LogStreamOptions {
@@ -74,7 +75,7 @@ async function streamPodLogs(
     const response = await fetch(url, { signal: options.signal });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch logs: ${response.status} ${response.statusText}`);
+      throw new Error(await responseError(response, 'Failed to fetch logs'));
     }
 
     if (!response.body) {
@@ -152,7 +153,7 @@ export async function getPodContainers(
   const url = `/contexts/${context}/api/v1/namespaces/${namespace}/pods/${podName}`;
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch pod: ${response.status}`);
+    throw new Error(await responseError(response, 'Failed to fetch pod'));
   }
 
   const pod = await response.json();

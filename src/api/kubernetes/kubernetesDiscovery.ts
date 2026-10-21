@@ -1,3 +1,4 @@
+import { responseError } from '../errors.ts';
 // Kubernetes API discovery
 // Discovers all available resources from the cluster
 
@@ -9,20 +10,16 @@ import type {
   V1CustomResourceDefinition,
 } from '@kubernetes/client-node';
 
-// Discovery cache - per-context, stores resources by unique group/plural key
-// aliasCache maps plural, singular, and short names to resources (with priority)
-const resourceCacheByContext = new Map<string, Map<string, V1APIResource>>();
+// Cache qualified names and plural, singular, and short aliases per context.
 const aliasCacheByContext = new Map<string, Map<string, V1APIResource>>();
 const discoveryPromiseByContext = new Map<string, Promise<Map<string, V1APIResource>>>();
 
 // Clear discovery cache for a specific context (useful when switching contexts)
 export function clearDiscoveryCache(context?: string): void {
   if (context) {
-    resourceCacheByContext.delete(context);
     aliasCacheByContext.delete(context);
     discoveryPromiseByContext.delete(context);
   } else {
-    resourceCacheByContext.clear();
     aliasCacheByContext.clear();
     discoveryPromiseByContext.clear();
   }
@@ -79,14 +76,10 @@ export function getResourceTypeSlug(resource: V1APIResource): string {
 }
 
 // Add a resource to the caches
-function addResourceToMap(
-  resources: Map<string, V1APIResource>,
-  aliases: Map<string, V1APIResource>,
-  resource: V1APIResource,
-): void {
+function addResourceToMap(aliases: Map<string, V1APIResource>, resource: V1APIResource): void {
   // Always store by unique key (group/plural)
   const key = getResourceKey(resource);
-  resources.set(key, resource);
+  aliases.set(key, resource);
 
   const resourcePriority = getGroupPriority(resource.group || '');
 
@@ -123,7 +116,7 @@ async function fetchApiWithContext<T>(url: string, context: string): Promise<T> 
   const finalUrl = `/contexts/${context}${url}`;
   const response = await fetch(finalUrl);
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    throw new Error(await responseError(response, 'API request failed'));
   }
   return response.json();
 }
@@ -142,9 +135,10 @@ export async function discoverResources(context: string): Promise<Map<string, V1
     return existingPromise;
   }
 
-  const discoveryPromise = (async () => {
-    const resources = new Map<string, V1APIResource>();
+  const discoveryPromise = Promise.resolve().then(async () => {
     const aliases = new Map<string, V1APIResource>();
+
+    const failures: unknown[] = [];
 
     // Fetch core v1 resources
     try {
@@ -158,10 +152,10 @@ export async function discoverResources(context: string): Promise<Map<string, V1
           group: '',
           version: 'v1',
         };
-        addResourceToMap(resources, aliases, enrichedResource);
+        addResourceToMap(aliases, enrichedResource);
       }
     } catch (e) {
-      console.warn('Failed to fetch core v1 resources:', e);
+      failures.push(e);
     }
 
     // Fetch API groups
@@ -187,25 +181,33 @@ export async function discoverResources(context: string): Promise<Map<string, V1
                 group: resource.group || group.name,
                 version: resource.version || preferredVersion,
               };
-              addResourceToMap(resources, aliases, enrichedResource);
+              addResourceToMap(aliases, enrichedResource);
             }
           } catch (e) {
-            console.warn(`Failed to fetch resources for ${apiBase}:`, e);
+            failures.push(e);
           }
         }),
       );
     } catch (e) {
-      console.warn('Failed to fetch API groups:', e);
+      failures.push(e);
     }
 
-    resourceCacheByContext.set(context, resources);
-    aliasCacheByContext.set(context, aliases);
-    discoveryPromiseByContext.delete(context);
+    if (aliases.size === 0 && failures.length > 0) throw failures[0];
+    // A failed discovery must not permanently cache an empty or partial cluster.
+    if (failures.length === 0 && discoveryPromiseByContext.get(context) === discoveryPromise) {
+      aliasCacheByContext.set(context, aliases);
+    }
     return aliases;
-  })();
+  });
 
   discoveryPromiseByContext.set(context, discoveryPromise);
-  return discoveryPromise;
+  try {
+    return await discoveryPromise;
+  } finally {
+    if (discoveryPromiseByContext.get(context) === discoveryPromise) {
+      discoveryPromiseByContext.delete(context);
+    }
+  }
 }
 
 // Get resource config by plural name
@@ -222,8 +224,7 @@ export async function getResourceConfigByQualifiedName(
   context: string,
   name: string,
 ): Promise<V1APIResource | undefined> {
-  await discoverResources(context); // Ensure discovery is complete
-  return resourceCacheByContext.get(context)?.get(name);
+  return (await discoverResources(context)).get(name);
 }
 
 // Get resource config by kind name

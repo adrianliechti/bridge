@@ -1,3 +1,5 @@
+import { LabelsSection } from './InfoSection';
+
 // Metadata section with nice visualization of labels/annotations
 export function MetadataView({ metadata }: { metadata: Record<string, unknown> }) {
   const labels = metadata.labels as Record<string, string> | undefined;
@@ -27,88 +29,26 @@ export function MetadataView({ metadata }: { metadata: Record<string, unknown> }
     ? Object.fromEntries(Object.entries(annotations).filter(([key]) => !hiddenAnnotations.has(key)))
     : undefined;
 
-  // Combine all entries into a single table for aligned columns
-  const allEntries: Array<{ key: string; value: string; type: 'label' | 'annotation' }> = [
-    ...Object.entries(filteredLabels ?? {}).map(([key, value]) => ({
-      key,
-      value,
-      type: 'label' as const,
-    })),
-    ...Object.entries(filteredAnnotations ?? {}).map(([key, value]) => ({
-      key,
-      value,
-      type: 'annotation' as const,
-    })),
-  ];
+  const hasLabels = Object.keys(filteredLabels ?? {}).length > 0;
+  const hasAnnotations = Object.keys(filteredAnnotations ?? {}).length > 0;
 
-  const hasLabels = filteredLabels && Object.keys(filteredLabels).length > 0;
-  const hasAnnotations = filteredAnnotations && Object.keys(filteredAnnotations).length > 0;
-
-  if (allEntries.length === 0) {
-    return null;
+  if (!hasLabels && !hasAnnotations) {
+    return (
+      <div className="rounded-lg border border-dashed border-neutral-200 px-5 py-8 text-center dark:border-neutral-700">
+        <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+          No labels or annotations to display
+        </p>
+        <p className="mt-1 text-xs text-neutral-500">
+          The Manifest tab includes all resource metadata, including generated fields.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-lg p-4">
-      <table className="w-full text-xs">
-        <tbody>
-          {/* Labels section */}
-          {hasLabels && (
-            <>
-              <tr>
-                <td colSpan={2} className="pb-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-                    Labels
-                  </span>
-                </td>
-              </tr>
-              {Object.entries(filteredLabels!).map(([key, value]) => (
-                <tr
-                  key={`label-${key}`}
-                  className="border-b border-neutral-200 dark:border-neutral-700/50"
-                >
-                  <td className="py-1.5 pr-3 text-sky-600 dark:text-sky-400 align-top whitespace-nowrap w-[1%]">
-                    {key}
-                  </td>
-                  <td className="py-1.5 text-emerald-600 dark:text-emerald-400 break-all">
-                    {value}
-                  </td>
-                </tr>
-              ))}
-            </>
-          )}
-
-          {/* Annotations section */}
-          {hasAnnotations && (
-            <>
-              <tr>
-                <td colSpan={2} className={hasLabels ? 'pt-4 pb-2' : 'pb-2'}>
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-500">
-                    Annotations
-                  </span>
-                </td>
-              </tr>
-              {Object.entries(filteredAnnotations!).map(([key, value], idx, arr) => (
-                <tr
-                  key={`annotation-${key}`}
-                  className={
-                    idx < arr.length - 1
-                      ? 'border-b border-neutral-200 dark:border-neutral-700/50'
-                      : ''
-                  }
-                >
-                  <td className="py-1.5 pr-3 text-purple-600 dark:text-purple-400 align-top whitespace-nowrap w-[1%]">
-                    {key}
-                  </td>
-                  <td className="py-1.5 text-neutral-600 dark:text-neutral-300 break-all">
-                    {value}
-                  </td>
-                </tr>
-              ))}
-            </>
-          )}
-        </tbody>
-      </table>
+    <div className="space-y-6">
+      {hasLabels && <LabelsSection labels={filteredLabels!} />}
+      {hasAnnotations && <LabelsSection labels={filteredAnnotations!} title="Annotations" />}
     </div>
   );
 }

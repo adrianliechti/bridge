@@ -66,7 +66,7 @@ func New(cfg *config.Config) (*Server, error) {
 
 	s := &Server{
 		config:  cfg,
-		Handler: BearerTokenMiddleware(mux),
+		Handler: sameOriginMiddleware(BearerTokenMiddleware(mux)),
 	}
 
 	if cfg.Container != nil {
@@ -140,9 +140,7 @@ func New(cfg *config.Config) (*Server, error) {
 			command = []string{"/bin/sh"}
 		}
 
-		ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-			InsecureSkipVerify: true,
-		})
+		ws, err := websocket.Accept(w, r, nil)
 
 		if err != nil {
 			return
