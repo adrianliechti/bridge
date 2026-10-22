@@ -20,6 +20,7 @@ import { DockerLogViewer } from './LogViewer';
 import { DockerTerminalViewer } from './TerminalViewer';
 import { LabelsSection } from '../sections/InfoSection';
 import { DetailPanel, type DetailTab } from '../DetailPanel';
+import { formatDockerContext } from '../../config';
 import type { ResourceAction, DockerResource } from './adapters/types';
 
 type ResourceType = 'applications' | 'containers' | 'images' | 'volumes' | 'networks';
@@ -216,7 +217,7 @@ export function ResourcePanel({
     <DetailPanel
       name={displayName || 'Resource'}
       kind={adapterType.charAt(0).toUpperCase() + adapterType.slice(1)}
-      context={dockerContext}
+      context={formatDockerContext(dockerContext)}
       scope={resourceType === 'containers' ? resourceId.substring(0, 12) : undefined}
       onClose={onClose}
       tabs={tabs.filter((tab) => tab.id !== 'overview' || showOverviewTab)}

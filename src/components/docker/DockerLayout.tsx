@@ -14,7 +14,9 @@ import {
 } from './ChatAdapter';
 import { usePanels } from '../../hooks/usePanelState';
 import { ResourcePage } from './ResourcePage';
-import { getConfig } from '../../config';
+import { SystemFooter, SystemStopped } from './ContextSystem';
+import { isContextSystemStopped, useContextSystem } from '../../hooks/useContextSystem';
+import { useAppConfig } from '../../hooks/useAppConfig';
 
 const validResourceTypes: DockerResourceType[] = [
   'applications',
@@ -31,7 +33,7 @@ function isValidResourceType(type: string): type is DockerResourceType {
 export function DockerLayout() {
   const { context, resourceType, name } = useParams({ strict: false });
   const navigate = useNavigate();
-  const config = getConfig();
+  const config = useAppConfig();
 
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
@@ -44,6 +46,15 @@ export function DockerLayout() {
   const dockerContexts = config.docker?.contexts || [];
 
   const isWelcome = !resourceType;
+
+  // Service behind the context that can be started / stopped (Apple
+  // container, Docker Desktop)
+  const systemKind = context ? config.docker?.systems?.[context] : undefined;
+  const system = useContextSystem(context || '', !!systemKind);
+  const showSystemStopped = !!systemKind && isContextSystemStopped(system);
+  // Hold the main area until the first status arrives, so a stopped service
+  // never flashes resource list errors
+  const awaitingSystemStatus = !!systemKind && !system.status && !system.error;
 
   const currentResourceType: DockerResourceType | null =
     resourceType && isValidResourceType(resourceType) ? resourceType : null;
@@ -175,10 +186,15 @@ export function DockerLayout() {
             onSelectResource={setResource}
             isWelcome={isWelcome}
           />
+          {systemKind && <SystemFooter key={context} kind={systemKind} system={system} />}
         </aside>
       </div>
 
-      {isWelcome ? (
+      {systemKind && showSystemStopped ? (
+        <SystemStopped kind={systemKind} system={system} />
+      ) : awaitingSystemStatus ? (
+        <main className="flex-1" />
+      ) : isWelcome ? (
         <main className="flex-1 flex flex-col h-full min-w-0 items-center justify-center relative">
           <div className="absolute top-0 right-0 h-14 flex items-center gap-2 px-5 mt-2">
             <button

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check, Server, Container } from 'lucide-react';
+import { getDockerContextLabel } from '../config';
 
 export const DOCKER_CONTEXT = 'docker';
 
@@ -53,6 +54,9 @@ export function ContextSelector({
   // Determine what's currently selected for display
   const isDockerMode = mode === 'docker';
   const displayContext = isDockerMode ? selectedDockerContext || DOCKER_CONTEXT : selectedContext;
+  const displayLabel = isDockerMode
+    ? getDockerContextLabel(displayContext)
+    : { label: displayContext, detail: undefined };
   const DisplayIcon = isDockerMode ? Container : Server;
 
   // Calculate total contexts available
@@ -75,7 +79,8 @@ export function ContextSelector({
       >
         <DisplayIcon size={12} className="opacity-60 group-hover:opacity-80" />
         <span className="truncate flex-1 text-left" title={displayContext}>
-          {displayContext}
+          {displayLabel.label}
+          {displayLabel.detail && <span className="opacity-60"> · {displayLabel.detail}</span>}
         </span>
         <ChevronDown
           size={12}
@@ -90,10 +95,11 @@ export function ContextSelector({
             {dockerContexts.length > 0 && (
               <>
                 <div className="px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
-                  Docker
+                  Containers
                 </div>
                 {dockerContexts.map((ctx) => {
                   const isSelected = isDockerMode && selectedDockerContext === ctx;
+                  const { label, detail } = getDockerContextLabel(ctx);
 
                   return (
                     <div
@@ -108,7 +114,13 @@ export function ContextSelector({
                       <div className="flex items-center gap-2 truncate">
                         <Container size={14} className="opacity-50 shrink-0" />
                         <span className="truncate" title={ctx}>
-                          {ctx}
+                          {label}
+                          {detail && (
+                            <span className="text-neutral-400 dark:text-neutral-500">
+                              {' '}
+                              {detail}
+                            </span>
+                          )}
                         </span>
                       </div>
                       {isSelected && (

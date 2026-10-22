@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os/exec"
 	"runtime"
 )
 
@@ -14,7 +13,7 @@ func applyContainerConfig(cfg *Config) error {
 		return nil
 	}
 
-	path, err := exec.LookPath("container")
+	path, err := lookPath("container", "/opt/homebrew/bin/container", "/usr/local/bin/container")
 
 	if err != nil {
 		return nil

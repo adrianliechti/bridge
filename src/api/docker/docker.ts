@@ -320,6 +320,32 @@ export async function removeContainer(context: string, id: string, force = false
   return deleteDockerApi(`/containers/${id}?force=${force}`, context);
 }
 
+// ============================================
+// CONTEXT SYSTEM SERVICE (Apple container, Docker Desktop)
+// ============================================
+
+export interface SystemStatus {
+  /** CLI state, e.g. "running", "stopped", "starting" ("unregistered" for a stopped Apple container) */
+  status: string;
+  running: boolean;
+  version?: string;
+}
+
+// Get the status of the service behind a context
+export async function getSystemStatus(context: string): Promise<SystemStatus> {
+  return fetchDockerApi<SystemStatus>('/system/status', context);
+}
+
+// Start the service behind a context
+export async function startSystem(context: string): Promise<void> {
+  return postDockerApi('/system/start', context);
+}
+
+// Stop the service behind a context (and all its running containers)
+export async function stopSystem(context: string): Promise<void> {
+  return postDockerApi('/system/stop', context);
+}
+
 // Stream container logs (returns a ReadableStream)
 export interface ContainerLogsOptions {
   follow?: boolean;

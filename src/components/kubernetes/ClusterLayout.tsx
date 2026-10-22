@@ -20,7 +20,7 @@ import { CommandPalette } from '../CommandPalette';
 import { createKubernetesAdapter } from './Commands';
 import { ResourceOverview } from './ResourceOverview';
 import { ResourcePage } from './ResourcePage';
-import { getConfig } from '../../config';
+import { useAppConfig } from '../../hooks/useAppConfig';
 import { useKubernetesQuery } from '../../hooks/useKubernetesQuery';
 import { getNamespaces } from '../../api/kubernetes/kubernetes';
 import type { V1APIResource } from '../../api/kubernetes/kubernetesTable';
@@ -29,7 +29,7 @@ export function ClusterLayout() {
   const { context, resourceType, name } = useParams({ strict: false });
   const search = useSearch({ from: clusterRoute.id }) as ClusterSearch;
   const navigate = useNavigate();
-  const config = getConfig();
+  const config = useAppConfig();
 
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
