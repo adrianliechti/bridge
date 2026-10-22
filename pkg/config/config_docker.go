@@ -1,6 +1,9 @@
 package config
 
 import (
+	"os/exec"
+	"slices"
+
 	"github.com/docker/cli/cli/config"
 	"github.com/docker/cli/cli/context/store"
 )
@@ -9,6 +12,18 @@ type DockerConfig struct {
 	Contexts []DockerContext
 
 	CurrentContext string
+
+	// set when Docker Desktop and its CLI plugin (`docker desktop`) are
+	// installed, so its engine can be started and stopped
+	Desktop *DockerDesktopConfig
+}
+
+type DockerDesktopConfig struct {
+	// docker CLI
+	Path string
+
+	// context Docker Desktop creates for its engine
+	Context string
 }
 
 type DockerContext struct {
@@ -64,7 +79,33 @@ func applyDockerConfig(cfg *Config) error {
 		Contexts: contexts,
 
 		CurrentContext: c.CurrentContext,
+
+		Desktop: detectDockerDesktop(contexts),
 	}
 
 	return nil
+}
+
+func detectDockerDesktop(contexts []DockerContext) *DockerDesktopConfig {
+	const context = "desktop-linux"
+
+	if !slices.ContainsFunc(contexts, func(c DockerContext) bool { return c.Name == context }) {
+		return nil
+	}
+
+	path, err := lookPath("docker", "/usr/local/bin/docker", "/Applications/Docker.app/Contents/Resources/bin/docker")
+
+	if err != nil {
+		return nil
+	}
+
+	// fails with "'desktop' is not a docker command" without the plugin
+	if err := exec.Command(path, "desktop", "version").Run(); err != nil {
+		return nil
+	}
+
+	return &DockerDesktopConfig{
+		Path:    path,
+		Context: context,
+	}
 }

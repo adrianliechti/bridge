@@ -27,7 +27,7 @@ type containerHandler struct {
 	mux *http.ServeMux
 }
 
-func newContainerHandler(cfg *config.ContainerConfig) http.Handler {
+func newContainerHandler(cfg *config.ContainerConfig) *containerHandler {
 	h := &containerHandler{
 		path: cfg.Path,
 
@@ -59,7 +59,11 @@ func newContainerHandler(cfg *config.ContainerConfig) http.Handler {
 	h.mux.HandleFunc("GET /networks/{id...}", h.handleNetworkInspect)
 	h.mux.HandleFunc("DELETE /networks/{id...}", h.handleNetworkDelete)
 
-	return h.mux
+	return h
+}
+
+func (h *containerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mux.ServeHTTP(w, r)
 }
 
 func (h *containerHandler) run(ctx context.Context, args ...string) ([]byte, error) {
@@ -71,13 +75,26 @@ func (h *containerHandler) run(ctx context.Context, args ...string) ([]byte, err
 
 	if err := cmd.Run(); err != nil {
 		if msg := strings.TrimSpace(stderr.String()); msg != "" {
-			return nil, errors.New(strings.TrimPrefix(msg, "Error: "))
+			return nil, cliError(msg)
 		}
 
 		return nil, err
 	}
 
 	return stdout.Bytes(), nil
+}
+
+var errContainerSystemStopped = errors.New("container system is not running")
+
+// cliError turns CLI stderr output into an error. While the system services
+// are stopped every command fails with an XPC connection error followed by a
+// hint to run `container system start`.
+func cliError(msg string) error {
+	if strings.Contains(msg, "Ensure container system service has been started") {
+		return errContainerSystemStopped
+	}
+
+	return errors.New(strings.TrimPrefix(msg, "Error: "))
 }
 
 // runtimeActive reports whether the per-container runtime helper process
@@ -125,6 +142,20 @@ func containerJSON(w http.ResponseWriter, val any) {
 // CLI JSON models (container CLI 1.x; the 1.0.0 release restructured the
 // structured output: state moved into a status object, resources encode as
 // id + configuration [+ status], dates are ISO8601)
+
+type containerSystem struct {
+	// "running" while the API server is up; "unregistered" once the launchd
+	// services are stopped
+	Status string `json:"status"`
+
+	Client struct {
+		Version string `json:"version"`
+	} `json:"client"`
+
+	Server struct {
+		Version string `json:"version"`
+	} `json:"server"`
+}
 
 type containerContainer struct {
 	ID string `json:"id"`
@@ -425,6 +456,69 @@ func (h *containerHandler) handleInfo(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+var errInvalidSystemStatus = errors.New("invalid system status response")
+
+func decodeSystemStatus(data []byte) (*containerSystem, error) {
+	var status containerSystem
+
+	if err := json.Unmarshal(data, &status); err != nil {
+		return nil, errors.Join(errInvalidSystemStatus, err)
+	}
+
+	if status.Status == "" {
+		return nil, errInvalidSystemStatus
+	}
+
+	return &status, nil
+}
+
+func containerSystemInfo(s containerSystem) systemStatus {
+	version := s.Server.Version
+
+	if version == "" {
+		version = s.Client.Version
+	}
+
+	return systemStatus{
+		Status:  s.Status,
+		Running: s.Status == "running",
+		Version: version,
+	}
+}
+
+// systemService: `container system status / start / stop`
+
+func (h *containerHandler) systemStatus(ctx context.Context) (*systemStatus, error) {
+	// `system status` exits non-zero while the services are stopped, but
+	// still reports the state on stdout
+	data, err := exec.CommandContext(ctx, h.path, "system", "status", "--format", "json").Output()
+
+	status, decodeErr := decodeSystemStatus(data)
+
+	if decodeErr != nil {
+		if err == nil {
+			err = decodeErr
+		}
+
+		return nil, err
+	}
+
+	info := containerSystemInfo(*status)
+	return &info, nil
+}
+
+func (h *containerHandler) systemStart(ctx context.Context) error {
+	// Without a kernel flag the CLI prompts when no default kernel is
+	// installed; there is no terminal to answer, so install it.
+	_, err := h.run(ctx, "system", "start", "--enable-kernel-install")
+	return err
+}
+
+func (h *containerHandler) systemStop(ctx context.Context) error {
+	_, err := h.run(ctx, "system", "stop")
+	return err
+}
+
 func (h *containerHandler) handleContainerList(w http.ResponseWriter, r *http.Request) {
 	args := []string{"list", "--format", "json"}
 
@@ -665,7 +759,7 @@ func (h *containerHandler) handleContainerLogs(w http.ResponseWriter, r *http.Re
 
 	if err := cmd.Wait(); err != nil && !written {
 		if msg := strings.TrimSpace(stderr.String()); msg != "" {
-			err = errors.New(strings.TrimPrefix(msg, "Error: "))
+			err = cliError(msg)
 		}
 
 		containerError(w, http.StatusInternalServerError, err)

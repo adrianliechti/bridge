@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/adrianliechti/bridge"
 	"github.com/adrianliechti/bridge/pkg/config"
@@ -21,7 +22,12 @@ import (
 type Server struct {
 	config *config.Config
 
-	container http.Handler
+	contexts map[string]*Context
+
+	container *containerHandler
+
+	dockerMu         sync.Mutex
+	dockerTransports map[string]dockerTransport
 
 	http.Handler
 }
@@ -65,8 +71,9 @@ func New(cfg *config.Config) (*Server, error) {
 	mux := http.NewServeMux()
 
 	s := &Server{
-		config:  cfg,
-		Handler: sameOriginMiddleware(BearerTokenMiddleware(mux)),
+		config:   cfg,
+		contexts: contexts,
+		Handler:  sameOriginMiddleware(BearerTokenMiddleware(mux)),
 	}
 
 	if cfg.Container != nil {
@@ -87,19 +94,33 @@ func New(cfg *config.Config) (*Server, error) {
 		if cfg.Docker != nil || cfg.Container != nil {
 			config.Docker = &DockerConfig{}
 
+			// list docker contexts whose daemon is running, or that can be
+			// started from the UI (Docker Desktop, Apple container)
 			if cfg.Docker != nil {
-				config.Docker.CurrentContext = cfg.Docker.CurrentContext
-
-				for _, c := range cfg.Docker.Contexts {
+				for _, c := range s.availableDockerContexts(r.Context()) {
 					config.Docker.Contexts = append(config.Docker.Contexts, c.Name)
+
+					if c.Name == cfg.Docker.CurrentContext {
+						config.Docker.CurrentContext = c.Name
+					}
 				}
 			}
 
-			if cfg.Container != nil {
+			if cfg.Container != nil && contexts["apple"].Type == "container" {
 				config.Docker.Contexts = append(config.Docker.Contexts, "apple")
 
 				if config.Docker.CurrentContext == "" {
 					config.Docker.CurrentContext = "apple"
+				}
+			}
+
+			for _, name := range config.Docker.Contexts {
+				if kind := s.systemKind(name); kind != "" {
+					if config.Docker.Systems == nil {
+						config.Docker.Systems = make(map[string]string)
+					}
+
+					config.Docker.Systems[name] = kind
 				}
 			}
 		}
@@ -120,6 +141,10 @@ func New(cfg *config.Config) (*Server, error) {
 
 		json.NewEncoder(w).Encode(config)
 	})
+
+	mux.HandleFunc("GET /contexts/{context}/system/status", s.handleSystemStatus)
+	mux.HandleFunc("POST /contexts/{context}/system/start", s.handleSystemStart)
+	mux.HandleFunc("POST /contexts/{context}/system/stop", s.handleSystemStop)
 
 	mux.HandleFunc("GET /contexts/{context}/shell/{id}", func(w http.ResponseWriter, r *http.Request) {
 		context, ok := contexts[r.PathValue("context")]

@@ -170,6 +170,8 @@ func (s *Server) dockerShell(ctx context.Context, ws *websocket.Conn, name, id s
 		},
 	}
 
+	defer client.CloseIdleConnections()
+
 	execID, err := dockerExecCreate(client, id, command)
 
 	if err != nil {

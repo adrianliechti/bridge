@@ -4,9 +4,14 @@ export interface AIConfig {
   model?: string;
 }
 
+/** Service behind a context that can be started and stopped from the UI */
+export type ContextSystem = 'container' | 'docker-desktop';
+
 export interface DockerConfig {
   contexts?: string[];
   defaultContext?: string;
+  /** Contexts whose service can be started and stopped, by kind */
+  systems?: Record<string, ContextSystem>;
 }
 
 export interface KubernetesConfig {
@@ -60,4 +65,26 @@ export function matchesNamespacePattern(name: string, patterns: string[]): boole
     const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`);
     return regex.test(name);
   });
+}
+
+export interface DockerContextLabel {
+  label: string;
+  /** Context name, set while several Docker contexts are listed */
+  detail?: string;
+}
+
+/**
+ * Display name for a docker-mode context: "Container" for Apple container and
+ * "Docker" for Docker contexts. Context names stay the ids used in URLs.
+ */
+export function getDockerContextLabel(context: string): DockerContextLabel {
+  const systems = config.docker?.systems ?? {};
+  if (systems[context] === 'container') return { label: 'Container' };
+  const dockerContexts = (config.docker?.contexts ?? []).filter((c) => systems[c] !== 'container');
+  return dockerContexts.length > 1 ? { label: 'Docker', detail: context } : { label: 'Docker' };
+}
+
+export function formatDockerContext(context: string): string {
+  const { label, detail } = getDockerContextLabel(context);
+  return detail ? `${label} · ${detail}` : label;
 }

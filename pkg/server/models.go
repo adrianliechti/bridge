@@ -14,6 +14,10 @@ type DockerConfig struct {
 	Contexts []string `json:"contexts,omitempty"`
 
 	CurrentContext string `json:"defaultContext,omitempty"`
+
+	// contexts whose service can be started and stopped from the UI, by kind
+	// ("container" for Apple container, "docker-desktop")
+	Systems map[string]string `json:"systems,omitempty"`
 }
 
 type KubernetesConfig struct {

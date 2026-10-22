@@ -235,3 +235,66 @@ func TestDecodeContainerInspectClassifiesErrors(t *testing.T) {
 		}
 	})
 }
+
+func TestContainerSystemStatusPayload(t *testing.T) {
+	// captured from `container system status --format json` (container CLI 1.6.0)
+	t.Run("running", func(t *testing.T) {
+		data := []byte(`{"client":{"appName":"container","build":"release","commit":"unspecified","version":"1.6.0"},"host":{"architecture":"arm64","cpus":10,"operatingSystem":"Version 27.0.1 (Build 26A434)"},"paths":{"appRoot":"/Users/test/Library/Application Support/com.apple.container/","installRoot":"/opt/homebrew/Cellar/container/1.6.0/"},"resources":{"containersRunning":0,"containersTotal":1,"images":2},"server":{"appName":"container-apiserver","build":"release","commit":"unspecified","version":"1.6.0"},"status":"running"}`)
+
+		status, err := decodeSystemStatus(data)
+
+		if err != nil {
+			t.Fatalf("decode system status: %v", err)
+		}
+
+		info := containerSystemInfo(*status)
+
+		if got := info.Running; got != true {
+			t.Errorf("running = %v, want true", got)
+		}
+
+		if got := info.Version; got != "1.6.0" {
+			t.Errorf("version = %v, want 1.6.0", got)
+		}
+	})
+
+	// printed with exit status 1 once `container system stop` has run
+	t.Run("unregistered", func(t *testing.T) {
+		status, err := decodeSystemStatus([]byte(`{"status":"unregistered"}`))
+
+		if err != nil {
+			t.Fatalf("decode system status: %v", err)
+		}
+
+		info := containerSystemInfo(*status)
+
+		if got := info.Running; got != false {
+			t.Errorf("running = %v, want false", got)
+		}
+
+		if got := info.Status; got != "unregistered" {
+			t.Errorf("status = %v, want unregistered", got)
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		for _, data := range []string{``, `{}`, `apiserver is not running`} {
+			if _, err := decodeSystemStatus([]byte(data)); !errors.Is(err, errInvalidSystemStatus) {
+				t.Errorf("decode %q: error = %v, want invalid system status", data, err)
+			}
+		}
+	})
+}
+
+func TestContainerCLIError(t *testing.T) {
+	// printed by `container list` (container CLI 1.6.0) while the system is stopped
+	stopped := "Error: internalError: \"failed to list containers\" (cause: \"interrupted: \"XPC connection error: Connection invalid\"\")\nEnsure container system service has been started with `container system start`."
+
+	if err := cliError(stopped); !errors.Is(err, errContainerSystemStopped) {
+		t.Errorf("error = %v, want container system stopped", err)
+	}
+
+	if err := cliError("Error: notFound: \"container x not found\""); err.Error() != "notFound: \"container x not found\"" {
+		t.Errorf("error = %q", err)
+	}
+}

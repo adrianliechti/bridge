@@ -19,13 +19,20 @@ It ships as a small desktop app.
 - **Docker** — containers, images, volumes, and networks for every Docker
   context (Docker Desktop, remote engines over SSH/TLS, etc.), including
   container logs, shell access, and lifecycle actions
-  (create, start, stop, restart, delete).
+  (create, start, stop, restart, delete). Contexts whose daemon is not
+  running are hidden — except Docker Desktop, which Bridge can start and
+  stop itself (`docker desktop start` / `stop`) when its CLI plugin is
+  installed.
+  The context picker labels Docker contexts "Docker" (plus the context name
+  when there are several) and Apple container "Container".
 - **Apple container** — on macOS, containers managed by
   [apple/container](https://github.com/apple/container) appear as the
   `apple` context. Bridge emulates the subset of the Docker Engine API the
-  UI needs on top of the `container` CLI (version 1.1.x), so listing,
+  UI needs on top of the `container` CLI (version 1.6.x), so listing,
   creating, logs, terminal, images, volumes, and networks all work the
-  same way as with Docker.
+  same way as with Docker. The sidebar shows whether the container system
+  services are running and starts / stops them
+  (`container system start` / `stop`).
 - **AI assistant** (optional) — a chat panel wired to an OpenAI-compatible
   API that can inspect your cluster and containers using tools.
 
@@ -44,7 +51,8 @@ Bridge discovers everything from the tools you already use:
 - **Docker contexts** come from the Docker CLI configuration
   (`docker context ls`).
 - **Apple container** is picked up automatically on macOS when the
-  `container` binary is on your `PATH`.
+  `container` binary is on your `PATH` (or in `/opt/homebrew/bin` or
+  `/usr/local/bin`, since apps started from Finder get a minimal `PATH`).
 
 The AI assistant is enabled through environment variables:
 
