@@ -45,14 +45,14 @@ export function DetailPanel<T extends string>({
 
   return (
     <aside
-      className="resource-detail-panel flex h-full min-w-0 flex-col bg-white dark:bg-neutral-900"
+      className="resource-detail-panel flex h-full min-w-0 flex-col bg-bg"
       aria-labelledby={`${id}-title`}
     >
-      <header className="flex shrink-0 items-start justify-between gap-3 border-b border-neutral-200 px-5 py-4 dark:border-neutral-800">
+      <header className="window-drag flex shrink-0 items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
         <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-neutral-500 dark:text-neutral-400">
+          <div className="mb-1.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-xs text-fg-dim">
             <span
-              className="max-w-full shrink-0 truncate rounded-md bg-neutral-100 px-1.5 py-0.5 font-medium text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+              className="max-w-full shrink-0 truncate rounded-md bg-bg-elevated px-1.5 py-0.5 font-medium text-fg-muted"
               title={kind}
             >
               {kind}
@@ -74,13 +74,13 @@ export function DetailPanel<T extends string>({
           <h2
             id={`${id}-title`}
             title={name}
-            className="truncate text-base font-semibold leading-snug text-neutral-900 dark:text-neutral-100"
+            className="truncate text-base font-semibold leading-snug text-fg"
           >
             {name}
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <div className="mr-1 flex items-center gap-1 border-r border-neutral-200 pr-2 empty:hidden dark:border-neutral-800">
+        <div className="window-no-drag flex shrink-0 items-center gap-1">
+          <div className="mr-1 flex items-center gap-1 border-r border-border-subtle pr-2 empty:hidden">
             {actions}
           </div>
           <button
@@ -95,7 +95,7 @@ export function DetailPanel<T extends string>({
         </div>
       </header>
       {/* The active tab's controls share the tab bar instead of taking a row of their own. */}
-      <div className="@container flex shrink-0 items-center border-b border-neutral-200 dark:border-neutral-800">
+      <div className="@container flex shrink-0 items-center border-b border-border-subtle">
         <div
           ref={tabsRef}
           role="tablist"
@@ -137,14 +137,14 @@ export function DetailPanel<T extends string>({
               aria-selected={activeTab === tab.id}
               tabIndex={activeTab === tab.id ? 0 : -1}
               onClick={() => onTabChange(tab.id)}
-              className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-3 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-blue-500 ${activeTab === tab.id ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400' : 'border-transparent text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100'}`}
+              className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-3 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-focus ${activeTab === tab.id ? 'border-fg text-fg' : 'border-transparent text-fg-dim hover:text-fg'}`}
             >
               <tab.icon size={16} aria-hidden="true" className="shrink-0 @xl:hidden" />
               <span className="hidden @xl:inline">{tab.label}</span>
               {!!tab.count && (
                 <span
                   aria-hidden="true"
-                  className="hidden @xl:inline rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] tabular-nums text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+                  className="hidden @xl:inline rounded bg-bg-elevated px-1.5 py-0.5 text-[10px] tabular-nums text-fg-muted"
                 >
                   {tab.count}
                 </span>

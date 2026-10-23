@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"errors"
+	"slices"
+	"strings"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -51,6 +53,11 @@ func applyKubernetesConfig(cfg *Config) error {
 	if len(contexts) == 0 {
 		return errors.New("no valid kubernetes contexts found in kubeconfig")
 	}
+
+	// map order is random; list contexts the same way every run
+	slices.SortFunc(contexts, func(a, b KubernetesContext) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	cfg.Kubernetes = &KubernetesConfig{
 		Contexts: contexts,

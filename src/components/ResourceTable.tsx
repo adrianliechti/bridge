@@ -300,7 +300,7 @@ export function ResourceTable<T = any>({
   }
 
   return (
-    <div className="pl-2 h-full relative flex flex-col">
+    <div className="pl-1 h-full relative flex flex-col">
       {error && (
         <div role="alert" className="shrink-0 px-4 py-2 text-sm text-amber-700 dark:text-amber-400">
           Refresh failed. Showing the last loaded data. {error.message}
@@ -316,12 +316,12 @@ export function ResourceTable<T = any>({
       {/* Refetch indicator */}
       {isRefetching && (
         <div className="absolute top-2 right-4 z-20">
-          <RefreshCw size={14} className="text-neutral-400 dark:text-neutral-500 animate-spin" />
+          <RefreshCw size={14} className="text-fg-dim animate-spin" />
         </div>
       )}
       <div className="overflow-auto flex-1 min-h-0">
         <table className="w-full text-[13px]">
-          <thead className="sticky top-0 z-10 bg-neutral-100 dark:bg-neutral-950">
+          <thead className="sticky top-0 z-10 bg-bg">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -332,10 +332,8 @@ export function ResourceTable<T = any>({
                       key={header.id}
                       title={meta?.description}
                       onClick={header.column.getToggleSortingHandler()}
-                      className={`text-left px-4 py-2 text-[11px] font-medium whitespace-nowrap cursor-pointer transition-colors select-none group bg-neutral-100 dark:bg-neutral-950 ${
-                        isSorted
-                          ? 'text-neutral-900 dark:text-neutral-200'
-                          : 'text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-400'
+                      className={`text-left px-4 py-2 text-[11px] font-medium whitespace-nowrap cursor-pointer transition-colors select-none group bg-bg ${
+                        isSorted ? 'text-fg' : 'text-fg-dim hover:text-fg-muted'
                       }`}
                     >
                       <div className="flex items-center gap-1">
@@ -369,10 +367,10 @@ export function ResourceTable<T = any>({
                   onClick={row.getToggleSelectedHandler()}
                   className={`transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-blue-500/20 dark:bg-blue-500/20'
+                      ? 'bg-bg-active'
                       : isOdd
-                        ? 'bg-neutral-200/40 dark:bg-neutral-800/30 hover:bg-neutral-200/70 dark:hover:bg-neutral-800/50'
-                        : 'hover:bg-neutral-200/50 dark:hover:bg-neutral-800/30'
+                        ? 'bg-bg-surface hover:bg-bg-hover'
+                        : 'hover:bg-bg-hover'
                   }`}
                 >
                   {visibleCells.map((cell, idx) => (

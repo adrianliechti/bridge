@@ -35,8 +35,8 @@ export function SystemFooter({ kind, system }: ContextSystemProps) {
             : 'Checking…';
 
   return (
-    <div className="shrink-0 px-2 py-2 border-t border-neutral-200/70 dark:border-neutral-800">
-      <div className="flex items-center gap-2 pl-3 text-xs text-neutral-500 dark:text-neutral-400">
+    <div className="shrink-0 px-2 py-2 border-t border-border-subtle">
+      <div className="flex items-center gap-2 pl-2.5 text-xs text-fg-dim">
         <span
           className="flex-1 truncate"
           title={status?.version ? `${name} ${status.version}` : name}
@@ -50,7 +50,7 @@ export function SystemFooter({ kind, system }: ContextSystemProps) {
             disabled={transition !== null}
             title={running ? `Stop ${name}` : `Start ${name}`}
             aria-label={running ? `Stop ${name}` : `Start ${name}`}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-dim transition-colors hover:bg-bg-hover hover:text-fg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {transition ? (
               <Loader2 size={14} className="animate-spin" />
@@ -127,7 +127,7 @@ export function SystemStopped({ kind, system }: ContextSystemProps) {
   const name = systemNames[kind];
 
   return (
-    <main className="flex-1 flex flex-col h-full min-w-0 items-center justify-center p-8">
+    <main className="window-drag flex-1 flex flex-col h-full min-w-0 items-center justify-center p-8">
       <div className="max-w-sm text-center">
         <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
           {transition ? <Loader2 size={22} className="animate-spin" /> : <Container size={22} />}

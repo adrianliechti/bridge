@@ -58,14 +58,11 @@ export function ResourcePage({
     return (
       <button
         onClick={onToggleChatPanel}
-        className={`p-2 rounded-md transition-colors ${
-          isChatPanelOpen
-            ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-            : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
-        }`}
+        className="toolbar-button"
+        aria-pressed={isChatPanelOpen}
         title="AI Assistant"
       >
-        <Sparkles size={18} />
+        <Sparkles size={16} />
       </button>
     );
   };
