@@ -222,7 +222,7 @@ export function ScopeSelector({
           ref={inputRef}
           type="text"
           aria-label="Namespace"
-          className="w-full px-3 py-1.5 pr-8 bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-lg text-sm text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-neutral-400/50 dark:focus:ring-neutral-500/50 cursor-default placeholder:text-neutral-400"
+          className="w-full h-7 px-2.5 pr-8 bg-bg-input border border-border-subtle text-fg rounded-md text-[13px] text-left disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-border-strong cursor-default placeholder:text-fg-dim"
           value={isOpen ? query : selectedNamespace || 'All Namespaces'}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -250,19 +250,17 @@ export function ScopeSelector({
           className="absolute inset-y-0 right-0 flex items-center pr-2"
           disabled={disabled}
         >
-          <ChevronDown size={16} className="text-neutral-400 dark:text-neutral-500" />
+          <ChevronDown size={14} className="text-fg-dim" />
         </button>
       </div>
 
       {isOpen && (
         <div
           ref={listRef}
-          className="absolute z-50 w-full mt-1 bg-white dark:bg-neutral-950 rounded-lg shadow-xl max-h-96 overflow-y-auto focus:outline-none border border-neutral-200 dark:border-neutral-700"
+          className="absolute z-50 w-full mt-1 bg-bg-elevated rounded-lg shadow-xl max-h-96 overflow-y-auto focus:outline-none border border-border"
         >
           {!hasResults && !showAllNamespacesOption ? (
-            <div className="px-3 py-3 text-sm text-neutral-500 dark:text-neutral-400">
-              No namespaces found
-            </div>
+            <div className="px-3 py-3 text-sm text-fg-dim">No namespaces found</div>
           ) : (
             <>
               {showAllNamespacesOption && (
@@ -270,22 +268,16 @@ export function ScopeSelector({
                   data-index={++optionIndex}
                   onClick={() => handleSelect('')}
                   className={`px-3 py-2 cursor-pointer text-sm flex items-center justify-between ${
-                    focusedIndex === optionIndex ? 'bg-neutral-100 dark:bg-neutral-700' : ''
-                  } ${
-                    selectedNamespace === undefined
-                      ? 'text-neutral-900 dark:text-neutral-100'
-                      : 'text-neutral-600 dark:text-neutral-400'
-                  }`}
+                    focusedIndex === optionIndex ? 'bg-bg-hover' : ''
+                  } ${selectedNamespace === undefined ? 'text-fg' : 'text-fg-muted'}`}
                 >
                   <span className="truncate">All Namespaces</span>
-                  {selectedNamespace === undefined && (
-                    <Check size={16} className="text-neutral-500 dark:text-neutral-400" />
-                  )}
+                  {selectedNamespace === undefined && <Check size={14} className="text-fg-muted" />}
                 </div>
               )}
               {filteredGroups.map((group) => (
                 <div key={group.label} className="py-1">
-                  <div className="px-3 py-1 text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
+                  <div className="px-3 py-1 text-[11px] font-semibold text-fg-dim">
                     {group.label}
                   </div>
                   {group.namespaces.map((ns) => {
@@ -302,19 +294,13 @@ export function ScopeSelector({
                         data-index={currentIndex}
                         onClick={() => handleSelect(name)}
                         className={`mx-1 px-2.5 py-1.5 rounded-md cursor-pointer text-sm flex items-center justify-between ${
-                          isFocused ? 'bg-neutral-100 dark:bg-neutral-700' : ''
-                        } ${
-                          isSelected
-                            ? 'text-neutral-900 dark:text-neutral-100'
-                            : 'text-neutral-600 dark:text-neutral-400'
-                        }`}
+                          isFocused ? 'bg-bg-hover' : ''
+                        } ${isSelected ? 'text-fg' : 'text-fg-muted'}`}
                       >
                         <span className="truncate" title={name}>
                           {name}
                         </span>
-                        {isSelected && (
-                          <Check size={16} className="text-neutral-500 dark:text-neutral-400" />
-                        )}
+                        {isSelected && <Check size={14} className="text-fg-muted" />}
                       </div>
                     );
                   })}

@@ -3,7 +3,7 @@ module github.com/adrianliechti/bridge
 go 1.26.0
 
 require (
-	github.com/adrianliechti/go-shell v0.1.9
+	github.com/adrianliechti/go-shell v0.1.10
 	github.com/coder/websocket v1.8.15
 	github.com/creack/pty v1.1.24
 	github.com/docker/cli v29.9.2+incompatible

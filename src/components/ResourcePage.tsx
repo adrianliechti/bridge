@@ -103,27 +103,22 @@ export function ResourcePage<T = any>({
     setColumns(cols);
   }, []);
 
+  const details =
+    renderDetailPanel && isDetailPanelOpen && selectedItem
+      ? renderDetailPanel(selectedItem, handleCloseDetailPanel)
+      : undefined;
+
   return (
-    <ResourceSplit
-      isChatPanelOpen={isChatPanelOpen}
-      details={
-        renderDetailPanel && isDetailPanelOpen && selectedItem
-          ? renderDetailPanel(selectedItem, handleCloseDetailPanel)
-          : undefined
-      }
-    >
+    <ResourceSplit isChatPanelOpen={isChatPanelOpen} details={details}>
       <main className="resource-workspace flex flex-col h-full min-w-0">
-        <header className="shrink-0 h-14 flex items-center justify-between gap-3 px-5 mt-2">
-          <div className="min-w-0 flex-1">
-            <h2
-              className="truncate text-lg font-medium text-neutral-900 dark:text-neutral-100"
-              title={title}
-            >
-              {title}
-            </h2>
-          </div>
+        <header
+          className={`app-toolbar ${!details && !isChatPanelOpen ? 'window-controls-end' : ''}`}
+        >
+          <h2 className="app-toolbar-title" title={title}>
+            {title}
+          </h2>
           {/* Actions */}
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="window-no-drag flex shrink-0 items-center gap-1">
             {renderHeaderActions?.(columns)}
             <div ref={toolbarRef} />
             <button
@@ -136,10 +131,10 @@ export function ResourcePage<T = any>({
                 });
                 document.dispatchEvent(event);
               }}
-              className="p-2 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
+              className="toolbar-button"
               title="Command Palette (⌘K)"
             >
-              <Search size={18} />
+              <Search size={16} />
             </button>
           </div>
         </header>

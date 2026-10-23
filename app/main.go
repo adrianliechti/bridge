@@ -33,6 +33,16 @@ func main() {
 		MinWidth:  640,
 		MinHeight: 400,
 
+		// The page draws under the title bar: the macOS traffic lights sit in
+		// the sidebar's top row, centered in its 48px toolbar height.
+		TitleBar: shell.TitleBarOptions{
+			Overlay:         true,
+			ControlsOffsetX: 8,
+			ControlsOffsetY: 8,
+
+			Height: 48,
+		},
+
 		Debug: os.Getenv("BRIDGE_DEBUG") != "",
 	})
 

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from '@tanstack/react-router';
 import { Search, Sparkles } from 'lucide-react';
 import { Nav as DockerNav, type DockerResourceType } from './Nav';
 import { ContextSelector } from '../ContextSelector';
+import { Sidebar } from '../Sidebar';
 import { CommandPalette } from '../CommandPalette';
 import { ChatPanel } from '../ChatPanel';
 import { createDockerAdapter } from './Commands';
@@ -167,65 +168,62 @@ export function DockerLayout() {
   const chatTools = useMemo(() => createDockerTools(chatEnvironment), [chatEnvironment]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <div className="py-2 pl-2 shrink-0 h-full">
-        <aside className="w-56 h-full shrink-0 bg-white dark:bg-black/40 backdrop-blur-xl flex flex-col rounded-xl border border-neutral-300/50 dark:border-neutral-700/50">
-          <div className="shrink-0 px-3 pt-3 pb-2">
-            <ContextSelector
-              mode="docker"
-              contexts={kubernetesContexts}
-              selectedContext=""
-              onSelectContext={setClusterContext}
-              dockerContexts={dockerContexts}
-              selectedDockerContext={context || ''}
-              onSelectDockerContext={setContext}
-            />
-          </div>
-          <DockerNav
-            selectedResource={currentResourceType}
-            onSelectResource={setResource}
-            isWelcome={isWelcome}
+    <div className="flex h-screen overflow-hidden bg-bg text-fg">
+      <Sidebar>
+        <div className="shrink-0 px-2 pb-1">
+          <ContextSelector
+            mode="docker"
+            contexts={kubernetesContexts}
+            selectedContext=""
+            onSelectContext={setClusterContext}
+            dockerContexts={dockerContexts}
+            selectedDockerContext={context || ''}
+            onSelectDockerContext={setContext}
           />
-          {systemKind && <SystemFooter key={context} kind={systemKind} system={system} />}
-        </aside>
-      </div>
+        </div>
+        <DockerNav
+          selectedResource={currentResourceType}
+          onSelectResource={setResource}
+          isWelcome={isWelcome}
+        />
+        {systemKind && <SystemFooter key={context} kind={systemKind} system={system} />}
+      </Sidebar>
 
       {systemKind && showSystemStopped ? (
         <SystemStopped kind={systemKind} system={system} />
       ) : awaitingSystemStatus ? (
-        <main className="flex-1" />
+        <main className="window-drag flex-1" />
       ) : isWelcome ? (
-        <main className="flex-1 flex flex-col h-full min-w-0 items-center justify-center relative">
-          <div className="absolute top-0 right-0 h-14 flex items-center gap-2 px-5 mt-2">
+        <main className="window-drag flex-1 flex flex-col h-full min-w-0 items-center justify-center relative">
+          <div
+            className={`app-toolbar absolute top-0 right-0 gap-1 ${
+              !isChatPanelOpen ? 'window-controls-end' : ''
+            }`}
+          >
             <button
               onClick={() => setIsCommandPaletteOpen(true)}
-              className="p-2 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
+              className="toolbar-button"
               title="Command Palette (⌘K)"
             >
-              <Search size={18} />
+              <Search size={16} />
             </button>
             {config.ai && (
               <button
                 onClick={toggleChatPanel}
-                className={`p-2 rounded-md transition-colors ${
-                  isChatPanelOpen
-                    ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
-                }`}
+                className="toolbar-button"
+                aria-pressed={isChatPanelOpen}
                 title="AI Assistant"
               >
-                <Sparkles size={18} />
+                <Sparkles size={16} />
               </button>
             )}
           </div>
           <div className="text-center">
             <img src="/logo.png" alt="Logo" className="w-48 h-48 mx-auto dark:hidden" />
             <img src="/logo_dark.png" alt="Logo" className="w-48 h-48 mx-auto hidden dark:block" />
-            <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
+            <p className="mt-4 text-sm text-fg-dim">
               Select a resource from the sidebar or press{' '}
-              <kbd className="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-xs">
-                ⌘K
-              </kbd>{' '}
+              <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated text-fg-muted text-xs">⌘K</kbd>{' '}
               to search
             </p>
           </div>

@@ -43,16 +43,12 @@ export function ColumnFilter({ columns }: ColumnFilterProps) {
 
   return (
     <div className="relative" ref={containerRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 rounded-md transition-colors focus:outline-none"
-        title="Toggle columns"
-      >
-        <Columns3 size={18} />
+      <button onClick={() => setIsOpen(!isOpen)} className="toolbar-button" title="Toggle columns">
+        <Columns3 size={16} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-1 p-2 bg-white border border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700 rounded-lg shadow-xl min-w-45 max-h-75 overflow-y-auto">
+        <div className="absolute right-0 z-50 mt-1 p-2 bg-bg-elevated border border-border rounded-lg shadow-xl min-w-45 max-h-75 overflow-y-auto">
           {columns.map((column) => {
             const isVisible = column.getIsVisible();
             const columnId = column.id;

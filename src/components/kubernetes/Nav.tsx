@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Hexagon, LayoutList } from 'lucide-react';
+import { ChevronRight, Hexagon, LayoutList } from 'lucide-react';
 import { getCustomResourceDefinitions, crdToResourceConfig } from '../../api/kubernetes/kubernetes';
 import { discoverResources } from '../../api/kubernetes/kubernetesDiscovery';
 import { ScopeSelector } from './ScopeSelector';
@@ -101,7 +101,7 @@ export function Nav({
   return (
     <>
       {error && (
-        <div role="alert" className="px-3 py-2 text-xs text-red-600 dark:text-red-400">
+        <div role="alert" className="px-4 py-2 text-xs text-danger">
           Navigation unavailable: {error.message}
           <button onClick={() => void refetch()} className="ml-2 underline">
             Retry
@@ -109,7 +109,7 @@ export function Nav({
         </div>
       )}
       {/* Namespace Selector */}
-      <div className="shrink-0 px-3 pb-2">
+      <div className="shrink-0 px-2 pb-2">
         <ScopeSelector
           namespaces={namespaces}
           selectedNamespace={namespace}
@@ -121,40 +121,26 @@ export function Nav({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-1 overflow-y-auto overflow-x-hidden min-h-0">
-        {/* Overview */}
-        <div className="mb-2 px-2">
-          <button
-            className={`flex items-center w-full px-3 py-2 text-sm rounded-lg transition-colors ${
-              isOverviewSelected && !isWelcome
-                ? 'bg-white/90 text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-neutral-100'
-                : 'text-neutral-600 hover:bg-white/50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/50 dark:hover:text-neutral-200'
-            }`}
-            onClick={() => onSelectResource(null)}
-          >
-            <LayoutList size={16} className="mr-2.5 shrink-0 opacity-70" />
-            <span className="font-medium">Overview</span>
-          </button>
-        </div>
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-2 pb-3">
+        <button
+          className="sidebar-item"
+          aria-current={isOverviewSelected && !isWelcome ? 'page' : undefined}
+          onClick={() => onSelectResource(null)}
+        >
+          <LayoutList size={16} />
+          <span className="truncate">Overview</span>
+        </button>
 
         {/* Built-in resources */}
         {Object.entries(groupedBuiltIn).map(([category, items]) => (
-          <div key={category} className="mb-1">
-            <button
-              className="flex items-center w-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
-              onClick={() => toggleCategory(category)}
-            >
-              <span className="mr-1.5 opacity-60">
-                {expandedCategories[category] ? (
-                  <ChevronDown size={12} />
-                ) : (
-                  <ChevronRight size={12} />
-                )}
-              </span>
-              <span>{categoryLabels[category]}</span>
-            </button>
+          <div key={category}>
+            <SectionToggle
+              label={categoryLabels[category]}
+              expanded={!!expandedCategories[category]}
+              onToggle={() => toggleCategory(category)}
+            />
             {expandedCategories[category] && (
-              <ul className="px-2">
+              <ul>
                 {items.map((item) => {
                   const config = builtInConfigs.get(item.kind);
                   if (!config) return null;
@@ -163,14 +149,11 @@ export function Nav({
                   return (
                     <li key={item.kind}>
                       <button
-                        className={`flex items-center w-full px-3 py-2 text-sm rounded-lg transition-colors ${
-                          isActive
-                            ? 'bg-white/90 text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-neutral-100'
-                            : 'text-neutral-600 hover:bg-white/50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/50 dark:hover:text-neutral-200'
-                        }`}
+                        className="sidebar-item"
+                        aria-current={isActive ? 'page' : undefined}
                         onClick={() => onSelectResource(config)}
                       >
-                        <item.icon size={16} className="mr-2.5 shrink-0 opacity-70" />
+                        <item.icon size={16} />
                         <span className="truncate" title={item.label}>
                           {item.label}
                         </span>
@@ -185,61 +168,76 @@ export function Nav({
 
         {/* CRDs */}
         {crdConfigs.length > 0 && (
-          <div className="mb-1">
-            <button
-              className="flex items-center w-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
-              onClick={() => toggleCategory('crd')}
-            >
-              <span className="mr-1.5 opacity-60">
-                {expandedCategories['crd'] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              </span>
-              <span>{categoryLabels['crd']}</span>
-              <span className="ml-auto px-1.5 py-0.5 bg-neutral-300/60 rounded text-[10px] text-neutral-500 dark:bg-neutral-700 dark:text-neutral-500">
-                {crdConfigs.length}
-              </span>
-            </button>
-            {expandedCategories['crd'] && (
-              <div className="px-2">
-                {sortedCRDGroups.map(([group, configs]) => (
-                  <div key={group} className="mb-1">
-                    <div
-                      className="px-3 py-1 text-[10px] text-neutral-400 truncate lowercase dark:text-neutral-600"
-                      title={group}
-                    >
-                      {group}
-                    </div>
-                    <ul>
-                      {configs.map((config) => {
-                        const isActive =
-                          selectedResource !== null && isSameResource(config, selectedResource);
-                        return (
-                          <li key={`${config.group || ''}/${config.name}`}>
-                            <button
-                              className={`flex items-center w-full px-3 py-2 text-sm rounded-lg transition-colors ${
-                                isActive
-                                  ? 'bg-white/90 text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-neutral-100'
-                                  : 'text-neutral-600 hover:bg-white/50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800/50 dark:hover:text-neutral-200'
-                              }`}
-                              onClick={() => onSelectResource(config)}
-                              title={`${config.kind} (${config.group})`}
-                            >
-                              <Hexagon size={16} className="mr-2.5 shrink-0 opacity-70" />
-                              <span className="truncate" title={config.kind}>
-                                {config.kind}
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
+          <div>
+            <SectionToggle
+              label={categoryLabels['crd']}
+              count={crdConfigs.length}
+              expanded={!!expandedCategories['crd']}
+              onToggle={() => toggleCategory('crd')}
+            />
+            {expandedCategories['crd'] &&
+              sortedCRDGroups.map(([group, configs]) => (
+                <div key={group}>
+                  <div
+                    className="truncate px-2.5 pt-2 pb-0.5 text-[11px] text-fg-dim"
+                    title={group}
+                  >
+                    {group}
                   </div>
-                ))}
-              </div>
-            )}
+                  <ul>
+                    {configs.map((config) => {
+                      const isActive =
+                        selectedResource !== null && isSameResource(config, selectedResource);
+                      return (
+                        <li key={`${config.group || ''}/${config.name}`}>
+                          <button
+                            className="sidebar-item"
+                            aria-current={isActive ? 'page' : undefined}
+                            onClick={() => onSelectResource(config)}
+                            title={`${config.kind} (${config.group})`}
+                          >
+                            <Hexagon size={16} />
+                            <span className="truncate" title={config.kind}>
+                              {config.kind}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
           </div>
         )}
       </nav>
     </>
+  );
+}
+
+// A sidebar section label that folds its items; the chevron shows on hover, as
+// in Finder.
+function SectionToggle({
+  label,
+  count,
+  expanded,
+  onToggle,
+}: {
+  label: string;
+  count?: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button className="sidebar-section group" aria-expanded={expanded} onClick={onToggle}>
+      <span className="truncate">{label}</span>
+      {count !== undefined && <span className="font-normal tabular-nums">{count}</span>}
+      <ChevronRight
+        size={12}
+        className={`ml-auto opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100 ${
+          expanded ? 'rotate-90' : ''
+        }`}
+      />
+    </button>
   );
 }
 

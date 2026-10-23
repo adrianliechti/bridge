@@ -85,6 +85,16 @@ func New(cfg *config.Config) (*Server, error) {
 
 		config := &Config{}
 
+		// probe the clusters while the docker contexts are checked below
+		var kubernetesDefault string
+		var kubernetesProbe sync.WaitGroup
+
+		if cfg.Kubernetes != nil {
+			kubernetesProbe.Go(func() {
+				kubernetesDefault = s.defaultKubernetesContext(r.Context())
+			})
+		}
+
 		if cfg.OpenAI != nil {
 			config.AI = &AIConfig{
 				Model: cfg.OpenAI.Model,
@@ -126,12 +136,19 @@ func New(cfg *config.Config) (*Server, error) {
 		}
 
 		if cfg.Kubernetes != nil {
+			kubernetesProbe.Wait()
+
 			config.Kubernetes = &KubernetesConfig{
-				DefaultContext:   cfg.Kubernetes.CurrentContext,
-				DefaultNamespace: cfg.Kubernetes.CurrentNamespace,
+				// empty while no cluster is reachable, so the UI starts elsewhere
+				DefaultContext: kubernetesDefault,
 
 				TenancyLabels:      cfg.Kubernetes.TenancyLabels,
 				PlatformNamespaces: cfg.Kubernetes.PlatformNamespaces,
+			}
+
+			// the kubeconfig namespace belongs to its current context
+			if kubernetesDefault == cfg.Kubernetes.CurrentContext {
+				config.Kubernetes.DefaultNamespace = cfg.Kubernetes.CurrentNamespace
 			}
 
 			for _, c := range cfg.Kubernetes.Contexts {

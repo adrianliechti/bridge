@@ -3,60 +3,83 @@
 version: '3'
 
 tasks:
-  kubernetes-proxy:
+  build:ui:
+    desc: Build the web UI assets
+    run: once
+    cmds:
+      - npm install
+      - npm run build
+
+  build:app:
+    desc: Build the desktop app for this platform (Bridge.app / Bridge.exe); all resources are generated from app/appicon.png
+    deps: [build:ui]
+    cmds:
+      - go tool appbundle -name Bridge -id com.adrianliechti.bridge -description "Bridge - Kubernetes and Docker Dashboard" -company "Adrian Liechti" -copyright "© Adrian Liechti" -package ./app
+
+  run:client:
+    desc: Run the web UI dev server on http://localhost:5173 (pair with the run:*-proxy tasks)
+    cmds:
+      - npm run dev
+
+  run:kubernetes-proxy:
+    desc: Expose the current cluster on :8001 as the dev "local-cluster" context
     cmds:
       # Override the default reject-paths: kubectl proxy blocks pod exec/attach
       # by default, which breaks the Terminal tab in dev (403 on the websocket).
       - kubectl proxy --address=127.0.0.1 --port=8001 --reject-paths='^/never-reject$'
 
-  docker-proxy:
+  run:docker-proxy:
+    desc: Expose the Docker socket on :2375 as the dev "local-docker" context
     cmds:
       - socat -4 TCP-LISTEN:2375,bind=127.0.0.1,fork UNIX-CONNECT:/var/run/docker.sock
 
-  client:
+  run:web:
+    desc: Build the web UI and run the server in the browser
+    deps: [build:ui]
     cmds:
-      - npm run dev
+      - go run ./cmd/kubectl-bridge
 
   run:app:
-    desc: Build the web UI, then run the desktop app
+    desc: Build and launch the desktop app with web inspection enabled
+    deps: [build:app]
+    env:
+      BRIDGE_DEBUG: '1'
     cmds:
-      - task: ui
-      - go run ./app
+      - cmd: open -n --env BRIDGE_DEBUG=1 app/build/bin/Bridge.app
+        platforms: [darwin]
+      - cmd: app/build/bin/Bridge.exe
+        platforms: [windows]
 
-  install:
+  install:cli:
+    desc: Build and install the kubectl plugin to GOPATH/bin or GOBIN
+    deps: [build:ui]
     cmds:
-      - cmd: go install ./cmd/kubectl-bridge
-      - task: install-darwin
-      - task: install-windows
+      - go install ./cmd/kubectl-bridge
 
-  install-darwin:
-    platforms: [darwin]
+  install:app:
+    desc: Build and install the desktop app (~/Applications on macOS, %LOCALAPPDATA%\Programs on Windows)
+    deps: [build:app]
     cmds:
-      - task: build
       - cmd: mkdir -p ~/Applications
+        platforms: [darwin]
       - cmd: rm -rf ~/Applications/Bridge.app
+        platforms: [darwin]
       - cmd: mv app/build/bin/Bridge.app ~/Applications/
-
-  install-windows:
-    platforms: [windows]
-    cmds:
+        platforms: [darwin]
       # Task runs cmds through its built-in POSIX shell (mvdan/sh) even on
       # Windows, so env vars expand as $VAR, not %VAR%.
-      - task: build
       - cmd: mkdir -p "$LOCALAPPDATA/Programs"
+        platforms: [windows]
       - cmd: rm -f "$LOCALAPPDATA/Programs/Bridge.exe"
+        platforms: [windows]
       - cmd: mv app/build/bin/Bridge.exe "$LOCALAPPDATA/Programs/"
+        platforms: [windows]
 
-  build:
-    desc: Build the desktop app for this platform (Bridge.app / Bridge.exe); all resources are generated from app/appicon.png
+  install:
+    desc: Build and install both the kubectl plugin and the desktop app locally
     cmds:
-      - go tool appbundle -name Bridge -id com.adrianliechti.bridge -description "Bridge - Kubernetes and Docker Dashboard" -company "Adrian Liechti" -copyright "© Adrian Liechti" -package ./app
-
-  ui:
-    desc: Build the web UI assets
-    cmds:
-      - npm install
-      - npm run build
+      - task: install:cli
+      - task: install:app
 
   release:app:
     desc: Release the macOS desktop app + Homebrew cask (macOS only; needs GITHUB_TOKEN)

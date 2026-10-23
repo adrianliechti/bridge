@@ -71,9 +71,9 @@ the common workflows.
 Run the UI against a live cluster and Docker engine:
 
 ```sh
-task kubernetes-proxy   # kubectl proxy on :8001 (allows pod exec)
-task docker-proxy       # docker socket on tcp://127.0.0.1:2375
-task client             # vite dev server on http://localhost:5173
+task run:kubernetes-proxy   # kubectl proxy on :8001 (allows pod exec)
+task run:docker-proxy       # docker socket on tcp://127.0.0.1:2375
+task run:client             # vite dev server on http://localhost:5173
 ```
 
 The dev contexts (`local-cluster`, `local-docker`) are defined in
@@ -125,9 +125,9 @@ kubectl --context YOUR_CONTEXT delete -f examples/network-policies/
 Build and run the desktop app:
 
 ```sh
-task run:app            # build web UI, run the app via go run
-task build              # produce Bridge.app / Bridge.exe
-task install            # install the app locally
+task run:app            # build the app and launch it with web inspection
+task build:app          # produce Bridge.app / Bridge.exe
+task install            # install the kubectl plugin and the app locally
 ```
 
 ## How it works

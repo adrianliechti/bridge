@@ -18,11 +18,11 @@ export function WelcomePage() {
   // an unknown context would be bounced back to "/" by the route guard,
   // creating a redirect loop.
   useEffect(() => {
-    // Priority 1: Kubernetes with default context or first available
-    if (hasKubernetes) {
-      const preferred = config.kubernetes?.defaultContext;
-      const context = preferred && k8sContexts.includes(preferred) ? preferred : k8sContexts[0];
-      navigate({ to: '/cluster/$context', params: { context }, replace: true });
+    // Priority 1: the Kubernetes context the server found reachable (none is
+    // set while every cluster is down, e.g. kind with Docker stopped)
+    const preferredCluster = config.kubernetes?.defaultContext;
+    if (preferredCluster && k8sContexts.includes(preferredCluster)) {
+      navigate({ to: '/cluster/$context', params: { context: preferredCluster }, replace: true });
       return;
     }
     // Priority 2: Docker with default context or first available
@@ -32,6 +32,10 @@ export function WelcomePage() {
         preferred && dockerContexts.includes(preferred) ? preferred : dockerContexts[0];
       navigate({ to: '/docker/$context', params: { context }, replace: true });
       return;
+    }
+    // Priority 3: no cluster answers and there is no Docker; open one anyway
+    if (hasKubernetes) {
+      navigate({ to: '/cluster/$context', params: { context: k8sContexts[0] }, replace: true });
     }
   }, [
     hasKubernetes,
@@ -46,7 +50,7 @@ export function WelcomePage() {
   // If nothing available, show empty state with guidance
   if (!hasKubernetes && !hasDocker) {
     return (
-      <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+      <div className="window-drag flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="max-w-md mx-auto px-8 text-center">
             <div className="mb-6">
@@ -87,7 +91,7 @@ export function WelcomePage() {
 
   // Show loading state while redirecting
   return (
-    <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+    <div className="window-drag flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <div className="flex-1 flex flex-col items-center justify-center">
         <div className="mb-8">
           <img src="/logo.png" alt="Logo" className="w-32 h-32 mx-auto dark:hidden opacity-50" />

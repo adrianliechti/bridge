@@ -16,6 +16,7 @@ import { preloadDiscovery, clearDiscoveryCache } from '../../api/kubernetes/kube
 import { resetMetricsCache } from '../../api/kubernetes/kubernetesMetrics';
 import { ClusterNav } from './Nav';
 import { ContextSelector } from '../ContextSelector';
+import { Sidebar } from '../Sidebar';
 import { CommandPalette } from '../CommandPalette';
 import { createKubernetesAdapter } from './Commands';
 import { ResourceOverview } from './ResourceOverview';
@@ -275,74 +276,63 @@ export function ClusterLayout() {
   const isWelcome = !resourceType;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-      <div className="py-2 pl-2 shrink-0 h-full">
-        <aside className="w-56 h-full shrink-0 bg-white dark:bg-black/40 backdrop-blur-xl flex flex-col rounded-xl border border-neutral-300/50 dark:border-neutral-700/50">
-          <div className="shrink-0 px-3 pt-3 pb-2">
-            <ContextSelector
-              mode="cluster"
-              contexts={kubernetesContexts}
-              selectedContext={context || ''}
-              onSelectContext={setContext}
-              dockerContexts={dockerContexts}
-              selectedDockerContext=""
-              onSelectDockerContext={setDockerContext}
-            />
-          </div>
-          <ClusterNav
-            context={context || ''}
-            namespace={search.namespace}
-            namespaces={namespaces}
-            selectedResource={currentResourceConfig ?? null}
-            onSelectResource={setResource}
-            onSelectNamespace={setNamespace}
-            isOverviewSelected={isOverview}
-            isWelcome={isWelcome}
+    <div className="flex h-screen overflow-hidden bg-bg text-fg">
+      <Sidebar>
+        <div className="shrink-0 px-2 pb-1">
+          <ContextSelector
+            mode="cluster"
+            contexts={kubernetesContexts}
+            selectedContext={context || ''}
+            onSelectContext={setContext}
+            dockerContexts={dockerContexts}
+            selectedDockerContext=""
+            onSelectDockerContext={setDockerContext}
           />
-        </aside>
-      </div>
+        </div>
+        <ClusterNav
+          context={context || ''}
+          namespace={search.namespace}
+          namespaces={namespaces}
+          selectedResource={currentResourceConfig ?? null}
+          onSelectResource={setResource}
+          onSelectNamespace={setNamespace}
+          isOverviewSelected={isOverview}
+          isWelcome={isWelcome}
+        />
+      </Sidebar>
 
       {isWelcome ? (
-        <main className="flex-1 flex flex-col h-full min-w-0 items-center justify-center">
+        <main className="window-drag flex-1 flex flex-col h-full min-w-0 items-center justify-center">
           <div className="text-center">
             <img src="/logo.png" alt="Logo" className="w-48 h-48 mx-auto dark:hidden" />
             <img src="/logo_dark.png" alt="Logo" className="w-48 h-48 mx-auto hidden dark:block" />
-            <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
+            <p className="mt-4 text-sm text-fg-dim">
               Select a resource from the sidebar or press{' '}
-              <kbd className="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-xs">
-                ⌘K
-              </kbd>{' '}
+              <kbd className="px-1.5 py-0.5 rounded bg-bg-elevated text-fg-muted text-xs">⌘K</kbd>{' '}
               to search
             </p>
           </div>
         </main>
       ) : isOverview ? (
         <main className="flex-1 flex flex-col h-full min-w-0">
-          <header className="shrink-0 h-14 flex items-center justify-between px-5 mt-2">
-            <div className="flex items-center gap-4">
-              <h2 className="text-lg font-medium text-neutral-900 dark:text-neutral-100">
-                Overview
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
+          <header className={`app-toolbar ${!isChatPanelOpen ? 'window-controls-end' : ''}`}>
+            <h2 className="app-toolbar-title">Overview</h2>
+            <div className="window-no-drag flex items-center gap-1">
               <button
                 onClick={() => setIsCommandPaletteOpen(true)}
-                className="p-2 rounded-md text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800 transition-colors"
+                className="toolbar-button"
                 title="Command Palette (⌘K)"
               >
-                <Search size={18} />
+                <Search size={16} />
               </button>
               {config.ai && (
                 <button
                   onClick={toggleChatPanel}
-                  className={`p-2 rounded-md transition-colors ${
-                    isChatPanelOpen
-                      ? 'text-sky-400 hover:text-sky-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-500 dark:hover:text-neutral-300 dark:hover:bg-neutral-800'
-                  }`}
+                  className="toolbar-button"
+                  aria-pressed={isChatPanelOpen}
                   title="AI Assistant"
                 >
-                  <Sparkles size={18} />
+                  <Sparkles size={16} />
                 </button>
               )}
             </div>
